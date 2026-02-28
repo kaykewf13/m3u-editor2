@@ -128,13 +128,15 @@ class StreamFileSettingResource extends Resource
                                     $titleFolder .= " ({$vod->year})";
                                 }
 
-                                $tmdbId = $vod->info['tmdb_id'] ?? $vod->info['tmdb'] ?? $vod->movie_data['tmdb_id'] ?? $vod->movie_data['tmdb'] ?? null;
-                                $imdbId = $vod->info['imdb_id'] ?? $vod->info['imdb'] ?? $vod->movie_data['imdb_id'] ?? $vod->movie_data['imdb'] ?? null;
-                                $bracket = $tmdbIdFormat === 'curly' ? ['{', '}'] : ['[', ']'];
-                                if (! empty($tmdbId)) {
-                                    $titleFolder .= " {$bracket[0]}tmdb-{$tmdbId}{$bracket[1]}";
-                                } elseif (! empty($imdbId)) {
-                                    $titleFolder .= " {$bracket[0]}imdb-{$imdbId}{$bracket[1]}";
+                                if (in_array('tmdb_id', $filenameMetadata)) {
+                                    $tmdbId = $vod->info['tmdb_id'] ?? $vod->info['tmdb'] ?? $vod->movie_data['tmdb_id'] ?? $vod->movie_data['tmdb'] ?? null;
+                                    $imdbId = $vod->info['imdb_id'] ?? $vod->info['imdb'] ?? $vod->movie_data['imdb_id'] ?? $vod->movie_data['imdb'] ?? null;
+                                    $bracket = $tmdbIdFormat === 'curly' ? ['{', '}'] : ['[', ']'];
+                                    if (! empty($tmdbId)) {
+                                        $titleFolder .= " {$bracket[0]}tmdb-{$tmdbId}{$bracket[1]}";
+                                    } elseif (! empty($imdbId)) {
+                                        $titleFolder .= " {$bracket[0]}imdb-{$imdbId}{$bracket[1]}";
+                                    }
                                 }
 
                                 $preview .= '/'.$titleFolder;

@@ -382,7 +382,9 @@ class VodResource extends Resource
             TextColumn::make('url')
                 ->label('Default URL')
                 ->sortable()
-                ->searchable()
+                ->searchable(query: function (Builder $query, string $search): Builder {
+                    return $query->orWhereRaw('LOWER(channels.url::text) LIKE ?', ['%'.strtolower($search).'%']);
+                })
                 ->toggleable(isToggledHiddenByDefault: true),
 
             TextColumn::make('created_at')
