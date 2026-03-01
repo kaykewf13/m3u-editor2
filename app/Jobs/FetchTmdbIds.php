@@ -476,8 +476,8 @@ class FetchTmdbIds implements ShouldQueue
                     $info['plot'] = $details['overview'];
                 }
 
-                // Populate genre if not already set (treat 'Uncategorized' as empty)
-                if (! empty($details['genres']) && (empty($info['genre']) || ($info['genre'] ?? '') === 'Uncategorized')) {
+                // Populate genre if not already set (treat 'Uncategorized' and first-fetch as empty)
+                if (! empty($details['genres']) && (empty($info['genre']) || ($info['genre'] ?? '') === 'Uncategorized' || $channel->last_metadata_fetch === null)) {
                     $info['genre'] = $details['genres'];
 
                     // Update the channel's group to match the primary TMDB genre
@@ -485,7 +485,7 @@ class FetchTmdbIds implements ShouldQueue
                         ? explode(', ', $details['genres'])[0]
                         : (is_array($details['genres']) ? $details['genres'][0] : null);
 
-                    if ($primaryGenre && ($channel->group === 'Uncategorized' || $channel->group_internal === 'Uncategorized')) {
+                    if ($primaryGenre && ($channel->group === 'Uncategorized' || $channel->group_internal === 'Uncategorized' || $channel->last_metadata_fetch === null)) {
                         $group = Group::firstOrCreate(
                             [
                                 'playlist_id' => $channel->playlist_id,
@@ -748,8 +748,8 @@ class FetchTmdbIds implements ShouldQueue
                     $updateData['plot'] = $details['overview'];
                 }
 
-                // Populate genre if not already set (treat 'Uncategorized' as empty)
-                if (! empty($details['genres']) && (empty($series->genre) || ($series->genre ?? '') === 'Uncategorized')) {
+                // Populate genre if not already set (treat 'Uncategorized' and first-fetch as empty)
+                if (! empty($details['genres']) && (empty($series->genre) || ($series->genre ?? '') === 'Uncategorized' || $series->last_metadata_fetch === null)) {
                     $updateData['genre'] = $details['genres'];
 
                     // Update the series' category to match the primary TMDB genre
@@ -759,7 +759,7 @@ class FetchTmdbIds implements ShouldQueue
 
                     if ($primaryGenre) {
                         $currentCategory = $series->category_id ? Category::find($series->category_id) : null;
-                        if (! $currentCategory || $currentCategory->name === 'Uncategorized') {
+                        if (! $currentCategory || $currentCategory->name === 'Uncategorized' || $series->last_metadata_fetch === null) {
                             $category = Category::firstOrCreate(
                                 [
                                     'playlist_id' => $series->playlist_id,

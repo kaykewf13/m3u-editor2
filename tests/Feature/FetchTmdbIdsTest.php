@@ -1,7 +1,9 @@
 <?php
 
 use App\Jobs\FetchTmdbIds;
+use App\Models\Category;
 use App\Models\Channel;
+use App\Models\Group;
 use App\Models\Playlist;
 use App\Models\Series;
 use App\Models\User;
@@ -342,4 +344,123 @@ it('splits large lookups into batched chunk jobs', function () {
     Bus::assertBatched(function ($batch) {
         return count($batch->jobs) === 3;
     });
+});
+
+it('updates VOD group from library name to TMDB genre on first fetch', function () {
+    Http::fake([
+        'https://api.themoviedb.org/3/movie/603/external_ids*' => Http::response([
+            'imdb_id' => 'tt0133093',
+        ], 200),
+        'https://api.themoviedb.org/3/movie/603*' => Http::response([
+            'id' => 603,
+            'title' => 'The Matrix',
+            'overview' => 'A computer hacker learns about the true nature of reality.',
+            'poster_path' => '/matrix.jpg',
+            'genres' => [
+                ['name' => 'Action'],
+                ['name' => 'Sci-Fi'],
+            ],
+        ], 200),
+    ]);
+
+    $libraryGroup = Group::factory()->create([
+        'playlist_id' => $this->playlist->id,
+        'user_id' => $this->user->id,
+        'name' => 'Movies',
+        'name_internal' => 'Movies',
+        'type' => 'vod',
+    ]);
+
+    $channel = Channel::factory()->create([
+        'playlist_id' => $this->playlist->id,
+        'user_id' => $this->user->id,
+        'is_vod' => true,
+        'title' => 'The Matrix',
+        'tmdb_id' => 603,
+        'group' => 'Movies',
+        'group_internal' => 'Movies',
+        'group_id' => $libraryGroup->id,
+        'last_metadata_fetch' => null, // Never enriched by TMDB
+        'info' => ['tmdb_id' => 603],
+    ]);
+
+    $job = new FetchTmdbIds(
+        vodChannelIds: [$channel->id],
+        seriesIds: null,
+        overwriteExisting: false,
+        user: $this->user,
+    );
+
+    $job->handle(app(TmdbService::class));
+
+    $channel->refresh();
+
+    // Group should be updated to TMDB primary genre, not remain as library name
+    expect($channel->group)->toBe('Action')
+        ->and($channel->group_internal)->toBe('Action')
+        ->and($channel->info['genre'])->toContain('Action');
+});
+
+it('updates series category from library name to TMDB genre on first fetch', function () {
+    Http::fake([
+        'https://api.themoviedb.org/3/search/tv*' => Http::response([
+            'results' => [
+                [
+                    'id' => 1396,
+                    'name' => 'Breaking Bad',
+                    'first_air_date' => '2008-01-20',
+                    'popularity' => 95.0,
+                ],
+            ],
+        ], 200),
+        'https://api.themoviedb.org/3/tv/1396/external_ids*' => Http::response([
+            'tvdb_id' => 81189,
+            'imdb_id' => 'tt0903747',
+        ], 200),
+        'https://api.themoviedb.org/3/tv/1396*' => Http::response([
+            'id' => 1396,
+            'name' => 'Breaking Bad',
+            'overview' => 'A high school chemistry teacher turned drug lord.',
+            'poster_path' => '/breakingbad.jpg',
+            'genres' => [
+                ['name' => 'Drama'],
+                ['name' => 'Crime'],
+            ],
+            'first_air_date' => '2008-01-20',
+        ], 200),
+    ]);
+
+    $libraryCategory = Category::factory()->create([
+        'playlist_id' => $this->playlist->id,
+        'user_id' => $this->user->id,
+        'name' => 'TV Shows',
+        'name_internal' => 'TV Shows',
+    ]);
+
+    $series = Series::factory()->create([
+        'playlist_id' => $this->playlist->id,
+        'user_id' => $this->user->id,
+        'name' => 'Breaking Bad',
+        'category_id' => $libraryCategory->id,
+        'source_category_id' => $libraryCategory->id,
+        'metadata' => [],
+        'last_metadata_fetch' => null, // Never enriched by TMDB
+    ]);
+
+    $job = new FetchTmdbIds(
+        vodChannelIds: null,
+        seriesIds: [$series->id],
+        overwriteExisting: false,
+        user: $this->user,
+    );
+
+    $job->handle(app(TmdbService::class));
+
+    $series->refresh();
+
+    // Category should be updated to TMDB primary genre, not remain as library name
+    $updatedCategory = Category::find($series->category_id);
+    expect($updatedCategory)->not->toBeNull()
+        ->and($updatedCategory->name)->toBe('Drama')
+        ->and($series->genre)->toContain('Drama');
 });
