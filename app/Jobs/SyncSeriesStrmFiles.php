@@ -547,7 +547,10 @@ class SyncSeriesStrmFiles implements ShouldQueue
                         $fallbackTmdb = $firstEpisode->tmdb_id ?? $epInfo['tmdb_id'] ?? $epInfo['tmdb'] ?? null;
                         $tmdbId = \is_scalar($fallbackTmdb) ? $fallbackTmdb : null;
                     }
-                } elseif ($applyTmdbToSeriesFolder) {
+                }
+
+                // Add TMDB/TVDB/IMDB ID to series folder name if enabled and available (TMDB only if tmdb_id_apply_to includes series)
+                if ($applyTmdbToSeriesFolder) {
                     if (! empty($tmdbId)) {
                         $seriesFolder .= " {$bracket[0]}tmdb-{$tmdbId}{$bracket[1]}";
                     } elseif (! empty($tvdbId)) {
