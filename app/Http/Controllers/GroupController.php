@@ -155,18 +155,7 @@ class GroupController extends Controller
         $user = $request->user();
 
         $group = Group::with('playlist')
-            ->withCount([
-                'channels',
-                'channels as enabled_channels_count' => function ($q) {
-                    $q->where('enabled', true);
-                },
-                'channels as live_channels_count' => function ($q) {
-                    $q->where('is_vod', false);
-                },
-                'channels as vod_channels_count' => function ($q) {
-                    $q->where('is_vod', true);
-                },
-            ])
+            ->withCount($this->groupCountRelations())
             ->find($id);
 
         if (! $group) {
@@ -183,28 +172,9 @@ class GroupController extends Controller
             ], 403);
         }
 
-        $data = [
-            'id' => $group->id,
-            'name' => $group->name,
-            'sort_order' => $group->sort_order,
-            'type' => $group->type ?? 'live',
-            'total_channels' => $group->channels_count,
-            'enabled_channels' => $group->enabled_channels_count,
-            'live_channels' => $group->live_channels_count,
-            'vod_channels' => $group->vod_channels_count,
-        ];
-
-        if ($group->playlist) {
-            $data['playlist'] = [
-                'id' => $group->playlist->id,
-                'name' => $group->playlist->name,
-                'uuid' => $group->playlist->uuid,
-            ];
-        }
-
         return response()->json([
             'success' => true,
-            'data' => $data,
+            'data' => $this->serializeGroup($group, includeNameInternal: false),
         ]);
     }
 
@@ -254,41 +224,12 @@ class GroupController extends Controller
         $group->new = true;
         $group->save();
 
-        $group->load('playlist')
-            ->loadCount([
-                'channels',
-                'channels as enabled_channels_count' => function ($q) {
-                    $q->where('enabled', true);
-                },
-                'channels as live_channels_count' => function ($q) {
-                    $q->where('is_vod', false);
-                },
-                'channels as vod_channels_count' => function ($q) {
-                    $q->where('is_vod', true);
-                },
-            ]);
+        $this->loadGroupMeta($group);
 
         return response()->json([
             'success' => true,
             'message' => 'Group created successfully',
-            'data' => [
-                'id' => $group->id,
-                'name' => $group->name,
-                'name_internal' => $group->name_internal,
-                'sort_order' => $group->sort_order,
-                'type' => $group->type ?? 'live',
-                'enabled' => (bool) $group->enabled,
-                'custom' => (bool) $group->custom,
-                'total_channels' => $group->channels_count,
-                'enabled_channels' => $group->enabled_channels_count,
-                'live_channels' => $group->live_channels_count,
-                'vod_channels' => $group->vod_channels_count,
-                'playlist' => $group->playlist ? [
-                    'id' => $group->playlist->id,
-                    'name' => $group->playlist->name,
-                    'uuid' => $group->playlist->uuid,
-                ] : null,
-            ],
+            'data' => $this->serializeGroup($group),
         ], 201);
     }
 
@@ -301,20 +242,7 @@ class GroupController extends Controller
     {
         $user = $request->user();
 
-        $group = Group::with('playlist')
-            ->withCount([
-                'channels',
-                'channels as enabled_channels_count' => function ($q) {
-                    $q->where('enabled', true);
-                },
-                'channels as live_channels_count' => function ($q) {
-                    $q->where('is_vod', false);
-                },
-                'channels as vod_channels_count' => function ($q) {
-                    $q->where('is_vod', true);
-                },
-            ])
-            ->find($id);
+        $group = Group::find($id);
 
         if (! $group) {
             return response()->json([
@@ -368,43 +296,14 @@ class GroupController extends Controller
 
         if ($group->isDirty()) {
             $group->save();
-            $group->refresh();
-            $group->load('playlist')
-                ->loadCount([
-                    'channels',
-                    'channels as enabled_channels_count' => function ($q) {
-                        $q->where('enabled', true);
-                    },
-                    'channels as live_channels_count' => function ($q) {
-                        $q->where('is_vod', false);
-                    },
-                    'channels as vod_channels_count' => function ($q) {
-                        $q->where('is_vod', true);
-                    },
-                ]);
         }
+
+        $this->loadGroupMeta($group);
 
         return response()->json([
             'success' => true,
             'message' => 'Group updated successfully',
-            'data' => [
-                'id' => $group->id,
-                'name' => $group->name,
-                'name_internal' => $group->name_internal,
-                'sort_order' => $group->sort_order,
-                'type' => $group->type ?? 'live',
-                'enabled' => (bool) $group->enabled,
-                'custom' => (bool) $group->custom,
-                'total_channels' => $group->channels_count ?? 0,
-                'enabled_channels' => $group->enabled_channels_count ?? 0,
-                'live_channels' => $group->live_channels_count ?? 0,
-                'vod_channels' => $group->vod_channels_count ?? 0,
-                'playlist' => $group->playlist ? [
-                    'id' => $group->playlist->id,
-                    'name' => $group->playlist->name,
-                    'uuid' => $group->playlist->uuid,
-                ] : null,
-            ],
+            'data' => $this->serializeGroup($group),
         ]);
     }
 
@@ -618,5 +517,57 @@ class GroupController extends Controller
         }
 
         return (int) $playlist->id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function groupCountRelations(): array
+    {
+        return [
+            'channels',
+            'channels as enabled_channels_count' => function ($q) {
+                $q->where('enabled', true);
+            },
+            'channels as live_channels_count' => function ($q) {
+                $q->where('is_vod', false);
+            },
+            'channels as vod_channels_count' => function ($q) {
+                $q->where('is_vod', true);
+            },
+        ];
+    }
+
+    private function loadGroupMeta(Group $group): Group
+    {
+        return $group->load('playlist')
+            ->loadCount($this->groupCountRelations());
+    }
+
+    private function serializeGroup(Group $group, bool $includeNameInternal = true): array
+    {
+        $data = [
+            'id' => $group->id,
+            'name' => $group->name,
+            'sort_order' => $group->sort_order,
+            'type' => $group->type ?? 'live',
+            'enabled' => (bool) $group->enabled,
+            'custom' => (bool) $group->custom,
+            'total_channels' => $group->channels_count ?? 0,
+            'enabled_channels' => $group->enabled_channels_count ?? 0,
+            'live_channels' => $group->live_channels_count ?? 0,
+            'vod_channels' => $group->vod_channels_count ?? 0,
+            'playlist' => $group->playlist ? [
+                'id' => $group->playlist->id,
+                'name' => $group->playlist->name,
+                'uuid' => $group->playlist->uuid,
+            ] : null,
+        ];
+
+        if ($includeNameInternal) {
+            $data['name_internal'] = $group->name_internal;
+        }
+
+        return $data;
     }
 }
