@@ -263,7 +263,7 @@ class Channel extends Model
         return [];
     }
 
-    public function fetchMetadata($xtream = null, $refresh = false)
+    public function fetchMetadata($xtream = null, $refresh = false, bool $skipTmdb = false)
     {
         try {
             $playlist = $this->playlist;
@@ -321,7 +321,7 @@ class Channel extends Model
 
             $this->update($update);
 
-            if ($settings->tmdb_auto_lookup_on_import && $this->enabled) {
+            if (! $skipTmdb && $settings->tmdb_auto_lookup_on_import && $this->enabled) {
                 dispatch(new FetchTmdbIds(
                     vodChannelIds: [$this->id],
                     overwriteExisting: $refresh ?? false,
