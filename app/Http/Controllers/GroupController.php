@@ -408,7 +408,6 @@ class GroupController extends Controller
 
         $channelCount = $group->channels()->count();
         $movedCount = 0;
-        $deletedChannels = 0;
 
         $targetGroup = null;
         $targetGroupId = $validated['target_group_id'] ?? null;
@@ -457,15 +456,14 @@ class GroupController extends Controller
         $groupId = $group->id;
         $groupName = $group->name;
 
-        DB::transaction(function () use ($group, $targetGroupId, $targetGroup, &$movedCount, &$deletedChannels) {
+        DB::transaction(function () use ($group, $targetGroupId, $targetGroup, $channelCount, &$movedCount, &$orphanedChannels) {
             if ($targetGroupId !== null && isset($targetGroup)) {
                 $movedCount = $group->channels()->update([
                     'group' => $targetGroup->name,
                     'group_id' => $targetGroup->id,
                 ]);
-            } elseif ($group->channels()->exists()) {
-                $deletedChannels = $group->channels()->count();
-                $group->channels()->delete();
+            } elseif ($channelCount > 0) {
+                $orphanedChannels = $channelCount;
             }
 
             $group->delete();
@@ -478,7 +476,7 @@ class GroupController extends Controller
                 'id' => $groupId,
                 'name' => $groupName,
                 'moved_channels' => $movedCount,
-                'deleted_channels' => $deletedChannels,
+                'orphaned_channels' => $orphanedChannels, // Channels that were orphaned because the group was deleted and no target group was provided
             ],
         ]);
     }
