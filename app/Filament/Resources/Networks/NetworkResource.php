@@ -6,6 +6,7 @@ use App\Enums\TranscodeMode;
 use App\Filament\Resources\Networks\Pages\CreateNetwork;
 use App\Filament\Resources\Networks\Pages\EditNetwork;
 use App\Filament\Resources\Networks\Pages\ListNetworks;
+use App\Filament\Resources\Networks\Pages\ManualScheduleBuilder;
 use App\Models\Network;
 use App\Services\NetworkBroadcastService;
 use App\Services\NetworkScheduleService;
@@ -24,6 +25,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
+use Filament\Pages\Enums\SubNavigationPosition;
+use Filament\Resources\Pages\Page;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -59,6 +62,16 @@ class NetworkResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'Integrations';
 
     protected static ?int $navigationSort = 110;
+
+    protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+
+    public static function getRecordSubNavigation(Page $page): array
+    {
+        return $page->generateNavigationItems([
+            EditNetwork::class,
+            ManualScheduleBuilder::class,
+        ]);
+    }
 
     /**
      * Check if the user can access this page.
@@ -170,10 +183,24 @@ class NetworkResource extends Resource
                                             ->options([
                                                 'sequential' => 'Sequential (play in order)',
                                                 'shuffle' => 'Shuffle (randomized)',
+                                                'manual' => 'Manual (schedule builder)',
                                             ])
                                             ->default('sequential')
-                                            ->helperText('How content is ordered in the schedule')
-                                            ->native(false),
+                                            ->helperText('How content is ordered in the schedule. Manual lets you place items on a visual timeline.')
+                                            ->native(false)
+                                            ->live(),
+
+                                        Select::make('manual_schedule_recurrence')
+                                            ->label('Recurrence Mode')
+                                            ->options([
+                                                'per_day' => 'Per Day (each day independent)',
+                                                'weekly' => 'Weekly Template (Mon-Sun repeating)',
+                                                'one_shot' => 'One Shot (fill window once)',
+                                            ])
+                                            ->default('per_day')
+                                            ->helperText('How the manual schedule repeats across the schedule window')
+                                            ->native(false)
+                                            ->visible(fn (Get $get): bool => $get('schedule_type') === 'manual'),
 
                                         Toggle::make('loop_content')
                                             ->label('Loop Content')
@@ -316,10 +343,24 @@ class NetworkResource extends Resource
                                     ->options([
                                         'sequential' => 'Sequential (play in order)',
                                         'shuffle' => 'Shuffle (randomized)',
+                                        'manual' => 'Manual (schedule builder)',
                                     ])
                                     ->default('sequential')
-                                    ->helperText('How content is ordered in the schedule')
-                                    ->native(false),
+                                    ->helperText('How content is ordered in the schedule. Manual lets you place items on a visual timeline.')
+                                    ->native(false)
+                                    ->live(),
+
+                                Select::make('manual_schedule_recurrence')
+                                    ->label('Recurrence Mode')
+                                    ->options([
+                                        'per_day' => 'Per Day (each day independent)',
+                                        'weekly' => 'Weekly Template (Mon-Sun repeating)',
+                                        'one_shot' => 'One Shot (fill window once)',
+                                    ])
+                                    ->default('per_day')
+                                    ->helperText('How the manual schedule repeats')
+                                    ->native(false)
+                                    ->visible(fn (Get $get): bool => $get('schedule_type') === 'manual'),
 
                                 Toggle::make('loop_content')
                                     ->label('Loop Content')
@@ -788,6 +829,7 @@ class NetworkResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'shuffle' => 'warning',
                         'sequential' => 'info',
+                        'manual' => 'success',
                         default => 'gray',
                     }),
 
@@ -855,6 +897,7 @@ class NetworkResource extends Resource
                     ->options([
                         'sequential' => 'Sequential',
                         'shuffle' => 'Shuffle',
+                        'manual' => 'Manual',
                     ]),
                 Tables\Filters\TernaryFilter::make('enabled')
                     ->label('Enabled'),
@@ -1006,6 +1049,7 @@ class NetworkResource extends Resource
             'index' => ListNetworks::route('/'),
             'create' => CreateNetwork::route('/create'),
             'edit' => EditNetwork::route('/{record}/edit'),
+            'schedule-builder' => ManualScheduleBuilder::route('/{record}/schedule-builder'),
         ];
     }
 

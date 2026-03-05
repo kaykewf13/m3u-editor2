@@ -44,6 +44,8 @@ class Network extends Model
         // HLS continuity tracking
         'broadcast_segment_sequence' => 'integer',
         'broadcast_discontinuity_sequence' => 'integer',
+        // Manual schedule
+        'manual_schedule_recurrence' => 'string',
     ];
 
     /**
@@ -133,6 +135,11 @@ class Network extends Model
     {
         // If auto-regeneration is disabled, never auto-regenerate
         if ($this->auto_regenerate_schedule === false) {
+            return false;
+        }
+
+        // Manual schedules are never auto-regenerated
+        if ($this->schedule_type === 'manual') {
             return false;
         }
 
