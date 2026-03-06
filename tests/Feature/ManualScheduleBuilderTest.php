@@ -10,7 +10,9 @@ use Carbon\Carbon;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->create([
+        'permissions' => ['use_integrations'],
+    ]);
     $this->actingAs($this->user);
 
     $this->network = Network::factory()->create([
