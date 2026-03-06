@@ -44,7 +44,6 @@ class ManualScheduleBuilder extends Page
             return false;
         }
 
-        // If we have a record parameter, check if it's a manual schedule
         if (isset($parameters['record'])) {
             $record = $parameters['record'];
             if ($record instanceof Network) {
@@ -67,15 +66,125 @@ class ManualScheduleBuilder extends Page
         }
     }
 
+    // ── Core: List-Based Time Recalculation ─────────────────────────
+
+    /**
+     * Recalculate start_time / end_time for all programmes on a given day,
+     * walking them in sort_order. Pinned programmes use their pinned time;
+     * unpinned programmes flow sequentially from the previous end + gap.
+     */
+    protected function recalculateTimes(Network $network, string $date, DateTimeZone $tz): void
+    {
+        $gap = (int) ($network->schedule_gap_seconds ?? 0);
+
+        $dayStart = Carbon::parse($date, $tz)->startOfDay()->utc();
+        $dayEnd = Carbon::parse($date, $tz)->endOfDay()->utc();
+
+        $programmes = $network->programmes()
+            ->where('start_time', '>=', $dayStart)
+            ->where('start_time', '<', $dayEnd)
+            ->reorder()
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($programmes->isEmpty()) {
+            return;
+        }
+
+        $cursor = $dayStart->copy();
+        $isFirst = true;
+
+        foreach ($programmes as $prog) {
+            if ($prog->pinned_start_time) {
+                $start = $prog->pinned_start_time->copy();
+            } else {
+                $start = $isFirst ? $cursor->copy() : $cursor->copy()->addSeconds($gap);
+            }
+
+            $end = $start->copy()->addSeconds($prog->duration_seconds);
+
+            $prog->update([
+                'start_time' => $start,
+                'end_time' => $end,
+            ]);
+
+            $cursor = $end->copy();
+            $isFirst = false;
+        }
+    }
+
+    /**
+     * Reorder programmes by an array of IDs (from frontend drag-and-drop).
+     * Sets sort_order based on position, then recalculates all times.
+     */
+    public function reorderProgrammes(array $orderedIds, string $date, string $timezone = 'UTC'): array
+    {
+        $network = $this->getRecord();
+        $tz = $this->resolveTimezone($timezone);
+
+        foreach ($orderedIds as $index => $id) {
+            NetworkProgramme::where('id', $id)
+                ->where('network_id', $network->id)
+                ->update(['sort_order' => $index]);
+        }
+
+        $this->recalculateTimes($network, $date, $tz);
+
+        $network->update(['schedule_generated_at' => Carbon::now()]);
+
+        return [
+            'success' => true,
+            'programmes' => $this->getScheduleForDate($date, $timezone),
+        ];
+    }
+
+    /**
+     * Pin or unpin a programme's start time.
+     * When $time is non-null, pin to that local time. When null, unpin.
+     */
+    public function pinProgrammeTime(int $programmeId, ?string $time, string $date, string $timezone = 'UTC'): array
+    {
+        $network = $this->getRecord();
+        $tz = $this->resolveTimezone($timezone);
+
+        $programme = $network->programmes()->find($programmeId);
+        if (! $programme) {
+            return ['success' => false];
+        }
+
+        if ($time !== null && $time !== '') {
+            // Pin to the specified local time, stored as UTC
+            $pinnedUtc = Carbon::parse("{$date} {$time}", $tz)->utc();
+            $programme->update(['pinned_start_time' => $pinnedUtc]);
+        } else {
+            // Unpin
+            $programme->update(['pinned_start_time' => null]);
+        }
+
+        $this->recalculateTimes($network, $date, $tz);
+
+        $network->update(['schedule_generated_at' => Carbon::now()]);
+
+        return [
+            'success' => true,
+            'programmes' => $this->getScheduleForDate($date, $timezone),
+        ];
+    }
+
+    // ── Programme Response Formatting ───────────────────────────────
+
     /**
      * Format a programme record for the frontend, with times in the user's timezone.
-     *
-     * @param  array<string, mixed>  $extra  Additional fields to merge
      */
     protected function formatProgrammeResponse(NetworkProgramme $programme, DateTimeZone $tz): array
     {
         $localStart = $programme->start_time->copy()->setTimezone($tz);
         $localEnd = $programme->end_time->copy()->setTimezone($tz);
+
+        $pinnedLocal = null;
+        if ($programme->pinned_start_time) {
+            $pinnedLocal = $programme->pinned_start_time->copy()->setTimezone($tz)->format('H:i');
+        }
 
         return [
             'id' => $programme->id,
@@ -87,10 +196,17 @@ class ManualScheduleBuilder extends Page
             'duration_seconds' => $programme->duration_seconds,
             'contentable_type' => $programme->contentable_type,
             'contentable_id' => $programme->contentable_id,
-            'start_hour' => $localStart->format('H'),
-            'start_minute' => $localStart->format('i'),
+            'sort_order' => $programme->sort_order,
+            'pinned_start_time' => $pinnedLocal,
+            'is_pinned' => $programme->pinned_start_time !== null,
+            'start_hour' => (int) $localStart->format('H'),
+            'start_minute' => (int) $localStart->format('i'),
+            'end_hour' => (int) $localEnd->format('H'),
+            'end_minute' => (int) $localEnd->format('i'),
         ];
     }
+
+    // ── Schedule Data Loading ───────────────────────────────────────
 
     /**
      * Get schedule data for a specific date (in the user's local timezone).
@@ -100,19 +216,21 @@ class ManualScheduleBuilder extends Page
         $network = $this->getRecord();
         $tz = $this->resolveTimezone($timezone);
 
-        // Parse day boundaries in the user's timezone, then convert to UTC for query
         $dayStart = Carbon::parse($date, $tz)->startOfDay()->utc();
         $dayEnd = Carbon::parse($date, $tz)->endOfDay()->utc();
 
         $programmes = $network->programmes()
             ->where('start_time', '>=', $dayStart)
             ->where('start_time', '<', $dayEnd)
-            ->orderBy('start_time')
+            ->reorder()
+            ->orderBy('sort_order')
             ->get();
 
         return $programmes->map(fn (NetworkProgramme $programme) => $this->formatProgrammeResponse($programme, $tz)
         )->values()->toArray();
     }
+
+    // ── Media Pool ──────────────────────────────────────────────────
 
     /**
      * Get the media pool (network content + optionally all media).
@@ -122,7 +240,6 @@ class ManualScheduleBuilder extends Page
         $network = $this->getRecord();
 
         if (! $showAll) {
-            // Show only network's existing content
             $content = $network->networkContent()
                 ->with('contentable')
                 ->orderBy('sort_order')
@@ -133,7 +250,6 @@ class ManualScheduleBuilder extends Page
             })->filter()->values()->toArray();
         }
 
-        // Show all media from the linked media server
         $playlistId = $network->mediaServerIntegration?->playlist_id;
         if (! $playlistId) {
             return [];
@@ -141,7 +257,6 @@ class ManualScheduleBuilder extends Page
 
         $items = collect();
 
-        // Get movies (channels that are VOD from this playlist)
         $movies = Channel::where('playlist_id', $playlistId)
             ->whereNotNull('movie_data')
             ->orderBy('title')
@@ -152,7 +267,6 @@ class ManualScheduleBuilder extends Page
             $items->push($this->formatMediaItem($movie, Channel::class));
         }
 
-        // Get episodes from this playlist's series
         $episodes = Episode::whereHas('series', function ($q) use ($playlistId) {
             $q->where('playlist_id', $playlistId);
         })
@@ -213,7 +327,6 @@ class ManualScheduleBuilder extends Page
             return null;
         }
 
-        // Default duration of 30 minutes if unknown
         if ($duration <= 0) {
             $duration = 1800;
         }
@@ -230,17 +343,16 @@ class ManualScheduleBuilder extends Page
         ];
     }
 
+    // ── Programme CRUD ──────────────────────────────────────────────
+
     /**
-     * Add a programme to the schedule.
-     *
-     * The date and startTime are in the user's local timezone. We convert to UTC for storage.
+     * Add a programme to the end of the day's schedule.
      */
-    public function addProgramme(string $date, string $startTime, string $timezone, string $contentableType, int $contentableId, ?int $durationOverride = null, bool $pinAnchor = false): array
+    public function addProgramme(string $date, string $timezone, string $contentableType, int $contentableId, ?int $durationOverride = null): array
     {
         $network = $this->getRecord();
         $tz = $this->resolveTimezone($timezone);
 
-        // Resolve the content
         $content = $contentableType === Episode::class
             ? Episode::find($contentableId)
             : Channel::find($contentableId);
@@ -251,7 +363,7 @@ class ManualScheduleBuilder extends Page
             return ['success' => false];
         }
 
-        // Ensure content is in the network's content list (add if from "all media" pool)
+        // Ensure content is in the network's content list
         $existingContent = NetworkContent::where('network_id', $network->id)
             ->where('contentable_type', $contentableType)
             ->where('contentable_id', $contentableId)
@@ -268,19 +380,10 @@ class ManualScheduleBuilder extends Page
             ]);
         }
 
-        // Parse start time in user's timezone, then convert to UTC
-        $startDateTime = Carbon::parse("{$date} {$startTime}", $tz)->utc();
-
-        // Get duration
         $formatted = $this->formatMediaItem($content, $contentableType);
         $duration = $durationOverride ?? ($formatted['duration_seconds'] ?? 1800);
-
-        $endDateTime = $startDateTime->copy()->addSeconds($duration);
-
-        // Get title
         $title = $formatted['title'] ?? 'Unknown';
 
-        // Get description and image
         $description = null;
         $image = $formatted['image'] ?? null;
         if ($content instanceof Episode) {
@@ -289,74 +392,137 @@ class ManualScheduleBuilder extends Page
             $description = $content->movie_data['info']['plot'] ?? null;
         }
 
+        // Get the next sort_order for this day
+        $dayStart = Carbon::parse($date, $tz)->startOfDay()->utc();
+        $dayEnd = Carbon::parse($date, $tz)->endOfDay()->utc();
+
+        $maxSortOrder = $network->programmes()
+            ->where('start_time', '>=', $dayStart)
+            ->where('start_time', '<', $dayEnd)
+            ->max('sort_order') ?? -1;
+
+        // Temporary start_time at day start — recalculateTimes will fix it
         $programme = NetworkProgramme::create([
             'network_id' => $network->id,
             'title' => $title,
             'description' => $description,
             'image' => $image,
-            'start_time' => $startDateTime,
-            'end_time' => $endDateTime,
+            'start_time' => $dayStart,
+            'end_time' => $dayStart->copy()->addSeconds($duration),
             'duration_seconds' => $duration,
             'contentable_type' => $contentableType,
             'contentable_id' => $contentableId,
+            'sort_order' => $maxSortOrder + 1,
         ]);
 
-        // Cascade-bump any subsequent programmes that now overlap
-        $this->cascadeBump($network, $programme, $tz, $pinAnchor);
+        $this->recalculateTimes($network, $date, $tz);
 
-        // Update schedule timestamp
         $network->update(['schedule_generated_at' => Carbon::now()]);
 
-        // Return the full day so the frontend can re-render all shifted programmes
         return [
             'success' => true,
-            'programme' => $this->formatProgrammeResponse($programme, $tz),
             'programmes' => $this->getScheduleForDate($date, $timezone),
         ];
     }
 
     /**
-     * Update a programme's time slot.
-     *
-     * The date and startTime are in the user's local timezone.
+     * Insert a programme immediately after a specific programme in the list.
+     * Shifts subsequent sort_orders up, then recalculates times.
      */
-    public function updateProgramme(int $programmeId, string $date, string $startTime, string $timezone = 'UTC', ?int $durationOverride = null): array
+    public function insertAfterProgramme(int $afterProgrammeId, string $date, string $timezone, string $contentableType, int $contentableId, ?int $durationOverride = null): array
     {
         $network = $this->getRecord();
         $tz = $this->resolveTimezone($timezone);
-        $programme = $network->programmes()->find($programmeId);
 
-        if (! $programme) {
+        $afterProgramme = $network->programmes()->find($afterProgrammeId);
+        if (! $afterProgramme) {
+            Notification::make()->danger()->title('Programme not found')->send();
+
             return ['success' => false];
         }
 
-        // Parse in user's timezone, convert to UTC
-        $newStart = Carbon::parse("{$date} {$startTime}", $tz)->utc();
-        $duration = $durationOverride ?? $programme->duration_seconds;
-        $newEnd = $newStart->copy()->addSeconds($duration);
+        $content = $contentableType === Episode::class
+            ? Episode::find($contentableId)
+            : Channel::find($contentableId);
 
-        $programme->update([
-            'start_time' => $newStart,
-            'end_time' => $newEnd,
+        if (! $content) {
+            Notification::make()->danger()->title('Content not found')->send();
+
+            return ['success' => false];
+        }
+
+        // Ensure content is in the network's content list
+        $existingContent = NetworkContent::where('network_id', $network->id)
+            ->where('contentable_type', $contentableType)
+            ->where('contentable_id', $contentableId)
+            ->first();
+
+        if (! $existingContent) {
+            $maxSort = $network->networkContent()->max('sort_order') ?? 0;
+            NetworkContent::create([
+                'network_id' => $network->id,
+                'contentable_type' => $contentableType,
+                'contentable_id' => $contentableId,
+                'sort_order' => $maxSort + 1,
+                'weight' => 1,
+            ]);
+        }
+
+        $formatted = $this->formatMediaItem($content, $contentableType);
+        $duration = $durationOverride ?? ($formatted['duration_seconds'] ?? 1800);
+        $title = $formatted['title'] ?? 'Unknown';
+
+        $description = null;
+        $image = $formatted['image'] ?? null;
+        if ($content instanceof Episode) {
+            $description = $content->info['plot'] ?? $content->plot ?? null;
+        } elseif ($content instanceof Channel) {
+            $description = $content->movie_data['info']['plot'] ?? null;
+        }
+
+        $insertSortOrder = $afterProgramme->sort_order + 1;
+
+        // Shift all subsequent programmes' sort_order up by 1
+        $dayStart = Carbon::parse($date, $tz)->startOfDay()->utc();
+        $dayEnd = Carbon::parse($date, $tz)->endOfDay()->utc();
+
+        $network->programmes()
+            ->where('start_time', '>=', $dayStart)
+            ->where('start_time', '<', $dayEnd)
+            ->where('sort_order', '>=', $insertSortOrder)
+            ->increment('sort_order');
+
+        // Temporary start_time — recalculateTimes will fix it
+        $programme = NetworkProgramme::create([
+            'network_id' => $network->id,
+            'title' => $title,
+            'description' => $description,
+            'image' => $image,
+            'start_time' => $dayStart,
+            'end_time' => $dayStart->copy()->addSeconds($duration),
             'duration_seconds' => $duration,
+            'contentable_type' => $contentableType,
+            'contentable_id' => $contentableId,
+            'sort_order' => $insertSortOrder,
         ]);
 
-        // Cascade-bump any subsequent programmes that now overlap
-        $this->cascadeBump($network, $programme, $tz);
+        $this->recalculateTimes($network, $date, $tz);
+
+        $network->update(['schedule_generated_at' => Carbon::now()]);
 
         return [
             'success' => true,
-            'programme' => $this->formatProgrammeResponse($programme->fresh(), $tz),
             'programmes' => $this->getScheduleForDate($date, $timezone),
         ];
     }
 
     /**
-     * Remove a programme from the schedule.
+     * Remove a programme from the schedule, then recalculate times.
      */
-    public function removeProgramme(int $programmeId): array
+    public function removeProgramme(int $programmeId, string $date, string $timezone = 'UTC'): array
     {
         $network = $this->getRecord();
+        $tz = $this->resolveTimezone($timezone);
         $programme = $network->programmes()->find($programmeId);
 
         if (! $programme) {
@@ -365,76 +531,17 @@ class ManualScheduleBuilder extends Page
 
         $programme->delete();
 
+        $this->recalculateTimes($network, $date, $tz);
+
         Notification::make()->success()->title('Programme removed')->send();
 
-        return ['success' => true];
+        return [
+            'success' => true,
+            'programmes' => $this->getScheduleForDate($date, $timezone),
+        ];
     }
 
-    /**
-     * Append a programme after the last programme of the given day.
-     *
-     * If the day is empty, places at midnight (00:00) of that day.
-     */
-    public function appendProgramme(string $date, string $timezone, string $contentableType, int $contentableId, ?int $durationOverride = null): array
-    {
-        $network = $this->getRecord();
-        $tz = $this->resolveTimezone($timezone);
-        $gap = (int) ($network->schedule_gap_seconds ?? 0);
-
-        // Find the last programme of this day
-        $dayStart = Carbon::parse($date, $tz)->startOfDay()->utc();
-        $dayEnd = Carbon::parse($date, $tz)->endOfDay()->utc();
-
-        $lastProgramme = $network->programmes()
-            ->where('start_time', '>=', $dayStart)
-            ->where('start_time', '<', $dayEnd)
-            ->orderByDesc('end_time')
-            ->first();
-
-        if ($lastProgramme) {
-            // Place after the last programme ends, plus gap
-            $startTime = $lastProgramme->end_time->copy()->addSeconds($gap);
-        } else {
-            // Empty day — start at midnight in user's timezone
-            $startTime = Carbon::parse($date, $tz)->startOfDay()->utc();
-        }
-
-        // Convert start time back to local for addProgramme
-        $localStart = $startTime->copy()->setTimezone($tz);
-        $localTimeStr = $localStart->format('H:i');
-        $localDateStr = $localStart->format('Y-m-d');
-
-        return $this->addProgramme($localDateStr, $localTimeStr, $timezone, $contentableType, $contentableId, $durationOverride);
-    }
-
-    /**
-     * Insert a programme immediately after a specific programme (plus gap).
-     *
-     * Cascade bump will push any subsequent programmes forward.
-     */
-    public function insertAfterProgramme(int $afterProgrammeId, string $date, string $timezone, string $contentableType, int $contentableId, ?int $durationOverride = null): array
-    {
-        $network = $this->getRecord();
-        $tz = $this->resolveTimezone($timezone);
-        $gap = (int) ($network->schedule_gap_seconds ?? 0);
-
-        $afterProgramme = $network->programmes()->find($afterProgrammeId);
-
-        if (! $afterProgramme) {
-            Notification::make()->danger()->title('Programme not found')->send();
-
-            return ['success' => false];
-        }
-
-        // Place right after the target programme ends, plus gap
-        $startTime = $afterProgramme->end_time->copy()->addSeconds($gap);
-
-        $localStart = $startTime->copy()->setTimezone($tz);
-        $localTimeStr = $localStart->format('H:i');
-        $localDateStr = $localStart->format('Y-m-d');
-
-        return $this->addProgramme($localDateStr, $localTimeStr, $timezone, $contentableType, $contentableId, $durationOverride, pinAnchor: true);
-    }
+    // ── Day Actions ─────────────────────────────────────────────────
 
     /**
      * Clear all programmes for a specific date (in user's local timezone).
@@ -462,8 +569,6 @@ class ManualScheduleBuilder extends Page
 
     /**
      * Copy a day's schedule to another date.
-     *
-     * Source and target dates are in the user's local timezone.
      */
     public function copyDaySchedule(string $sourceDate, string $targetDate, string $timezone = 'UTC'): array
     {
@@ -479,6 +584,8 @@ class ManualScheduleBuilder extends Page
         $sourceProgrammes = $network->programmes()
             ->where('start_time', '>=', $sourceDayStart)
             ->where('start_time', '<', $sourceDayEnd)
+            ->reorder()
+            ->orderBy('sort_order')
             ->get();
 
         if ($sourceProgrammes->isEmpty()) {
@@ -495,6 +602,11 @@ class ManualScheduleBuilder extends Page
             ->delete();
 
         foreach ($sourceProgrammes as $programme) {
+            $pinnedCopy = null;
+            if ($programme->pinned_start_time) {
+                $pinnedCopy = $programme->pinned_start_time->copy()->addDays($dayDiff);
+            }
+
             NetworkProgramme::create([
                 'network_id' => $network->id,
                 'title' => $programme->title,
@@ -505,6 +617,8 @@ class ManualScheduleBuilder extends Page
                 'duration_seconds' => $programme->duration_seconds,
                 'contentable_type' => $programme->contentable_type,
                 'contentable_id' => $programme->contentable_id,
+                'sort_order' => $programme->sort_order,
+                'pinned_start_time' => $pinnedCopy,
             ]);
         }
 
@@ -532,13 +646,14 @@ class ManualScheduleBuilder extends Page
             return ['success' => true];
         }
 
-        // Use the first 7 days as the template
         $templateStart = Carbon::now()->startOfDay();
         $templateEnd = $templateStart->copy()->addDays(7);
 
         $templateProgrammes = $network->programmes()
             ->where('start_time', '>=', $templateStart)
             ->where('start_time', '<', $templateEnd)
+            ->reorder()
+            ->orderBy('sort_order')
             ->get();
 
         if ($templateProgrammes->isEmpty()) {
@@ -547,12 +662,10 @@ class ManualScheduleBuilder extends Page
             return ['success' => false];
         }
 
-        // Clear everything beyond the first week
         $network->programmes()
             ->where('start_time', '>=', $templateEnd)
             ->delete();
 
-        // Replicate for each additional week
         $weeksToFill = (int) ceil(($scheduleWindowDays - 7) / 7);
         $created = 0;
 
@@ -561,9 +674,13 @@ class ManualScheduleBuilder extends Page
                 $newStart = $programme->start_time->copy()->addWeeks($week);
                 $newEnd = $programme->end_time->copy()->addWeeks($week);
 
-                // Don't create beyond schedule window
                 if ($newStart->gt($templateStart->copy()->addDays($scheduleWindowDays))) {
                     break;
+                }
+
+                $pinnedCopy = null;
+                if ($programme->pinned_start_time) {
+                    $pinnedCopy = $programme->pinned_start_time->copy()->addWeeks($week);
                 }
 
                 NetworkProgramme::create([
@@ -576,6 +693,8 @@ class ManualScheduleBuilder extends Page
                     'duration_seconds' => $programme->duration_seconds,
                     'contentable_type' => $programme->contentable_type,
                     'contentable_id' => $programme->contentable_id,
+                    'sort_order' => $programme->sort_order,
+                    'pinned_start_time' => $pinnedCopy,
                 ]);
                 $created++;
             }
@@ -591,93 +710,41 @@ class ManualScheduleBuilder extends Page
         return ['success' => true, 'created' => $created];
     }
 
-    /**
-     * Cascade-bump to resolve all overlaps involving the anchor programme.
-     *
-     * Two-pass approach:
-     * 1. If the anchor was placed inside a prior programme's time range,
-     *    bump the anchor forward so it starts after that programme ends (+ gap).
-     *    Only considers programmes that were clearly placed before the anchor
-     *    (start_time strictly less than anchor's start_time).
-     *    Skipped when $pinAnchor is true (e.g. insertAfterProgramme already
-     *    computed the correct position).
-     * 2. Walk all programmes starting at or after the (possibly adjusted) anchor
-     *    and bump any that overlap forward (+ gap).
-     *
-     * @param  bool  $pinAnchor  When true, skip Pass 1 (anchor position is authoritative).
-     */
-    protected function cascadeBump(Network $network, NetworkProgramme $anchor, DateTimeZone $tz, bool $pinAnchor = false): void
-    {
-        $gap = (int) ($network->schedule_gap_seconds ?? 0);
+    // ── Now Playing ─────────────────────────────────────────────────
 
-        // ── Pass 1: Check if anchor overlaps a prior programme ──────────
-        // Find any programme that starts strictly before the anchor but ends
-        // after the anchor starts. Pick the one with the latest end_time.
-        // Skipped when the anchor position is authoritative (insertAfterProgramme).
-        if (! $pinAnchor) {
-            $prior = $network->programmes()
-                ->where('id', '!=', $anchor->id)
-                ->where('start_time', '<', $anchor->start_time)
-                ->where('end_time', '>', $anchor->start_time)
-                ->orderByDesc('end_time')
+    /**
+     * Get the currently-playing programme (if any) for the status indicator.
+     */
+    public function getNowPlaying(): ?array
+    {
+        $network = $this->getRecord();
+        $programme = $network->getCurrentProgramme();
+
+        if (! $programme) {
+            $next = $network->programmes()
+                ->where('start_time', '>', Carbon::now())
+                ->orderBy('start_time')
                 ->first();
 
-            if ($prior) {
-                // Bump the anchor forward to after the prior programme ends (+ gap)
-                $newStart = $prior->end_time->copy()->addSeconds($gap);
-                $newEnd = $newStart->copy()->addSeconds($anchor->duration_seconds);
-
-                $anchor->update([
-                    'start_time' => $newStart,
-                    'end_time' => $newEnd,
-                ]);
-
-                $anchor->refresh();
+            if ($next) {
+                return [
+                    'status' => 'gap',
+                    'next_title' => $next->title,
+                    'next_start' => $next->start_time->toIso8601String(),
+                ];
             }
+
+            return ['status' => 'empty'];
         }
 
-        // ── Pass 2: Walk forward from anchor, bumping overlaps ──────────
-        // When pinAnchor is true (insert-after), we need to also catch
-        // programmes that start before the anchor but overlap with it,
-        // since the anchor position is authoritative and everything else yields.
-        $subsequentQuery = $network->programmes()
-            ->where('id', '!=', $anchor->id)
-            ->orderBy('start_time')
-            ->orderBy('id');
-
-        if ($pinAnchor) {
-            // Include any programme that ends after the anchor starts
-            // (i.e. overlaps with the anchor or comes after it)
-            $subsequentQuery->where('end_time', '>', $anchor->start_time);
-        } else {
-            // Original behavior: only programmes starting at or after the anchor
-            $subsequentQuery->where('start_time', '>=', $anchor->start_time);
-        }
-
-        $subsequent = $subsequentQuery->get();
-
-        // The "fence" is the earliest time the next programme can start
-        $fence = $anchor->end_time->copy()->addSeconds($gap);
-
-        foreach ($subsequent as $prog) {
-            if ($prog->start_time->lt($fence)) {
-                // This programme overlaps or violates the gap — bump it forward
-                $newStart = $fence->copy();
-                $newEnd = $newStart->copy()->addSeconds($prog->duration_seconds);
-
-                $prog->update([
-                    'start_time' => $newStart,
-                    'end_time' => $newEnd,
-                ]);
-
-                // Advance the fence past this newly-bumped programme
-                $fence = $newEnd->copy()->addSeconds($gap);
-            } else {
-                // No overlap — but update fence in case a later programme does overlap
-                $fence = $prog->end_time->copy()->addSeconds($gap);
-            }
-        }
+        return [
+            'status' => 'playing',
+            'title' => $programme->title,
+            'end_time' => $programme->end_time->toIso8601String(),
+        ];
     }
+
+    // ── Helpers ──────────────────────────────────────────────────────
 
     /**
      * Parse duration from various formats to seconds.
@@ -717,39 +784,6 @@ class ManualScheduleBuilder extends Page
         }
 
         return sprintf('%dm', $minutes);
-    }
-
-    /**
-     * Get the currently-playing programme (if any) for the status indicator.
-     */
-    public function getNowPlaying(): ?array
-    {
-        $network = $this->getRecord();
-        $programme = $network->getCurrentProgramme();
-
-        if (! $programme) {
-            // Check for the next upcoming programme
-            $next = $network->programmes()
-                ->where('start_time', '>', Carbon::now())
-                ->orderBy('start_time')
-                ->first();
-
-            if ($next) {
-                return [
-                    'status' => 'gap',
-                    'next_title' => $next->title,
-                    'next_start' => $next->start_time->toIso8601String(),
-                ];
-            }
-
-            return ['status' => 'empty'];
-        }
-
-        return [
-            'status' => 'playing',
-            'title' => $programme->title,
-            'end_time' => $programme->end_time->toIso8601String(),
-        ];
     }
 
     /**

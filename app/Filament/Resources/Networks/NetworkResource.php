@@ -701,7 +701,7 @@ class NetworkResource extends Resource
                                         ])
                                         ->default(TranscodeMode::Local->value)
                                         ->inline()
-                                        ->helperText('Choose if and where transcoding should occur.'),
+                                        ->helperText('Choose if and where transcoding should occur. Restart the broadcast after changing this setting.'),
 
                                     Grid::make(3)->schema([
                                         TextInput::make('video_bitrate')

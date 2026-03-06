@@ -105,109 +105,182 @@
             </div>
         </div>
 
-        {{-- Click-to-assign banner --}}
-        <div
-            x-show="selectedMediaItem"
-            x-transition
-            x-cloak
-            class="mb-3 flex items-center justify-between rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 px-4 py-2"
-        >
-            <span class="text-xs text-primary-700 dark:text-primary-300">
-                Click a time slot or <strong>+</strong> button to place: <strong x-text="selectedMediaItem?.title"></strong>
-            </span>
-            <button
-                @click="selectedMediaItem = null"
-                class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-            >Cancel</button>
+        {{-- Schedule Summary Bar --}}
+        <div x-show="programmes.length > 0" class="flex items-center gap-4 mb-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/40 text-xs text-gray-500 dark:text-gray-400">
+            <span><strong x-text="programmes.length"></strong> programme(s)</span>
+            <span>&middot;</span>
+            <span>Total: <strong x-text="totalDuration"></strong></span>
+            <template x-if="scheduleEndTime">
+                <span>&middot; Ends at <strong x-text="scheduleEndTime"></strong></span>
+            </template>
         </div>
 
-        {{-- Main Layout: Timeline + Sticky Media Pool --}}
+        {{-- Main Layout: Programme List + Sticky Media Pool --}}
         <div class="flex gap-5 items-start">
-            {{-- Timeline --}}
+            {{-- Programme List --}}
             <div
                 class="flex-1 min-w-0"
-                x-ref="timeGrid"
-                :class="{ 'cursor-crosshair': selectedMediaItem }"
-                @dragover.prevent="handleGridDragOver($event)"
-                @dragleave="handleGridDragLeave($event)"
-                @drop.prevent="handleGridDrop($event)"
-                @click="handleGridClick($event)"
+                @dragover="handleListDragOver($event)"
+                @drop="handleListDrop($event)"
             >
-                <div class="relative">
-                    <template x-for="slot in timeSlots" :key="slot.time">
-                        <div
-                            class="flex slot-row"
-                            :class="{
-                                'border-b border-gray-200/60 dark:border-gray-700/40': slot.isHour,
-                                'border-b border-gray-100/40 dark:border-gray-700/20': !slot.isHour && slot.minute === 30,
-                                'border-b border-transparent': !slot.isHour && slot.minute !== 0 && slot.minute !== 30,
-                                'bg-primary-50/50 dark:bg-primary-900/20': dropTarget === slot.time,
-                            }"
-                            :data-slot-time="slot.time"
-                            style="min-height: 28px;"
-                        >
-                            {{-- Time gutter --}}
-                            <div class="w-14 shrink-0 flex items-start justify-end pr-3 -mt-[9px] select-none">
-                                <template x-if="slot.isHour">
-                                    <span class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 tabular-nums" x-text="slot.label"></span>
-                                </template>
-                            </div>
+                {{-- Empty state --}}
+                <template x-if="!loading && programmes.length === 0">
+                    <div class="flex flex-col items-center justify-center py-16 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                        <x-heroicon-o-queue-list class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">No programmes scheduled</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500">Drag items from the media pool or click the <strong>+</strong> button to add content</p>
+                    </div>
+                </template>
 
-                            {{-- Content lane --}}
-                            <div class="flex-1 relative min-h-[28px]"
-                                 :class="{ 'border-l border-gray-200 dark:border-gray-700': true }"
-                            >
-                                <template x-for="prog in getProgrammesAtSlot(slot.time)" :key="prog.id">
-                                    <div
-                                        class="absolute inset-x-0 mx-1 rounded-lg overflow-hidden shadow-sm ring-1 transition-shadow hover:shadow-md group/prog"
-                                        :class="getTypeColor(prog.contentable_type)"
-                                        :style="getProgrammeStyle(prog, slot.time)"
+                {{-- Programme Cards --}}
+                <div class="space-y-1">
+                    <template x-for="(prog, index) in programmes" :key="prog.id">
+                        <div>
+                            {{-- Gap indicator between programmes --}}
+                            <template x-if="index > 0 && gapBefore(index) !== null && gapBefore(index) !== 0">
+                                <div class="flex items-center gap-2 py-1 px-2">
+                                    <div class="flex-1 border-t" :class="gapBefore(index) < 0 ? 'border-red-300 dark:border-red-700 border-dashed' : 'border-gray-200 dark:border-gray-700'"></div>
+                                    <span class="text-[10px] font-medium shrink-0"
+                                        :class="gapBefore(index) < 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'"
+                                        x-text="formatGap(gapBefore(index))"
+                                    ></span>
+                                    <div class="flex-1 border-t" :class="gapBefore(index) < 0 ? 'border-red-300 dark:border-red-700 border-dashed' : 'border-gray-200 dark:border-gray-700'"></div>
+                                </div>
+                            </template>
+
+                            {{-- Programme Card --}}
+                            <div class="relative">
+                                <div
+                                    class="group/card flex items-stretch rounded-xl border shadow-sm transition-all hover:shadow-md"
+                                    :class="getTypeColor(prog.contentable_type)"
+                                >
+                                {{-- Move up/down + position number --}}
+                                <div class="flex flex-col items-center justify-center w-10 shrink-0 border-r border-inherit gap-0.5 py-1">
+                                    <button
+                                        @click.stop="moveUp(index)"
+                                        class="p-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                                        :disabled="index === 0"
+                                        title="Move up"
                                     >
-                                        {{-- Actions overlay --}}
-                                        <div class="absolute top-1.5 right-1.5 flex items-center gap-1 z-20 opacity-0 group-hover/prog:opacity-100 transition-opacity" style="pointer-events: auto;">
-                                            <template x-if="selectedMediaItem">
-                                                <button
-                                                    @click.stop="insertAfterProgramme(prog.id, selectedMediaItem); selectedMediaItem = null;"
-                                                    class="p-1 rounded-md bg-white/90 dark:bg-gray-800/80 backdrop-blur text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/60 shadow transition"
-                                                    title="Insert after this"
-                                                >
-                                                    <x-heroicon-o-plus class="w-3.5 h-3.5" />
-                                                </button>
-                                            </template>
-                                            <button
-                                                @click.stop="handleRemoveClick($event, prog.id)"
-                                                class="p-1 rounded-md bg-white/90 dark:bg-gray-800/80 backdrop-blur text-gray-400 hover:text-red-600 dark:hover:text-red-400 shadow transition"
-                                                title="Remove"
-                                            >
-                                                <x-heroicon-o-trash class="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
+                                        <x-heroicon-s-chevron-up class="w-3.5 h-3.5" />
+                                    </button>
+                                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 select-none leading-none" x-text="index + 1"></span>
+                                    <button
+                                        @click.stop="moveDown(index)"
+                                        class="p-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                                        :disabled="index >= programmes.length - 1"
+                                        title="Move down"
+                                    >
+                                        <x-heroicon-s-chevron-down class="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
 
-                                        {{-- Programme content (draggable for move) --}}
-                                        <div
-                                            class="flex h-full cursor-grab active:cursor-grabbing"
-                                            style="pointer-events: auto;"
-                                            draggable="true"
-                                            @dragstart="handleProgrammeDragStart($event, prog)"
-                                            @dragend="handleProgrammeDragEnd($event)"
-                                        >
-                                            <template x-if="prog.image">
-                                                <div class="shrink-0 w-16 sm:w-24 h-full relative overflow-hidden">
-                                                    <img :src="prog.image" class="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                                                    <div class="absolute inset-0 bg-gradient-to-r from-transparent to-black/10"></div>
-                                                </div>
-                                            </template>
-                                            <div class="flex-1 min-w-0 px-3 py-2 flex flex-col justify-center">
-                                                <p class="text-sm font-semibold truncate leading-snug" x-text="prog.title"></p>
-                                                <div class="flex items-center gap-2 mt-1 text-[11px] opacity-60">
-                                                    <span x-text="formatTimeRange(prog)"></span>
-                                                    <span>&middot;</span>
-                                                    <span x-text="formatDuration(prog.duration_seconds)"></span>
-                                                </div>
-                                            </div>
-                                        </div>
+                                {{-- Poster image --}}
+                                <template x-if="prog.image">
+                                    <div class="shrink-0 w-16 sm:w-20 relative overflow-hidden">
+                                        <img :src="prog.image" class="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                                     </div>
                                 </template>
+
+                                {{-- Programme details --}}
+                                <div class="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center">
+                                    <div class="flex items-center gap-2">
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate leading-snug" x-text="prog.title"></p>
+                                        <span
+                                            class="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                                            :class="getTypeBadge(prog.contentable_type)"
+                                            x-text="prog.contentable_type && prog.contentable_type.includes('Episode') ? 'EP' : 'MOV'"
+                                        ></span>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                        <span class="font-medium" :class="getTypeAccent(prog.contentable_type)" x-text="formatTimeRange(prog)"></span>
+                                        <span>&middot;</span>
+                                        <span x-text="formatDuration(prog.duration_seconds)"></span>
+                                    </div>
+                                </div>
+
+                                {{-- Pin indicator / editor --}}
+                                <div class="flex items-center px-2 shrink-0">
+                                    <template x-if="editingPinId === prog.id">
+                                        <div class="flex items-center gap-1.5" @click.stop>
+                                            <input
+                                                type="time"
+                                                x-model="editingPinTime"
+                                                class="text-xs rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 w-28 focus:ring-primary-500 focus:border-primary-500"
+                                                @keydown.enter="savePin(prog.id)"
+                                                @keydown.escape="cancelEditPin()"
+                                            />
+                                            <button @click.stop="savePin(prog.id)" class="p-1 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30" title="Save pin">
+                                                <x-heroicon-o-check class="w-4 h-4" />
+                                            </button>
+                                            <button @click.stop="cancelEditPin()" class="p-1 rounded-md text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" title="Cancel">
+                                                <x-heroicon-o-x-mark class="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="editingPinId !== prog.id">
+                                        <div class="flex items-center">
+                                            <template x-if="prog.is_pinned">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-[10px] font-medium text-amber-600 dark:text-amber-400" x-text="prog.pinned_start_time"></span>
+                                                    <button
+                                                        @click.stop="startEditPin(prog)"
+                                                        class="p-1 rounded-md text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition"
+                                                        title="Edit pinned time"
+                                                    >
+                                                        <x-heroicon-s-map-pin class="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        @click.stop="unpinTime(prog.id)"
+                                                        class="p-1 rounded-md text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition opacity-0 group-hover/card:opacity-100"
+                                                        title="Remove pin"
+                                                    >
+                                                        <x-heroicon-o-x-circle class="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </template>
+                                            <template x-if="!prog.is_pinned">
+                                                <button
+                                                    @click.stop="startEditPin(prog)"
+                                                    class="p-1 rounded-md text-gray-300 dark:text-gray-600 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition opacity-0 group-hover/card:opacity-100"
+                                                    title="Pin to specific time"
+                                                >
+                                                    <x-heroicon-o-map-pin class="w-4 h-4" />
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                {{-- Actions (insert-after, remove) --}}
+                                <div class="flex items-center gap-0.5 px-2 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                    <button
+                                        @click.stop="insertAfterProgramme(prog.id, null)"
+                                        x-show="false"
+                                        class="hidden"
+                                    ></button>
+                                    <div
+                                        class="relative"
+                                        @dragover.prevent="$event.dataTransfer.dropEffect = 'copy'"
+                                        @drop.stop="handleInsertDrop($event, prog.id)"
+                                    >
+                                        <button
+                                            @click.stop
+                                            class="p-1.5 rounded-md text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition"
+                                            title="Drop media here to insert after"
+                                        >
+                                            <x-heroicon-o-plus class="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <button
+                                        @click.stop="removeProgramme(prog.id)"
+                                        class="p-1.5 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                                        title="Remove programme"
+                                    >
+                                        <x-heroicon-o-trash class="w-4 h-4" />
+                                    </button>
+                                </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -215,7 +288,7 @@
             </div>
 
             {{-- Media Pool — sticky sidebar --}}
-            <div class="w-72 shrink-0 sticky top-4 max-h-[calc(100vh-6rem)]  flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="w-72 shrink-0 sticky top-4 max-h-[calc(100vh-6rem)] flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {{-- Pool Header --}}
                 <div class="p-3 border-b border-gray-200 dark:border-gray-700 space-y-2">
                     <div class="flex items-center justify-between">
@@ -250,13 +323,9 @@
 
                     <template x-for="item in filteredMediaPool" :key="item.contentable_type + '-' + item.contentable_id">
                         <div
-                            class="group/item flex items-center gap-2.5 p-2 rounded-lg border cursor-grab hover:shadow-sm transition-all"
-                            :class="selectedMediaItem && selectedMediaItem.contentable_id === item.contentable_id && selectedMediaItem.contentable_type === item.contentable_type
-                                ? 'border-primary-400 dark:border-primary-500 bg-primary-50/50 dark:bg-primary-900/20 ring-1 ring-primary-400/50'
-                                : 'border-gray-100 dark:border-gray-700/50 hover:border-gray-200 dark:hover:border-gray-600'"
+                            class="group/item flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 dark:border-gray-700/50 cursor-grab hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm transition-all"
                             draggable="true"
-                            @dragstart="handleMediaDragStart($event, item)"
-                            @click="selectMediaItem(item)"
+                            @dragstart="handlePoolDragStart($event, item)"
                         >
                             <template x-if="item.image">
                                 <img :src="item.image" class="w-10 h-14 rounded object-cover shrink-0" loading="lazy" />

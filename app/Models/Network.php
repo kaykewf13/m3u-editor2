@@ -44,6 +44,11 @@ class Network extends Model
         // HLS continuity tracking
         'broadcast_segment_sequence' => 'integer',
         'broadcast_discontinuity_sequence' => 'integer',
+        // Retry tracking
+        'broadcast_fail_count' => 'integer',
+        'broadcast_last_failed_at' => 'datetime',
+        'broadcast_last_exit_code' => 'integer',
+        'broadcast_restart_locked' => 'boolean',
         // Manual schedule
         'manual_schedule_recurrence' => 'string',
         'schedule_gap_seconds' => 'integer',
