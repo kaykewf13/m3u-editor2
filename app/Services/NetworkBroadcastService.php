@@ -27,9 +27,16 @@ class NetworkBroadcastService
 
     public function __construct()
     {
-        // Initialize the M3uProxyService
-        // We'll use this to communicate with the proxy for broadcast management
         $this->proxyService = new M3uProxyService;
+    }
+
+    protected function getProxyService(): M3uProxyService
+    {
+        if (! isset($this->proxyService)) {
+            $this->proxyService = new M3uProxyService;
+        }
+
+        return $this->proxyService;
     }
 
     /**
@@ -206,7 +213,7 @@ class NetworkBroadcastService
         $addDiscontinuity = $startNumber > 0;
 
         // Get the callback URL
-        $callbackUrl = $this->proxyService->getBroadcastCallbackUrl();
+        $callbackUrl = $this->getProxyService()->getBroadcastCallbackUrl();
 
         // Only trust URL-based seeking when using server-side transcoding (TranscodeMode::Server).
         // For direct streams (static=true), media servers like Emby/Jellyfin ignore StartTimeTicks,
@@ -325,7 +332,7 @@ class NetworkBroadcastService
         ]);
 
         try {
-            $response = $this->proxyService->proxyRequest(
+            $response = $this->getProxyService()->proxyRequest(
                 'POST',
                 "/broadcast/{$network->uuid}/start",
                 $payload
@@ -403,7 +410,7 @@ class NetworkBroadcastService
 
         // First try to stop via proxy
         try {
-            $response = $this->proxyService->proxyRequest(
+            $response = $this->getProxyService()->proxyRequest(
                 'POST',
                 "/broadcast/{$network->uuid}/stop"
             );
@@ -444,7 +451,7 @@ class NetworkBroadcastService
 
         // Clean up via proxy (removes files)
         try {
-            $this->proxyService->proxyRequest('DELETE', "/broadcast/{$network->uuid}");
+            $this->getProxyService()->proxyRequest('DELETE', "/broadcast/{$network->uuid}");
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup broadcast files via proxy', [
                 'network_id' => $network->id,
@@ -461,7 +468,7 @@ class NetworkBroadcastService
     public function isProcessRunning(Network $network): bool
     {
         try {
-            $response = $this->proxyService->proxyRequest(
+            $response = $this->getProxyService()->proxyRequest(
                 'GET',
                 "/broadcast/{$network->uuid}/status"
             );
@@ -680,7 +687,7 @@ class NetworkBroadcastService
             'running' => $isRunning,
             'pid' => $network->broadcast_pid,
             'started_at' => $network->broadcast_started_at?->toIso8601String(),
-            'hls_url' => $this->proxyService->getProxyBroadcastHlsUrl($network),
+            'hls_url' => $this->getProxyService()->getProxyBroadcastHlsUrl($network),
         ];
 
         if ($isRunning) {

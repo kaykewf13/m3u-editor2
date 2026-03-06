@@ -26,7 +26,7 @@ beforeEach(function () {
     ]);
 
     // Add to network content
-    $this->network->contents()->create([
+    $this->network->networkContent()->create([
         'contentable_type' => Channel::class,
         'contentable_id' => $this->channel->id,
     ]);
