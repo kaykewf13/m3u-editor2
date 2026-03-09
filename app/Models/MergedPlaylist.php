@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class MergedPlaylist extends Model
@@ -161,6 +162,11 @@ class MergedPlaylist extends Model
     public function postProcesses(): MorphToMany
     {
         return $this->morphToMany(PostProcess::class, 'processable');
+    }
+
+    public function playlistViewers(): MorphMany
+    {
+        return $this->morphMany(PlaylistViewer::class, 'viewerable');
     }
 
     public function enableProxy(): Attribute

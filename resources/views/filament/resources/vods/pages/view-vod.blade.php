@@ -67,6 +67,9 @@
 
         $playerArgs = json_encode([
             'id' => $record->id,
+            'stream_id' => $record->id,
+            'content_type' => 'vod',
+            'playlist_id' => $record->playlist_id,
             'title' => $title,
             'url' => route('m3u-proxy.channel.player', ['id' => $record->id]),
             'format' => $record->container_extension ?? 'ts',

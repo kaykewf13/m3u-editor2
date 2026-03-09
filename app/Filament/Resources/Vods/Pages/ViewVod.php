@@ -73,6 +73,9 @@ class ViewVod extends ViewRecord
                 ->color('primary')
                 ->dispatch('openFloatingStream', [[
                     'id' => $this->record->id,
+                    'stream_id' => $this->record->id,
+                    'content_type' => 'vod',
+                    'playlist_id' => $this->record->playlist_id,
                     'title' => $this->record->title_custom ?? $this->record->title ?? $this->record->name,
                     'url' => route('m3u-proxy.channel.player', ['id' => $this->record->id]),
                     'format' => $this->record->container_extension ?? 'ts',

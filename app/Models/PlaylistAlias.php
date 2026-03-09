@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\Cache;
 
 class PlaylistAlias extends Model
@@ -482,5 +483,10 @@ class PlaylistAlias extends Model
         }
 
         return $originalUrl;
+    }
+
+    public function playlistViewers(): MorphMany
+    {
+        return $this->morphMany(PlaylistViewer::class, 'viewerable');
     }
 }

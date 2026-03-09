@@ -365,6 +365,9 @@ class EpgApiController extends Controller
                 $playlistChannelData[$channelKey] = [
                     'id' => $channelKey,
                     'database_id' => $channel->id, // Add the actual database ID for editing
+                    'stream_id' => $channel->id,
+                    'content_type' => $channel->is_vod ? 'vod' : 'live',
+                    'playlist_id' => $playlist->id,
                     'url' => $url,
                     'format' => $channel->is_vod
                         ? ($vodProfile->format ?? $channelFormat)
