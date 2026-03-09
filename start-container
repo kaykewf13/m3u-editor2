@@ -549,9 +549,6 @@ php artisan migrate --force
 # Jobs database uses a separate SQLite file for queue job tracking (see config/database.php)
 php artisan migrate --database=jobs --force
 
-echo "🔄 Resetting any stuck sync processes..."
-php artisan app:reset-sync-process
-
 # Register webhook for real-time cache invalidation
 # This works for both embedded and external m3u-proxy modes
 # The command will check if m3u-proxy is configured before attempting registration
