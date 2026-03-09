@@ -899,7 +899,14 @@ class M3uProxyService
                 'failover_count' => is_array($failovers) ? count($failovers) : ($failovers ? 'using_resolver' : 0),
             ]);
 
-            $streamId = $this->createTranscodedStream($primaryUrl, $profile, $failovers, $userAgent, $headers, $metadata);
+            try {
+                $streamId = $this->createTranscodedStream($primaryUrl, $profile, $failovers, $userAgent, $headers, $metadata);
+            } catch (Exception $e) {
+                if ($selectedProfile && $reservationId) {
+                    ProfileService::cancelReservation($selectedProfile, $reservationId);
+                }
+                throw $e;
+            }
 
             Log::debug('Transcoded stream created, finalizing reservation', [
                 'stream_id' => $streamId,
@@ -940,7 +947,14 @@ class M3uProxyService
                 $metadata['provider_profile_id'] = $selectedProfile->id;
             }
 
-            $streamId = $this->createStream($primaryUrl, $failovers, $userAgent, $headers, $metadata);
+            try {
+                $streamId = $this->createStream($primaryUrl, $failovers, $userAgent, $headers, $metadata);
+            } catch (Exception $e) {
+                if ($selectedProfile && $reservationId) {
+                    ProfileService::cancelReservation($selectedProfile, $reservationId);
+                }
+                throw $e;
+            }
 
             Log::debug('Direct stream created, finalizing reservation', [
                 'stream_id' => $streamId,
@@ -1136,7 +1150,14 @@ class M3uProxyService
                 $metadata['provider_profile_id'] = $selectedProfile->id;
             }
 
-            $streamId = $this->createTranscodedStream($url, $profile, false, $userAgent, $headers, $metadata);
+            try {
+                $streamId = $this->createTranscodedStream($url, $profile, false, $userAgent, $headers, $metadata);
+            } catch (Exception $e) {
+                if ($selectedProfile && $reservationId) {
+                    ProfileService::cancelReservation($selectedProfile, $reservationId);
+                }
+                throw $e;
+            }
 
             Log::debug('Created transcoded episode stream with provider profile', [
                 'stream_id' => $streamId,
@@ -1167,7 +1188,14 @@ class M3uProxyService
                 $metadata['provider_profile_id'] = $selectedProfile->id;
             }
 
-            $streamId = $this->createStream($url, false, $userAgent, $headers, $metadata);
+            try {
+                $streamId = $this->createStream($url, false, $userAgent, $headers, $metadata);
+            } catch (Exception $e) {
+                if ($selectedProfile && $reservationId) {
+                    ProfileService::cancelReservation($selectedProfile, $reservationId);
+                }
+                throw $e;
+            }
 
             Log::debug('Created direct episode stream with provider profile', [
                 'stream_id' => $streamId,
