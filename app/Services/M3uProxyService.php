@@ -55,7 +55,7 @@ class M3uProxyService
         $this->failoverResolverUrl = null;
 
         // Get failover resolver URL (`M3U_PROXY_FAILOVER_RESOLVER_URL` env var), if set
-        $configFailoverResolver = config('proxy.resolver_url');
+        $configFailoverResolver = config('proxy.m3u_resolver_url');
 
         // Load settings values
         try {
@@ -1825,9 +1825,8 @@ class M3uProxyService
      *
      * Resolution order:
      * 1. If auto-resolve enabled and we have an HTTP request, compute from request host + root path
-     * 2. Explicit config/provided 'm3u_proxy_public_url'
-     * 3. Fall back to the resolver URL (built-in reverse proxy route) if set
-     * 4. Finally, fall back to the APP_URL + /m3u-proxy (built-in reverse proxy route)
+     * 2. Fall back to the resolver URL (built-in reverse proxy route) if set
+     * 3. Finally, fall back to the APP_URL + /m3u-proxy (built-in reverse proxy route)
      *
      * This method is intentionally run-time (not only at construction) so URLs can be
      * resolved per-request when desired.
@@ -1851,18 +1850,13 @@ class M3uProxyService
             }
         }
 
-        // 2) explicit config
-        if (! empty($this->apiPublicUrl)) {
-            return $this->apiPublicUrl;
-        }
-
-        // 3) resolver URL if set (allows smart failover handling to work without M3U_PROXY_PUBLIC_URL config)
+        // 2) resolver URL if set - this is the most explicit and reliable method to ensure correct URL resolution
         if (! empty($this->failoverResolverUrl)) {
             return $this->failoverResolverUrl.'/m3u-proxy';
         }
 
-        // 4) Smart fallback: Use APP_URL + /m3u-proxy if available (works with reverse proxy)
-        // This allows the proxy to work without requiring explicit M3U_PROXY_PUBLIC_URL configuration.
+        // 3) Smart fallback: Use APP_URL + /m3u-proxy if available (works with reverse proxy)
+        // This allows the proxy to work without requiring explicit resolver URL configuration.
         // Works automatically in Docker containers with NGINX reverse proxy.
         return ProxyFacade::getBaseUrl().'/m3u-proxy';
     }

@@ -253,7 +253,7 @@ class Preferences extends SettingsPage
                                                     ->columnSpanFull()
                                                     ->hintIcon(
                                                         'heroicon-m-question-mark-circle',
-                                                        tooltip: 'When enabled, the application will resolve the public-facing proxy URL using the incoming request host/scheme instead of the M3U_PROXY_PUBLIC_URL variable.'
+                                                        tooltip: 'When enabled, the application will resolve the public-facing proxy URL using the incoming request host/scheme instead of the Resolver URL.'
                                                     )
                                                     ->helperText('Useful for multi-host access (VPN/Tailscale/etc.)')
                                                     ->default(false),
@@ -321,15 +321,15 @@ class Preferences extends SettingsPage
                                                         tooltip: 'When enabled, the proxy will make a call to the editor to determine which failover to use based on available capacity. When disabled, a list of failover URLs will be sent to the proxy and it will loop through them without any capacity checks when a stream failure occurs.'
                                                     )
                                                     ->live()
-                                                    ->disabled(fn () => ! empty(config('proxy.resolver_url')))
-                                                    ->hint(fn () => ! empty(config('proxy.resolver_url')) ? 'Already set by environment variable!' : null)
+                                                    ->disabled(fn () => ! empty(config('proxy.m3u_resolver_url')))
+                                                    ->hint(fn () => ! empty(config('proxy.m3u_resolver_url')) ? 'Already set by environment variable!' : null)
                                                     ->default(false)
                                                     ->afterStateHydrated(function (Toggle $component, $state) {
-                                                        if (! empty(config('proxy.resolver_url'))) {
-                                                            $component->state((bool) config('proxy.resolver_url'));
+                                                        if (! empty(config('proxy.m3u_resolver_url'))) {
+                                                            $component->state((bool) config('proxy.m3u_resolver_url'));
                                                         }
                                                     })
-                                                    ->dehydrated(fn () => empty(config('proxy.resolver_url')))
+                                                    ->dehydrated(fn () => empty(config('proxy.m3u_resolver_url')))
                                                     ->helperText('Use to enable advanced failover checking and resolution.'),
 
                                                 TextInput::make('failover_resolver_url')
@@ -342,16 +342,16 @@ class Preferences extends SettingsPage
                                                         tooltip: 'The resolver URL is used for advanced failover logic, webhook registration for pooled providers, and Network Broadcasting features. This URL should point to the m3u-editor instance that the proxy can access.'
                                                     )
                                                     ->prefixIcon('heroicon-m-link')
-                                                    ->disabled(fn () => ! empty(config('proxy.resolver_url')))
-                                                    ->hint(fn () => ! empty(config('proxy.resolver_url')) ? 'Already set by environment variable!' : null)
-                                                    ->default(fn () => ! empty(config('proxy.resolver_url')) ? config('proxy.resolver_url') : '')
+                                                    ->disabled(fn () => ! empty(config('proxy.m3u_resolver_url')))
+                                                    ->hint(fn () => ! empty(config('proxy.m3u_resolver_url')) ? 'Already set by environment variable!' : null)
+                                                    ->default(fn () => ! empty(config('proxy.m3u_resolver_url')) ? config('proxy.m3u_resolver_url') : '')
                                                     ->afterStateHydrated(function (TextInput $component, $state) {
-                                                        if (! empty(config('proxy.resolver_url'))) {
-                                                            $component->state((string) config('proxy.resolver_url'));
+                                                        if (! empty(config('proxy.m3u_resolver_url'))) {
+                                                            $component->state((string) config('proxy.m3u_resolver_url'));
                                                         }
                                                     })
                                                     ->required(fn ($get) => (bool) $get('enable_failover_resolver'))
-                                                    ->dehydrated(fn () => empty(config('proxy.resolver_url')))
+                                                    ->dehydrated(fn () => empty(config('proxy.m3u_resolver_url')))
                                                     ->placeholder(fn () => $embedded ? 'http://127.0.0.1:'.config('app.port') : 'http://m3u-editor:36400')
                                                     ->helperText(fn () => $embedded
                                                         ? 'Domain the proxy can use to access the editor for failover resolution and webhook registration, e.g.: "http://127.0.0.1:36400" or "http://localhost:36400".'
@@ -362,7 +362,7 @@ class Preferences extends SettingsPage
                                                     ->icon('heroicon-m-signal')
                                                     ->disabled(fn ($get) => empty($get('failover_resolver_url')))
                                                     ->action(function ($get) use ($service) {
-                                                        $configUrl = config('proxy.resolver_url');
+                                                        $configUrl = config('proxy.m3u_resolver_url');
                                                         $url = $configUrl ?? $get('failover_resolver_url');
                                                         $url = rtrim($url, '/');
                                                         $result = $service->testResolver($url);
