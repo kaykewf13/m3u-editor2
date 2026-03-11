@@ -253,7 +253,7 @@ class Preferences extends SettingsPage
                                                     ->columnSpanFull()
                                                     ->hintIcon(
                                                         'heroicon-m-question-mark-circle',
-                                                        tooltip: 'When enabled, the application will resolve the public-facing proxy URL using the incoming request host/scheme instead of the Resolver URL.'
+                                                        tooltip: 'When enabled, the application will resolve the public-facing proxy URL using the incoming request host/scheme instead of the APP_URL or the configured Override URL (if set).'
                                                     )
                                                     ->helperText('Useful for multi-host access (VPN/Tailscale/etc.)')
                                                     ->default(false),
