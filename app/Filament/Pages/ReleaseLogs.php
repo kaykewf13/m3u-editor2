@@ -17,8 +17,6 @@ class ReleaseLogs extends Page
 
     protected static ?int $navigationSort = 3;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-list-bullet';
-
     public function getView(): string
     {
         return 'filament.pages.release-logs';
