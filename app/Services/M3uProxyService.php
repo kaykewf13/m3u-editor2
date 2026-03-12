@@ -611,6 +611,9 @@ class M3uProxyService
         $originalChannelId = $channel->id;
         $originalPlaylistUuid = $playlist->uuid;
 
+        // Build client identifier for profile affinity tracking
+        $clientIdentifier = ProfileService::buildClientIdentifier($request?->ip(), $username);
+
         // Determine the source playlist for provider profiles
         // When streaming through a CustomPlaylist, MergedPlaylist, or PlaylistAlias,
         // we need to use the channel's source Playlist for provider profile selection
@@ -671,7 +674,7 @@ class M3uProxyService
             // Use selectAndReserveProfile() for atomic select+increment to prevent TOCTOU races
             if ($profileSourcePlaylist) {
                 $forceSelect = $profileSourcePlaylist->bypass_provider_limits ?? false;
-                [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect);
+                [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect, $clientIdentifier);
 
                 if (! $selectedProfile) {
                     // Check if reuse was detected inside the lock (another request is creating this stream).
@@ -687,7 +690,7 @@ class M3uProxyService
                     // Fixes race condition where increment fires before the old stream's
                     // decrement webhook when rapidly switching channels.
                     ProfileService::reconcileFromProxy($profileSourcePlaylist);
-                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect);
+                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect, $clientIdentifier);
                 }
 
                 if (! $selectedProfile) {
@@ -798,7 +801,7 @@ class M3uProxyService
         // Use selectAndReserveProfile() for atomic select+increment to prevent TOCTOU races
         if (! $selectedProfile && $profileSourcePlaylist) {
             $forceSelect = $profileSourcePlaylist->bypass_provider_limits ?? false;
-            [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect);
+            [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect, $clientIdentifier);
 
             if (! $selectedProfile) {
                 // Check if reuse was detected inside the lock (another request is creating this stream).
@@ -832,7 +835,7 @@ class M3uProxyService
                         ProfileService::reconcileFromProxy($profileSourcePlaylist);
 
                         // Retry profile selection after freeing a slot
-                        [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect);
+                        [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect, $clientIdentifier);
                     }
                 }
 
@@ -840,7 +843,7 @@ class M3uProxyService
                     // Last resort: reconcile Redis counts against actual proxy state.
                     // Fixes race condition where increment fires before decrement webhook.
                     ProfileService::reconcileFromProxy($profileSourcePlaylist);
-                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect);
+                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, null, $originalChannelId, $originalPlaylistUuid, $forceSelect, $clientIdentifier);
                 }
 
                 if (! $selectedProfile) {
@@ -1021,7 +1024,7 @@ class M3uProxyService
      *
      * @throws Exception when base URL missing or API returns an error
      */
-    public function getEpisodeUrl($playlist, $episode, ?StreamProfile $profile = null, ?string $username = null): string
+    public function getEpisodeUrl($playlist, $episode, ?StreamProfile $profile = null, ?string $username = null, ?Request $request = null): string
     {
         if (empty($this->apiBaseUrl)) {
             throw new Exception('M3U Proxy base URL is not configured');
@@ -1029,6 +1032,9 @@ class M3uProxyService
 
         // Get episode ID
         $id = $episode->id;
+
+        // Build client identifier for profile affinity tracking
+        $clientIdentifier = ProfileService::buildClientIdentifier($request?->ip(), $username);
 
         // Determine the source playlist for provider profiles
         // When streaming through a CustomPlaylist, MergedPlaylist, or PlaylistAlias,
@@ -1098,7 +1104,7 @@ class M3uProxyService
         $reservationId = null;
         if ($profileSourcePlaylist) {
             $forceSelect = $profileSourcePlaylist->bypass_provider_limits ?? false;
-            [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect);
+            [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect, clientIdentifier: $clientIdentifier);
 
             if (! $selectedProfile) {
                 // No profiles with capacity - try "stop oldest on limit" before giving up
@@ -1114,7 +1120,7 @@ class M3uProxyService
 
                         usleep(200000); // 200ms
                         ProfileService::reconcileFromProxy($profileSourcePlaylist);
-                        [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect);
+                        [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect, clientIdentifier: $clientIdentifier);
                     }
                 }
 
@@ -1122,7 +1128,7 @@ class M3uProxyService
                     // Last resort: reconcile Redis counts against actual proxy state.
                     // Fixes race condition where increment fires before decrement webhook.
                     ProfileService::reconcileFromProxy($profileSourcePlaylist);
-                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect);
+                    [$selectedProfile, $reservationId] = ProfileService::selectAndReserveProfile($profileSourcePlaylist, forceSelect: $forceSelect, clientIdentifier: $clientIdentifier);
                 }
 
                 if (! $selectedProfile) {
