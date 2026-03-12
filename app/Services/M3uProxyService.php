@@ -814,18 +814,26 @@ class M3uProxyService
             if (! $selectedProfile) {
                 // Check if reuse was detected inside the lock (another request is creating this stream).
                 if (ProfileService::isChannelStreamActive($originalChannelId, $originalPlaylistUuid)) {
-                    $existingStreamId = $this->findExistingPooledStream($originalChannelId, $originalPlaylistUuid, null, null);
+                    // For non-transcoded streams, findExistingPooledStream only matches transcoded
+                    // streams (requires metadata.transcoding=true), so check the channel stream key
+                    // in Redis first. Then verify the proxy still has an active stream for this
+                    // channel — the Redis key can outlive the proxy stream (restart, timeout, etc.).
+                    $existingStreamId = ProfileService::getChannelActiveStreamId($originalChannelId, $originalPlaylistUuid)
+                        ?? $this->findExistingPooledStream($originalChannelId, $originalPlaylistUuid, null, null);
 
                     if ($existingStreamId) {
-                        $format = pathinfo($primaryUrl ?? '', PATHINFO_EXTENSION);
-                        $format = $format === 'm3u8' ? 'hls' : $format;
+                        $activeChannelStreams = self::getActiveStreamsCountByMetadata('original_channel_id', (string) $originalChannelId);
 
-                        return $this->buildProxyUrl($existingStreamId, $format, $username);
+                        if ($activeChannelStreams > 0) {
+                            $format = pathinfo($primaryUrl ?? '', PATHINFO_EXTENSION);
+                            $format = $format === 'm3u8' ? 'hls' : $format;
+
+                            return $this->buildProxyUrl($existingStreamId, $format, $username);
+                        }
                     }
 
-                    // Channel stream key exists in Redis but the proxy has no actual stream —
-                    // the key is stale (e.g. stream died without a cleanup webhook).
-                    // Clear it so the reconciliation + retry below can allocate a new slot.
+                    // Either no real stream ID in Redis (pending reservation that never completed),
+                    // or a real stream ID that no longer exists in the proxy — stale key, clear it.
                     Log::debug('Clearing stale channel stream key before reconciliation', [
                         'channel_id' => $originalChannelId,
                         'playlist_uuid' => $originalPlaylistUuid,
