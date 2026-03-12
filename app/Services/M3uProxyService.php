@@ -638,23 +638,10 @@ class M3uProxyService
         $reservationId = null;
 
         if ($profile) {
-            // Fast channel reuse check: if we already know this channel is streaming,
-            // return the cached stream URL without an HTTP round-trip to m3u-proxy.
-            $cachedStreamId = ProfileService::getChannelActiveStreamId($originalChannelId, $originalPlaylistUuid);
-
-            if ($cachedStreamId) {
-                Log::debug('Reusing existing transcoded stream via channel cache (fast path)', [
-                    'stream_id' => $cachedStreamId,
-                    'original_channel_id' => $originalChannelId,
-                    'original_playlist_uuid' => $originalPlaylistUuid,
-                    'profile_id' => $profile->id,
-                ]);
-
-                return $this->buildTranscodeStreamUrl($cachedStreamId, $profile->format ?? 'ts', $username);
-            }
-
-            // Search for pooled stream by ORIGINAL channel ID (handles cross-provider failovers)
-            // Pass NULL for provider_profile_id to search across ALL profiles
+            // Search for pooled stream by ORIGINAL channel ID (handles cross-provider failovers).
+            // Pass NULL for provider_profile_id to search across ALL profiles.
+            // This also acts as proxy verification: if Redis has a key but the proxy has no
+            // active stream (e.g. after a proxy restart), the stale key is cleared below.
             $existingStreamId = $this->findExistingPooledStream($originalChannelId, $originalPlaylistUuid, $profile->id, null);
 
             if ($existingStreamId) {
@@ -667,6 +654,18 @@ class M3uProxyService
                 ]);
 
                 return $this->buildTranscodeStreamUrl($existingStreamId, $profile->format ?? 'ts', $username);
+            }
+
+            // If Redis has a channel stream key but the proxy returned no active stream above,
+            // the key is stale (proxy was restarted, stream died, webhook missed). Clear it so
+            // the profile selection below can proceed without hitting "channel reuse detected".
+            if (ProfileService::isChannelStreamActive($originalChannelId, $originalPlaylistUuid)) {
+                Log::debug('Clearing stale channel stream key (transcode path, no proxy stream found)', [
+                    'original_channel_id' => $originalChannelId,
+                    'original_playlist_uuid' => $originalPlaylistUuid,
+                    'profile_id' => $profile->id,
+                ]);
+                ProfileService::clearChannelStreamMapping($originalChannelId, $originalPlaylistUuid);
             }
 
             // Only select provider profile if we're creating a NEW stream (no pooled stream found)
