@@ -684,6 +684,14 @@ class M3uProxyService
                         if ($existingStreamId) {
                             return $this->buildTranscodeStreamUrl($existingStreamId, $profile->format ?? 'ts', $username);
                         }
+
+                        // Channel stream key exists in Redis but the proxy has no actual stream —
+                        // the key is stale. Clear it so the reconciliation + retry below can proceed.
+                        Log::debug('Clearing stale channel stream key before reconciliation (transcode path)', [
+                            'channel_id' => $originalChannelId,
+                            'playlist_uuid' => $originalPlaylistUuid,
+                        ]);
+                        ProfileService::clearChannelStreamMapping($originalChannelId, $originalPlaylistUuid);
                     }
 
                     // Reconcile Redis counts against actual proxy state before rejecting.
@@ -814,6 +822,15 @@ class M3uProxyService
 
                         return $this->buildProxyUrl($existingStreamId, $format, $username);
                     }
+
+                    // Channel stream key exists in Redis but the proxy has no actual stream —
+                    // the key is stale (e.g. stream died without a cleanup webhook).
+                    // Clear it so the reconciliation + retry below can allocate a new slot.
+                    Log::debug('Clearing stale channel stream key before reconciliation', [
+                        'channel_id' => $originalChannelId,
+                        'playlist_uuid' => $originalPlaylistUuid,
+                    ]);
+                    ProfileService::clearChannelStreamMapping($originalChannelId, $originalPlaylistUuid);
                 }
 
                 // No profiles with capacity - try "stop oldest on limit" before giving up
