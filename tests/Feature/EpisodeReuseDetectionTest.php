@@ -32,7 +32,7 @@ beforeEach(function () {
 /**
  * Helper: create a playlist with profiles enabled.
  */
-function createAffinityPlaylist(User $user, int $profileCount = 2, int $maxStreams = 2): Playlist
+function createProfilePlaylist(User $user, int $profileCount = 2, int $maxStreams = 2): Playlist
 {
     $playlist = Playlist::factory()->for($user)->create([
         'profiles_enabled' => true,
@@ -60,7 +60,7 @@ function createAffinityPlaylist(User $user, int $profileCount = 2, int $maxStrea
 // ── Episode reuse detection ───────────────────────────────────────────────
 
 test('selectAndReserveProfile sets channel stream key when episode ID and playlist UUID are provided', function () {
-    $playlist = createAffinityPlaylist($this->user, profileCount: 2, maxStreams: 2);
+    $playlist = createProfilePlaylist($this->user, profileCount: 2, maxStreams: 2);
     $profiles = $playlist->enabledProfiles()->get();
     $firstProfile = $profiles->first();
     $episodeId = 42;
@@ -102,7 +102,7 @@ test('selectAndReserveProfile sets channel stream key when episode ID and playli
 });
 
 test('selectAndReserveProfile detects reuse when episode stream key already exists', function () {
-    $playlist = createAffinityPlaylist($this->user, profileCount: 2, maxStreams: 2);
+    $playlist = createProfilePlaylist($this->user, profileCount: 2, maxStreams: 2);
     $episodeId = 42;
     $playlistUuid = $playlist->uuid;
 
