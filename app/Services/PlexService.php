@@ -450,7 +450,15 @@ class PlexService implements MediaServer
                     }
 
                     // If transcode options are provided use Plex's transcode endpoint
-                    if (! empty($transcodeOptions)) {
+                    // UNLESS the caller explicitly requests to skip Plex transcoding via the
+                    // 'skip_plex_transcode' flag. This allows direct file access for better
+                    // performance when Plex's remuxing creates buffering issues.
+                    $skipPlexTranscode = $transcodeOptions['skip_plex_transcode'] ?? false;
+
+                    // Check if there are actual transcode options (excluding internal flags)
+                    $hasTranscodeOptions = ! empty(array_diff_key($transcodeOptions, ['skip_plex_transcode' => null, 'session_id' => null]));
+
+                    if ($hasTranscodeOptions && ! $skipPlexTranscode) {
                         $videoBitrate = $transcodeOptions['video_bitrate'] ?? null;
                         $audioBitrate = $transcodeOptions['audio_bitrate'] ?? null;
                         $maxWidth = $transcodeOptions['max_width'] ?? null;
@@ -475,7 +483,13 @@ class PlexService implements MediaServer
                         // "prime" the transcode session on the server. If start.m3u8 is called
                         // without a prior decision call using the same session, Plex returns 400.
                         try {
-                            $sessionId = bin2hex(random_bytes(8));
+                            // Reuse a previously generated session ID when retrying, to avoid
+                            // accumulating orphaned phantom sessions on Plex. Each call to
+                            // /decision with a NEW session ID primes a new server-side transcode
+                            // context that cannot be stopped via the stop endpoint if it was never
+                            // fully consumed. By reusing the same session ID, subsequent /decision
+                            // calls simply re-prime the existing context instead of creating new ones.
+                            $sessionId = $transcodeOptions['session_id'] ?? bin2hex(random_bytes(8));
                             $decisionEndpoint = $this->baseUrl.'/video/:/transcode/universal/decision';
                             $decisionParams = [
                                 'path' => "/library/metadata/{$itemId}",
@@ -651,6 +665,74 @@ class PlexService implements MediaServer
 
             return false;
         }
+    }
+
+    /**
+     * Wait until a specific transcode session is no longer active on the Plex server.
+     *
+     * After calling stopTranscodeSession(), Plex may take a few seconds to fully
+     * release the session. This method polls the /transcode/sessions endpoint
+     * to verify the session is gone before proceeding.
+     *
+     * @param  string  $sessionId  The transcode session ID to wait for
+     * @param  int  $maxAttempts  Maximum number of poll attempts
+     * @param  int  $intervalSeconds  Seconds between polls
+     * @return bool True if session was confirmed released, false if timed out
+     */
+    public function waitForTranscodeSessionRelease(string $sessionId, int $maxAttempts = 6, int $intervalSeconds = 2): bool
+    {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = Http::timeout(5)
+                    ->withHeaders([
+                        'X-Plex-Token' => $this->apiKey,
+                        'Accept' => 'application/json',
+                    ])
+                    ->get("{$this->baseUrl}/transcode/sessions");
+
+                if ($response->successful()) {
+                    $sessions = $response->json('MediaContainer.Metadata', []);
+
+                    // Check if our session ID still appears in the active transcodes
+                    $stillActive = collect($sessions)->contains(function ($session) use ($sessionId) {
+                        return ($session['Session']['id'] ?? null) === $sessionId
+                            || ($session['key'] ?? null) === $sessionId;
+                    });
+
+                    if (! $stillActive) {
+                        Log::info('Plex transcode session confirmed released', [
+                            'session_id' => $sessionId,
+                            'attempt' => $attempt,
+                        ]);
+
+                        return true;
+                    }
+
+                    Log::debug('Plex transcode session still active, waiting...', [
+                        'session_id' => $sessionId,
+                        'attempt' => $attempt,
+                        'active_sessions' => count($sessions),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::debug('Error polling Plex transcode sessions', [
+                    'session_id' => $sessionId,
+                    'attempt' => $attempt,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+
+            if ($attempt < $maxAttempts) {
+                sleep($intervalSeconds);
+            }
+        }
+
+        Log::warning('Timed out waiting for Plex transcode session release', [
+            'session_id' => $sessionId,
+            'max_attempts' => $maxAttempts,
+        ]);
+
+        return false;
     }
 
     public function getImageUrl(string $itemId, string $imageType = 'Primary'): string

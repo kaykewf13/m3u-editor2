@@ -531,9 +531,17 @@ class M3uProxyApiController extends Controller
         $error = $data['error'] ?? 'Unknown error';
         $exitCode = $data['exit_code'] ?? -1;
         $finalSegment = $data['final_segment_number'] ?? 0;
+        $errorType = $data['error_type'] ?? null;
+
+        // The proxy sends TWO callbacks per FFmpeg failure:
+        // 1. Primary: contains exit_code and final_segment_number (the real FFmpeg exit)
+        // 2. Detail: contains error_type="input_error" (supplementary error context)
+        // Only the primary callback should drive retry logic and increment fail_count.
+        // The detail callback is logged for observability but otherwise ignored.
+        $isDetailCallback = $errorType === 'input_error';
 
         $isFatal = in_array($exitCode, [125, 126, 127], true);
-        $maxRetries = 5;
+        $isBootRecovery = $network->broadcast_boot_recovery_until && now()->lt($network->broadcast_boot_recovery_until);
 
         Log::warning('Broadcast failed via proxy', [
             'network_id' => $network->id,
@@ -542,9 +550,43 @@ class M3uProxyApiController extends Controller
             'exit_code' => $exitCode,
             'fatal' => $isFatal,
             'final_segment' => $finalSegment,
+            'boot_recovery' => $isBootRecovery,
+            'detail_only' => $isDetailCallback,
         ]);
 
+        // Detail callbacks (error_type=input_error) are supplementary context from the
+        // proxy — e.g. "Server returned 400 Bad Request". They arrive alongside the
+        // primary callback that has the real exit_code. Only update the error message
+        // for observability; do not modify fail_count or trigger retry logic.
+        if ($isDetailCallback) {
+            $network->update([
+                'broadcast_error' => $error,
+            ]);
+
+            return;
+        }
+
+        // During boot recovery, the tick loop is the sole retry mechanism. The callback
+        // handler must NOT increment fail_count or modify retry state because the tick
+        // loop retries unconditionally every tick during the grace period.
+        // We only update the error message for observability, preserving all other state.
+        if ($isBootRecovery) {
+            $network->update([
+                'broadcast_error' => $error,
+                'broadcast_last_exit_code' => $exitCode,
+            ]);
+
+            Log::info('Boot recovery: skipping callback state changes — tick loop handles retries', [
+                'network_id' => $network->id,
+                'exit_code' => $exitCode,
+                'grace_period_until' => $network->broadcast_boot_recovery_until->toIso8601String(),
+            ]);
+
+            return;
+        }
+
         $failCount = ($network->broadcast_fail_count ?? 0) + 1;
+        $maxRetries = 5;
 
         // Clean up Plex transcode session (the old session is dead, free the slot)
         $service->cleanupTranscodeSession($network);
@@ -559,8 +601,26 @@ class M3uProxyApiController extends Controller
             'broadcast_last_failed_at' => now(),
             'broadcast_last_exit_code' => $exitCode,
             'broadcast_transcode_session_id' => null,
-            // Keep programme reference for recovery
         ]);
+
+        // Add explanatory text for common scenarios
+        $integration = $network->mediaServerIntegration;
+        if ($integration && $integration->isPlex() && $exitCode === 8) {
+            // Check if this might be a recent boot recovery issue
+            $recentBootRecovery = $network->broadcast_boot_recovery_until &&
+                $network->broadcast_boot_recovery_until->diffInMinutes(now()) < 10;
+
+            if ($recentBootRecovery) {
+                $additionalInfo = ' — If the container just rebooted, Plex may still be releasing the previous transcode session. This is normal and will be retried automatically.';
+            } else {
+                $additionalInfo = ' — Plex returned 400 Bad Request, likely due to an orphaned transcode session. Will retry with backoff.';
+            }
+
+            // Update error message with additional context
+            $network->update([
+                'broadcast_error' => $error.$additionalInfo,
+            ]);
+        }
 
         // Fatal exit code — stop retrying entirely
         if ($isFatal) {
@@ -587,9 +647,26 @@ class M3uProxyApiController extends Controller
                 'last_exit_code' => $exitCode,
             ]);
 
+            // Build error message with context
+            $errorMessage = "Failed after {$failCount} retries (last exit code {$exitCode}): {$error}";
+
+            // Add explanatory text for common scenarios
+            $integration = $network->mediaServerIntegration;
+            if ($integration && $integration->isPlex() && $exitCode === 8) {
+                // Check if this might be a recent boot recovery issue
+                $recentBootRecovery = $network->broadcast_boot_recovery_until &&
+                    $network->broadcast_boot_recovery_until->diffInMinutes(now()) < 10;
+
+                if ($recentBootRecovery) {
+                    $errorMessage .= ' — If the container just rebooted, Plex may still be releasing the previous transcode session. This is normal and should resolve in 2-3 minutes.';
+                } else {
+                    $errorMessage .= ' — Plex returned 400 Bad Request, likely due to an orphaned transcode session. Try stopping and restarting the broadcast.';
+                }
+            }
+
             $network->update([
                 'broadcast_requested' => false,
-                'broadcast_error' => "Failed after {$failCount} retries (last exit code {$exitCode}): {$error}",
+                'broadcast_error' => $errorMessage,
             ]);
 
             return;
@@ -603,6 +680,7 @@ class M3uProxyApiController extends Controller
         $currentProgramme = $network->getCurrentProgramme();
 
         if ($currentProgramme && $network->broadcast_requested) {
+
             // Acquire restart lock to prevent tick loop from also restarting
             $network->update(['broadcast_restart_locked' => true]);
 

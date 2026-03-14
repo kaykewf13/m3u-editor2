@@ -120,6 +120,131 @@ it('recovers only a specific network when passed as argument', function () {
     expect($other->fresh()->broadcast_pid)->toBe(22222);
 });
 
+it('cleans up Plex transcode session during boot recovery', function () {
+    Http::fake([
+        '*/health' => Http::response(['status' => 'ok'], 200),
+        '*/broadcast/*/stop' => Http::response(['status' => 'stopped'], 200),
+        '*' => Http::response([], 200),
+    ]);
+
+    $integration = \App\Models\MediaServerIntegration::withoutEvents(function () {
+        return \App\Models\MediaServerIntegration::factory()->create([
+            'type' => 'plex',
+            'host' => 'plex',
+            'port' => 32400,
+            'api_key' => 'abc123',
+        ]);
+    });
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_transcode_session_id' => 'stale-session-abc',
+        'media_server_integration_id' => $integration->id,
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $service->performBootRecovery($network);
+
+    // Verify the Plex stop-transcode call was made
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '/video/:/transcode/universal/stop')
+            && $request['session'] === 'stale-session-abc';
+    });
+
+    // Session ID should be cleared
+    expect($network->fresh()->broadcast_transcode_session_id)->toBeNull();
+});
+
+it('calls proxy DELETE to clean up stale segment files during boot recovery', function () {
+    Http::fake([
+        '*/health' => Http::response(['status' => 'ok'], 200),
+        '*/broadcast/*/stop' => Http::response(['status' => 'stopped'], 200),
+        '*' => Http::response([], 200),
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => false,
+        'broadcast_segment_sequence' => 500,
+        'broadcast_discontinuity_sequence' => 3,
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $service->performBootRecovery($network);
+
+    // Verify proxy DELETE was called to clean up segment files
+    Http::assertSent(function ($request) use ($network) {
+        return $request->method() === 'DELETE'
+            && str_contains($request->url(), "/broadcast/{$network->uuid}");
+    });
+
+    // Sequences should be reset since stale files were deleted
+    $network->refresh();
+    expect($network->broadcast_segment_sequence)->toBe(0);
+    expect($network->broadcast_discontinuity_sequence)->toBe(0);
+});
+
+it('calls proxy stop endpoint during boot recovery to kill lingering FFmpeg', function () {
+    Http::fake([
+        '*/health' => Http::response(['status' => 'ok'], 200),
+        '*/broadcast/*/stop' => Http::response(['status' => 'stopped', 'final_segment_number' => 0], 200),
+        '*' => Http::response([], 200),
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_pid' => 99999,
+        'broadcast_started_at' => Carbon::now()->subHours(2),
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $service->performBootRecovery($network);
+
+    // Verify proxy stop was called
+    Http::assertSent(function ($request) use ($network) {
+        return $request->method() === 'POST'
+            && str_contains($request->url(), "/broadcast/{$network->uuid}/stop");
+    });
+});
+
+it('continues boot recovery even when proxy is unreachable for cleanup calls', function () {
+    // Simulate proxy being partially available: health OK but stop/delete fail
+    Http::fake([
+        '*/health' => Http::response(['status' => 'ok'], 200),
+        '*/broadcast/*/stop' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Connection refused');
+        },
+        '*' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Connection refused');
+        },
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => false,
+        'broadcast_pid' => 99999,
+        'broadcast_started_at' => Carbon::now()->subHour(),
+        'broadcast_fail_count' => 5,
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $recovered = $service->performBootRecovery($network);
+
+    // Recovery should still succeed even though cleanup calls failed
+    expect($recovered)->toBe(1);
+
+    $network->refresh();
+    expect($network->broadcast_requested)->toBeTrue();
+    expect($network->broadcast_pid)->toBeNull();
+    expect($network->broadcast_fail_count)->toBe(0);
+});
+
 it('skips single network boot recovery if network is not broadcast-enabled', function () {
     $network = Network::factory()->create([
         'enabled' => true,
@@ -255,7 +380,7 @@ it('clears broadcast_requested when proxy returns a permanent error', function (
 |--------------------------------------------------------------------------
 */
 
-it('performBootRecovery stamps broadcast_boot_recovery_until approximately 2 minutes in the future', function () {
+it('performBootRecovery stamps broadcast_boot_recovery_until approximately 4 minutes in the future', function () {
     $network = Network::factory()->create([
         'enabled' => true,
         'broadcast_enabled' => true,
@@ -264,8 +389,8 @@ it('performBootRecovery stamps broadcast_boot_recovery_until approximately 2 min
         'broadcast_started_at' => null,
     ]);
 
-    $before = now()->addMinutes(2)->subSeconds(5);
-    $after = now()->addMinutes(2)->addSeconds(5);
+    $before = now()->addMinutes(4)->subSeconds(5);
+    $after = now()->addMinutes(4)->addSeconds(5);
 
     $service = app(NetworkBroadcastService::class);
     $service->performBootRecovery($network);
@@ -450,4 +575,154 @@ it('tick restarts broadcast after boot recovery sets broadcast_requested', funct
     $network->refresh();
     $result = $service->tick($network);
     expect($result['action'])->toBe('started');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Proxy 500 errors during boot grace period
+|--------------------------------------------------------------------------
+*/
+
+it('treats proxy 500 as transient during boot grace period and preserves broadcast_requested', function () {
+    // Replace the Http facade root with a fresh Factory to clear beforeEach stubs.
+    // Http::fake stacks callbacks (first match wins), so we need a clean slate
+    // to ensure the 500 response is returned instead of beforeEach's 200.
+    Http::swap(new \Illuminate\Http\Client\Factory);
+
+    Http::fake([
+        '*/broadcast/*/status' => Http::response(['status' => 'stopped'], 404),
+        '*/broadcast/*/start' => Http::response(
+            ['detail' => 'Broadcast failed: FFmpeg exited with code 8'],
+            500
+        ),
+        '*' => Http::response([], 200),
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_pid' => null,
+        'broadcast_started_at' => null,
+        'broadcast_boot_recovery_until' => now()->addMinutes(2),
+    ]);
+
+    NetworkProgramme::factory()->create([
+        'network_id' => $network->id,
+        'start_time' => now()->subMinutes(5),
+        'end_time' => now()->addMinutes(55),
+        'duration_seconds' => 3600,
+    ]);
+
+    // Use the real service but call startViaProxy directly to bypass getStreamUrl
+    $service = app(NetworkBroadcastService::class);
+    $method = new ReflectionMethod(NetworkBroadcastService::class, 'startViaProxy');
+
+    $programme = NetworkProgramme::find($network->getCurrentProgramme()->id);
+    $result = $method->invoke(
+        $service,
+        $network,
+        'http://localhost:8096/video/stream.ts',
+        300,
+        3300,
+        $programme,
+    );
+
+    // During boot grace period, proxy 500 should return null (transient)
+    expect($result)->toBeNull();
+
+    $network->refresh();
+    expect($network->broadcast_error)->toContain('Proxy error');
+});
+
+it('treats proxy 500 as permanent failure when NOT in boot grace period', function () {
+    // Replace the Http facade root with a fresh Factory to clear beforeEach stubs
+    Http::swap(new \Illuminate\Http\Client\Factory);
+
+    Http::fake([
+        '*/broadcast/*/status' => Http::response(['status' => 'stopped'], 404),
+        '*/broadcast/*/start' => Http::response(
+            ['detail' => 'Broadcast failed: FFmpeg exited with code 8'],
+            500
+        ),
+        '*' => Http::response([], 200),
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_pid' => null,
+        'broadcast_started_at' => null,
+        'broadcast_boot_recovery_until' => null, // No grace period
+    ]);
+
+    NetworkProgramme::factory()->create([
+        'network_id' => $network->id,
+        'start_time' => now()->subMinutes(5),
+        'end_time' => now()->addMinutes(55),
+        'duration_seconds' => 3600,
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $method = new ReflectionMethod(NetworkBroadcastService::class, 'startViaProxy');
+
+    $programme = NetworkProgramme::find($network->getCurrentProgramme()->id);
+    $result = $method->invoke(
+        $service,
+        $network,
+        'http://localhost:8096/video/stream.ts',
+        300,
+        3300,
+        $programme,
+    );
+
+    // Without grace period, proxy 500 should return false (permanent)
+    expect($result)->toBeFalse();
+});
+
+it('treats proxy 500 as permanent failure when boot grace period has expired', function () {
+    // Replace the Http facade root with a fresh Factory to clear beforeEach stubs
+    Http::swap(new \Illuminate\Http\Client\Factory);
+
+    Http::fake([
+        '*/broadcast/*/status' => Http::response(['status' => 'stopped'], 404),
+        '*/broadcast/*/start' => Http::response(
+            ['detail' => 'Broadcast failed: FFmpeg exited with code 8'],
+            500
+        ),
+        '*' => Http::response([], 200),
+    ]);
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_pid' => null,
+        'broadcast_started_at' => null,
+        'broadcast_boot_recovery_until' => now()->subSeconds(1), // Expired
+    ]);
+
+    NetworkProgramme::factory()->create([
+        'network_id' => $network->id,
+        'start_time' => now()->subMinutes(5),
+        'end_time' => now()->addMinutes(55),
+        'duration_seconds' => 3600,
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+    $method = new ReflectionMethod(NetworkBroadcastService::class, 'startViaProxy');
+
+    $programme = NetworkProgramme::find($network->getCurrentProgramme()->id);
+    $result = $method->invoke(
+        $service,
+        $network,
+        'http://localhost:8096/video/stream.ts',
+        300,
+        3300,
+        $programme,
+    );
+
+    // Expired grace period — should return false (permanent)
+    expect($result)->toBeFalse();
 });

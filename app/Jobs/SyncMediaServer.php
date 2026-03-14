@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * SyncMediaServer Job - The "Engine" for Emby/Jellyfin sync
+ * SyncMediaServer Job - The "Engine" for Emby/Jellyfin/Plex sync
  *
  * Fetches content from a media server and syncs it into the M3U Editor's
  * standard tables (playlists, groups, channels, categories, series, episodes).

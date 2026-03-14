@@ -924,6 +924,18 @@ class NetworkResource extends Resource
                     ->label('Media Server')
                     ->placeholder('None'),
 
+                TextColumn::make('transcode_mode')
+                    ->label('Transcode')
+                    ->badge()
+                    ->formatStateUsing(fn (?TranscodeMode $state): string => $state?->getLabel() ?? 'Not Set')
+                    ->color(fn (?TranscodeMode $state): string => match ($state) {
+                        TranscodeMode::Local => 'warning',
+                        TranscodeMode::Server => 'info',
+                        TranscodeMode::Direct => 'success',
+                        default => 'gray',
+                    })
+                    ->toggleable(),
+
                 TextColumn::make('broadcast_status')
                     ->label('Broadcast')
                     ->badge()

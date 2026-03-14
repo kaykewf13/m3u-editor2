@@ -160,8 +160,15 @@ class NetworkBroadcastService
         $seekPosition = $network->getPersistedBroadcastSeekForNow() ?? $network->getCurrentSeekPosition();
         $remainingDuration = $network->getCurrentRemainingDuration();
 
+        // If we have a session ID from a previous failed attempt (e.g. during boot
+        // recovery retries), reuse it so PlexService calls /decision with the SAME
+        // session instead of generating a new random one each time. This prevents
+        // orphaned phantom sessions from accumulating on Plex, which would block new
+        // transcode requests for the same media item.
+        $existingSessionId = $network->broadcast_transcode_session_id;
+
         // Get stream URL with seek position built-in (media server handles seeking)
-        $streamUrl = $this->getStreamUrl($network, $programme, $seekPosition);
+        $streamUrl = $this->getStreamUrl($network, $programme, $seekPosition, $existingSessionId);
         if (! $streamUrl) {
             // During the boot grace period, treat a missing stream URL as transient —
             // the media server integration or content data may not be available yet
@@ -361,6 +368,11 @@ class NetworkBroadcastService
             'stream_url' => $streamUrl,
         ]);
 
+        // Extract the Plex transcode session ID from the stream URL upfront.
+        // This is needed on success (to track it), on proxy error (to persist for reuse
+        // or clean up), and on exception (to persist for reuse on next retry).
+        $transcodeSessionId = $this->extractSessionIdFromUrl($streamUrl);
+
         try {
             $response = $this->getProxyService()->proxyRequest(
                 'POST',
@@ -371,25 +383,37 @@ class NetworkBroadcastService
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Extract Plex transcode session ID from the stream URL so we can
-                // clean it up when the broadcast stops (prevents orphaned sessions
-                // causing 400 Bad Request on Plex).
-                $transcodeSessionId = null;
-                $parsed = parse_url($streamUrl);
-                parse_str($parsed['query'] ?? '', $qs);
-                if (! empty($qs['session'])) {
-                    $transcodeSessionId = $qs['session'];
-                }
-
                 // Update network with broadcast info
                 $network->update([
                     'broadcast_started_at' => Carbon::now(),
                     'broadcast_pid' => $data['ffmpeg_pid'] ?? null,
                     'broadcast_programme_id' => $programme->id,
                     'broadcast_initial_offset_seconds' => $seekPosition,
-                    'broadcast_requested' => true,
                     'broadcast_transcode_session_id' => $transcodeSessionId,
                 ]);
+
+                $logMessage = "🟢 BROADCAST STARTED VIA PROXY: {$network->name}";
+                $logData = [
+                    'network_id' => $network->id,
+                    'uuid' => $network->uuid,
+                    'ffmpeg_pid' => $data['ffmpeg_pid'] ?? null,
+                    'status' => $data['status'] ?? 'unknown',
+                    'transcode_session_id' => $transcodeSessionId,
+                ];
+
+                // Add recovery message if this was a boot recovery restart
+                if ($network->broadcast_boot_recovery_until && now()->lt($network->broadcast_boot_recovery_until)) {
+                    $logMessage = "🟢 BROADCAST RECOVERED VIA PROXY: {$network->name}";
+                    $logData['recovery'] = 'boot_recovery';
+
+                    // Also log a prominent recovery message that will show in console
+                    Log::info("🎉 BROADCAST RECOVERY COMPLETE: {$network->name} is back online after container restart");
+
+                    // Direct console output to ensure it shows up in container logs
+                    echo "🎉 [RECOVERY] {$network->name} is now broadcasting again after container restart\n";
+                }
+
+                Log::info($logMessage, $logData);
 
                 Log::info("🟢 BROADCAST STARTED VIA PROXY: {$network->name}", [
                     'network_id' => $network->id,
@@ -413,6 +437,38 @@ class NetworkBroadcastService
                 'broadcast_error' => "Proxy error: {$errorMessage}",
             ]);
 
+            // During boot recovery grace period, treat proxy errors as transient
+            // so the tick loop retries instead of permanently giving up.
+            // This covers the case where Plex needs a few seconds to release
+            // the old transcode session after we cleaned it up in boot recovery.
+            if ($network->broadcast_boot_recovery_until && now()->lt($network->broadcast_boot_recovery_until)) {
+                // Persist the session ID from this attempt so the NEXT retry reuses it
+                // via start() → getStreamUrl(). This prevents accumulating orphaned
+                // phantom sessions on Plex — each retry will re-prime the same session
+                // instead of creating a new one.
+                if ($transcodeSessionId) {
+                    $network->update([
+                        'broadcast_transcode_session_id' => $transcodeSessionId,
+                    ]);
+                }
+
+                Log::info('Proxy error during boot grace period — treating as transient (will retry with same session)', [
+                    'network_id' => $network->id,
+                    'status' => $response->status(),
+                    'grace_period_until' => $network->broadcast_boot_recovery_until->toIso8601String(),
+                    'reuse_session_id' => $transcodeSessionId,
+                ]);
+
+                return null;
+            }
+
+            // Outside of boot recovery: try to stop the orphaned session since we won't retry.
+            // Each call to getStreamUrl() for server-side transcode calls the Plex
+            // /decision endpoint which registers a new session. If the broadcast start
+            // fails, this orphaned session lingers and can cause Plex to return 400
+            // Bad Request for subsequent attempts on the same media item.
+            $this->stopOrphanedTranscodeSession($network, $transcodeSessionId);
+
             return false;
         } catch (\Exception $e) {
             // Transient failure (proxy not reachable yet, e.g. during container boot)
@@ -422,9 +478,13 @@ class NetworkBroadcastService
                 'exception' => $e->getMessage(),
             ]);
 
-            $network->update([
-                'broadcast_error' => "Failed to connect to proxy: {$e->getMessage()}",
-            ]);
+            // Persist the session ID so the next retry reuses it instead of creating
+            // a new phantom session on Plex via /decision.
+            $updateData = ['broadcast_error' => "Failed to connect to proxy: {$e->getMessage()}"];
+            if ($transcodeSessionId) {
+                $updateData['broadcast_transcode_session_id'] = $transcodeSessionId;
+            }
+            $network->update($updateData);
 
             return null;
         }
@@ -531,7 +591,7 @@ class NetworkBroadcastService
      *
      * @param  int  $seekSeconds  Seek position in seconds (0 = start)
      */
-    protected function getStreamUrl(Network $network, NetworkProgramme $programme, int $seekSeconds = 0): ?string
+    protected function getStreamUrl(Network $network, NetworkProgramme $programme, int $seekSeconds = 0, ?string $sessionId = null): ?string
     {
         $content = $programme->contentable;
         if (! $content) {
@@ -630,6 +690,19 @@ class NetworkBroadcastService
             }
         }
 
+        // Forward the session ID so PlexService can reuse it instead of generating
+        // a new random one. This prevents orphaned phantom sessions from accumulating
+        // on Plex when retrying after a failed start.
+        if ($sessionId !== null) {
+            $transcodeOptions['session_id'] = $sessionId;
+        }
+
+        // For broadcasts, skip Plex's transcode endpoint and use direct file access.
+        // This avoids Plex's remuxing overhead which can cause segment 404 errors
+        // when Plex can't keep up with real-time demands. FFmpeg will handle all
+        // transcoding locally instead (much more reliable for live broadcasting).
+        $transcodeOptions['skip_plex_transcode'] = true;
+
         $streamUrl = $service->getDirectStreamUrl($request, $itemId, 'ts', $transcodeOptions);
 
         return $streamUrl;
@@ -706,9 +779,71 @@ class NetworkBroadcastService
 
         try {
             $plexService = new PlexService($integration);
-            $plexService->stopTranscodeSession($sessionId);
+            $stopped = $plexService->stopTranscodeSession($sessionId);
+
+            // After stopping, verify the session is actually released before proceeding.
+            // Plex can acknowledge the stop but take several seconds to fully release
+            // the session internally, causing 400 Bad Request on the next start attempt.
+            if ($stopped && ! app()->runningUnitTests()) {
+                $plexService->waitForTranscodeSessionRelease($sessionId, maxAttempts: 6, intervalSeconds: 2);
+            }
         } catch (\Exception $e) {
             Log::warning('Failed to stop Plex transcode session during cleanup', [
+                'network_id' => $network->id,
+                'session_id' => $sessionId,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Extract the Plex transcode session ID from a stream URL.
+     *
+     * For server-side transcoding, the stream URL contains a `session` query
+     * parameter that was generated by getDirectStreamUrl() when it called the
+     * Plex /decision endpoint. This ID is needed to track and clean up the
+     * server-side transcode session.
+     */
+    protected function extractSessionIdFromUrl(string $streamUrl): ?string
+    {
+        $parsed = parse_url($streamUrl);
+        parse_str($parsed['query'] ?? '', $qs);
+
+        return ! empty($qs['session']) ? $qs['session'] : null;
+    }
+
+    /**
+     * Stop an orphaned Plex transcode session that was primed but never used.
+     *
+     * When getStreamUrl() is called for server-side transcoding, it calls the
+     * Plex /decision endpoint which registers a new transcode session. If the
+     * subsequent broadcast start fails, this session lingers on Plex and can
+     * cause 400 Bad Request for future attempts on the same media item.
+     * This method fires a stop request to release it immediately.
+     */
+    protected function stopOrphanedTranscodeSession(Network $network, ?string $sessionId): void
+    {
+        if (empty($sessionId)) {
+            return;
+        }
+
+        $integration = $network->mediaServerIntegration;
+        if (! $integration || ! $integration->isPlex()) {
+            return;
+        }
+
+        try {
+            $plexService = new PlexService($integration);
+            $stopped = $plexService->stopTranscodeSession($sessionId);
+
+            if ($stopped) {
+                Log::info('Stopped orphaned Plex transcode session after failed start', [
+                    'network_id' => $network->id,
+                    'session_id' => $sessionId,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::debug('Could not stop orphaned Plex transcode session (may not exist)', [
                 'network_id' => $network->id,
                 'session_id' => $sessionId,
                 'exception' => $e->getMessage(),
@@ -878,6 +1013,11 @@ class NetworkBroadcastService
             $result['success'] = $success;
             $result['programme'] = $programme->title;
 
+            // Direct console output for recovery success
+            if ($success) {
+                echo "🔄 [TICK RECOVERY] {$network->name} broadcast restarted successfully\n";
+            }
+
             return $result;
         }
 
@@ -933,12 +1073,46 @@ class NetworkBroadcastService
         }
 
         $recovered = 0;
-        $gracePeriodUntil = now()->addMinutes(2);
+        $gracePeriodUntil = now()->addMinutes(4);
+
+        // Wait briefly for the proxy to become available after boot.
+        // Cleanup calls below need the proxy, so give it a few seconds to start.
+        $this->waitForProxy(maxAttempts: 6, intervalSeconds: 5);
 
         foreach ($networks as $net) {
-            // Set broadcast_requested = true so the tick loop will attempt to start it.
-            // Clear stale process state that no longer reflects reality after a reboot.
-            // Stamp boot_recovery_until so transient startup failures are retried.
+            // 1. Clean up orphaned Plex transcode sessions BEFORE clearing the session ID.
+            //    Without this, Plex may refuse new /decision requests (400 Bad Request)
+            //    because the old transcode session is still active server-side.
+            if ($net->broadcast_transcode_session_id) {
+                $this->cleanupTranscodeSession($net);
+            }
+
+            // 2. Stop any lingering FFmpeg processes in the proxy for this network.
+            //    After a hard reboot this is unlikely to find anything, but is defensive.
+            try {
+                $this->getProxyService()->proxyRequest(
+                    'POST',
+                    "/broadcast/{$net->uuid}/stop"
+                );
+            } catch (\Exception $e) {
+                Log::debug('BOOT RECOVERY: Could not stop broadcast via proxy (expected if not running)', [
+                    'network_id' => $net->id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+
+            // 3. Delete stale segment files from disk via the proxy.
+            //    Without this, old .ts files and manifests accumulate across reboots.
+            try {
+                $this->getProxyService()->proxyRequest('DELETE', "/broadcast/{$net->uuid}");
+            } catch (\Exception $e) {
+                Log::debug('BOOT RECOVERY: Could not cleanup broadcast files via proxy', [
+                    'network_id' => $net->id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+
+            // 4. Reset DB state so the tick loop will attempt a fresh start.
             $net->update([
                 'broadcast_requested' => true,
                 'broadcast_pid' => null,
@@ -949,11 +1123,14 @@ class NetworkBroadcastService
                 'broadcast_restart_locked' => false,
                 'broadcast_transcode_session_id' => null,
                 'broadcast_boot_recovery_until' => $gracePeriodUntil,
+                // Reset sequences — stale segments were just deleted, so we start fresh
+                'broadcast_segment_sequence' => 0,
+                'broadcast_discontinuity_sequence' => 0,
             ]);
 
             $recovered++;
 
-            Log::info('🔄 BOOT RECOVERY: Marked network for broadcast restart', [
+            Log::info('BOOT RECOVERY: Cleaned up and marked network for broadcast restart', [
                 'network_id' => $net->id,
                 'network_name' => $net->name,
                 'grace_period_until' => $gracePeriodUntil->toIso8601String(),
@@ -961,9 +1138,49 @@ class NetworkBroadcastService
         }
 
         if ($recovered > 0) {
-            Log::info("🔄 BOOT RECOVERY: Recovered {$recovered} network(s) for broadcast");
+            Log::info("BOOT RECOVERY: Recovered {$recovered} network(s) for broadcast");
+            Log::info('🚀 CONTAINER BOOT RECOVERY COMPLETE: Broadcasting systems are ready');
+
+            // Direct console output to ensure it shows up in container logs
+            echo "🚀 [BOOT RECOVERY] Container recovery complete - {$recovered} network(s) ready for broadcasting\n";
         }
 
         return $recovered;
+    }
+
+    /**
+     * Wait for the m3u-proxy service to become reachable.
+     *
+     * During container boot, supervisor starts both Laravel and the proxy
+     * concurrently. The proxy may not be ready when boot recovery runs,
+     * so we poll its health endpoint with a short backoff.
+     *
+     * @param  int  $maxAttempts  Maximum number of attempts
+     * @param  int  $intervalSeconds  Seconds between attempts
+     * @return bool True if the proxy responded, false if all attempts failed
+     */
+    protected function waitForProxy(int $maxAttempts = 6, int $intervalSeconds = 5): bool
+    {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = $this->getProxyService()->proxyRequest('GET', '/health');
+                if ($response->successful()) {
+                    Log::info('BOOT RECOVERY: Proxy is ready', ['attempt' => $attempt]);
+
+                    return true;
+                }
+            } catch (\Exception $e) {
+                // Proxy not ready yet
+            }
+
+            if ($attempt < $maxAttempts) {
+                Log::info("BOOT RECOVERY: Waiting for proxy to start (attempt {$attempt}/{$maxAttempts})...");
+                sleep($intervalSeconds);
+            }
+        }
+
+        Log::warning('BOOT RECOVERY: Proxy did not become ready within timeout — cleanup calls may fail');
+
+        return false;
     }
 }

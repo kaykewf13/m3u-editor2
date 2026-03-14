@@ -132,13 +132,13 @@ services:
       # Application
       - APP_URL=http://10.76.23.92:36400
       - APP_PORT=36400
-      
+
       # HLS Storage
       - HLS_TEMP_DIR=/hls-segments  # Use mapped /dev/shm
       - HLS_GC_ENABLED=true
       - HLS_GC_INTERVAL=600  # 10 minutes
       - HLS_GC_AGE_THRESHOLD=3600  # 1 hour
-      
+
       # M3U Proxy
       - M3U_PROXY_ENABLED=true
       - M3U_PROXY_TOKEN=your-secure-token
@@ -148,7 +148,7 @@ services:
 
 ## Environment variables
 
-The following environment variables control HLS storage behavior and garbage collection. Add them to your environment or `.env` file to override defaults.
+The following environment variables control HLS storage behavior and garbage collection. All GC runs entirely inside the proxy process — no Laravel commands are involved.
 
 ```env
 # HLS storage path (where segments are written)
@@ -164,50 +164,66 @@ HLS_GC_INTERVAL=600
 HLS_GC_AGE_THRESHOLD=7200
 ```
 
+### Broadcast HLS garbage collection
+
+During programme transitions in network broadcasts, the old FFmpeg process is stopped and a new one starts. The segments left by the old process are orphaned — they fall outside the new playlist's window and are never cleaned up by FFmpeg's `delete_segments` flag. Over time these orphans accumulate and fill storage.
+
+The broadcast GC runs as a background task inside the proxy and periodically scans broadcast directories to remove orphaned `.ts` files. It reuses `HLS_GC_INTERVAL` and `HLS_GC_AGE_THRESHOLD` for its scan cadence and age threshold, so no additional configuration is required.
+
+```env
+# Enable/disable broadcast segment cleanup (default: true)
+BROADCAST_GC_ENABLED=true
+```
+
+The broadcast GC performs two passes on each interval:
+1. **Active broadcasts** — removes `.ts` files not referenced by the current playlist that are older than 60 seconds (guards against race conditions during transitions).
+2. **Inactive directories** — removes entire stale broadcast directories (no active process, age > `HLS_GC_AGE_THRESHOLD`) using a safe recursive delete.
+
 ### Defaults & behavior (when env vars are not set)
+
 - **Defaults used by the system:**
   - `HLS_TEMP_DIR=/var/www/html/storage/app/hls-segments`
   - `HLS_GC_ENABLED=true`
   - `HLS_GC_INTERVAL=600` (seconds)
   - `HLS_GC_AGE_THRESHOLD=7200` (seconds)
+  - `BROADCAST_GC_ENABLED=true` (reuses HLS_GC_INTERVAL and HLS_GC_AGE_THRESHOLD)
 - **Startup behavior:** If `HLS_TEMP_DIR` is not set the startup script uses the default path, **creates the directory if missing**, sets permissions, and **checks available disk space** (warns if <2GB, critical if <512MB).
-- **Garbage collector behavior:** `php artisan hls:gc` honors `HLS_GC_ENABLED`; when enabled Supervisor runs the command in loop mode using the configured `--interval` and `--threshold` values. Use `--dry-run` to preview deletions safely.
+- **Garbage collector behavior:** All GC runs inside the proxy as async background tasks. The proxy also performs pre-start cleanup — when a fresh broadcast begins (`segment_start_number=0`), any leftover `.ts`/`.m3u8` files are removed before FFmpeg starts.
 - **Recommendation:** For production explicitly set these env vars and **volume map** `HLS_TEMP_DIR` to a host path (or tmpfs) so you control capacity and retention.
 
 **Tips:**
-- Use `HLS_GC_ENABLED=false` to disable automatic GC (useful for local development or debugging). 
-- Use `php artisan hls:gc --dry-run` to preview deletions before enabling automatic GC.
+- Use `HLS_GC_ENABLED=false` to disable automatic GC (useful for local development or debugging).
+- Use `BROADCAST_GC_ENABLED=false` to disable broadcast segment cleanup independently.
+- Use `php artisan network:cleanup-segments` to manually trigger a one-off cleanup of old segments across all networks.
 
 ---
 
-## HLS Garbage Collector (hls:gc)
+## External Proxy: HLS Environment Variables
 
-A built-in Artisan command `php artisan hls:gc` will remove old HLS segment files and stale playlists. It supports a looping mode which is enabled in the container via Supervisor when `HLS_GC_ENABLED=true`.
+When using an **external** m3u-proxy container (i.e. `M3U_PROXY_ENABLED=false`), you **must** set the HLS environment variables on the `m3u-proxy` service itself. Environment variables on the `m3u-editor` service are not visible to the separate proxy container.
 
-Supervisor runs the command as:
+If these variables are missing from the proxy service, it falls back to its internal defaults and ignores any path you configured on the editor.
 
+```yaml
+services:
+  m3u-proxy:
+    image: sparkison/m3u-proxy:experimental
+    environment:
+      - API_TOKEN=${M3U_PROXY_TOKEN}
+      # ... other proxy env vars ...
+
+      # HLS Segment Storage & Garbage Collection
+      - HLS_TEMP_DIR=${HLS_TEMP_DIR:-/tmp/m3u-proxy-broadcasts}
+      - HLS_GC_ENABLED=${HLS_GC_ENABLED:-true}
+      - HLS_GC_INTERVAL=${HLS_GC_INTERVAL:-600}
+      - HLS_GC_AGE_THRESHOLD=${HLS_GC_AGE_THRESHOLD:-7200}
+
+      # Broadcast GC (orphaned segment cleanup) — uses HLS_GC_INTERVAL and
+      # HLS_GC_AGE_THRESHOLD for its scan cadence and age threshold
+      - BROADCAST_GC_ENABLED=${BROADCAST_GC_ENABLED:-true}
 ```
-php /var/www/html/artisan hls:gc --loop --interval=$HLS_GC_INTERVAL --threshold=$HLS_GC_AGE_THRESHOLD --no-interaction
-```
 
-The command has the following options:
-
-- `--loop` : Run continuously (used by Supervisor)
-- `--interval` : Seconds to sleep between iterations (default: 600)
-- `--threshold` : File age threshold in seconds (default: 7200)
-- `--dry-run` : Show which files would be deleted without removing them
-
-By default the GC looks in both `storage/app/networks/*` and the `HLS_TEMP_DIR` path.
-
-### Metrics emitter
-
-A lightweight metrics emitter `php artisan hls:metrics` will record per-network HLS metrics (segment counts and storage bytes) to `/var/log/hls-metrics.log` and to the Laravel log. Supervisor can run this in a loop when `HLS_METRICS_ENABLED=true`.
-
-Environment variables:
-
-- `HLS_METRICS_ENABLED` (default: `true`) — run periodic metrics emitter via Supervisor
-- `HLS_METRICS_INTERVAL` (default: `300`) — run interval in seconds
-
+> **Note:** When using embedded proxy (`M3U_PROXY_ENABLED=true`), Supervisor automatically passes `HLS_GC_*` vars to the proxy process. `BROADCAST_GC_ENABLED` defaults to `true` inside the proxy and does not need to be explicitly set.
 
 ---
 
@@ -265,4 +281,3 @@ environment:
 3. **Start the container**
 4. **Verify** the startup logs show correct disk space
 5. **Test** HLS streaming - segments should now be written successfully
-
