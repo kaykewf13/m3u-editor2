@@ -1259,10 +1259,11 @@ class PlaylistResource extends Resource
                                         ->helperText('When enabled, the proxy will attempt to start streams even if the provider\'s reported connection limit has been reached.')
                                         ->visible(fn (Get $get): bool => (bool) $get('profiles_enabled'))
                                         ->inline(false)
+                                        ->live()
                                         ->default(false),
                                     Placeholder::make('bypass_provider_limits_warning')
-                                        ->label('')
-                                        ->content('⚠ Provider connection limits will not be enforced. If the provider strictly enforces its limit, streams may fail at the provider level rather than being blocked by the proxy.')
+                                        ->label('Provider Limits Warning')
+                                        ->content('⚠️ Provider connection limits will not be enforced. If the provider strictly enforces its limit, streams may fail at the provider level rather than being blocked by the proxy.')
                                         ->visible(fn (Get $get): bool => (bool) $get('profiles_enabled') && (bool) $get('bypass_provider_limits')),
                                 ]),
 
