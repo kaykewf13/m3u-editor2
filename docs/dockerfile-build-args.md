@@ -7,14 +7,21 @@ This document explains the build arguments available when building the m3u-edito
 ## Available Build Arguments
 
 ### **M3U_PROXY_REPO**
-**Description:** The Git repository URL for m3u-proxy  
-**Default:** `https://github.com/sparkison/m3u-proxy.git` (upstream)  
+**Description:** The Git repository URL for m3u-proxy
+**Default:** `https://github.com/sparkison/m3u-proxy.git` (upstream)
 **Purpose:** Allows using a fork of m3u-proxy instead of the upstream repository
 
 ### **M3U_PROXY_BRANCH**
-**Description:** The Git branch to clone from the m3u-proxy repository  
-**Default:** `main`  
+**Description:** The Git branch to clone from the m3u-proxy repository
+**Default:** `master`
 **Purpose:** Allows using a specific branch (e.g., `dev`, `feature-branch`)
+
+### **M3U_PROXY_LOCAL_DIR**
+**Description:** Path to a local m3u-proxy directory, relative to the Docker build context
+**Default:** `""` (unset — clones from git)
+**Purpose:** Use a local copy of m3u-proxy instead of cloning from GitHub (dev only)
+
+> **Note:** The path must be relative to the Docker build context. For the monorepo layout, set the build context to the repo root and pass `M3U_PROXY_LOCAL_DIR=m3u-proxy`.
 
 ### **GIT_BRANCH**
 **Description:** The current Git branch of m3u-editor  
@@ -47,7 +54,33 @@ This uses:
 
 ---
 
-### **2. Build with Your Fork of m3u-proxy**
+### **2. Build with a Local m3u-proxy Source (Dev)**
+
+From the monorepo root (so `m3u-proxy/` is in the build context):
+
+```bash
+docker build \
+  -f m3u-editor/Dockerfile \
+  --build-arg M3U_PROXY_LOCAL_DIR=m3u-proxy \
+  -t m3u-editor:local \
+  ..
+```
+
+Or via `docker-compose.local.yml`:
+
+```yaml
+services:
+  m3u-editor:
+    build:
+      context: ..
+      dockerfile: m3u-editor/Dockerfile
+      args:
+        M3U_PROXY_LOCAL_DIR: m3u-proxy
+```
+
+---
+
+### **3. Build with Your Fork of m3u-proxy**
 
 ```bash
 docker build \
@@ -62,7 +95,7 @@ This uses:
 
 ---
 
-### **3. Build with a Specific Feature Branch**
+### **4. Build with a Specific Feature Branch (Dev)**
 
 ```bash
 docker build \
@@ -73,7 +106,7 @@ docker build \
 
 ---
 
-### **4. Build with Docker Compose**
+### **5. Build with Docker Compose**
 
 Add to your `docker-compose.yml`:
 
@@ -190,13 +223,13 @@ docker build --build-arg M3U_PROXY_REPO=... --progress=plain . 2>&1 | grep M3U_P
 
 ## Related Files
 
-- `Dockerfile` - Contains the ARG declarations and git clone command
+- `Dockerfile` - Contains the ARG declarations and git clone logic
 - `.github/workflows/publish_dev.yml` - Dev branch CI/CD
 - `.github/workflows/publish_master.yml` - Master branch CI/CD
 - `.github/workflows/publish_experimental.yml` - Experimental branch CI/CD
 
 ---
 
-**Last Updated:** 2025-11-13  
+**Last Updated:** 2026-03-14  
 **Related Issue:** HLS Segment Storage Fixes
 

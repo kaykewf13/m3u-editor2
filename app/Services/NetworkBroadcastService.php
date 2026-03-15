@@ -409,8 +409,10 @@ class NetworkBroadcastService
                     // Also log a prominent recovery message that will show in console
                     Log::info("🎉 BROADCAST RECOVERY COMPLETE: {$network->name} is back online after container restart");
 
-                    // Direct console output to ensure it shows up in container logs
-                    echo "🎉 [RECOVERY] {$network->name} is now broadcasting again after container restart\n";
+                    // Direct console output to ensure it shows up in container logs (not during tests)
+                    if (app()->isProduction()) {
+                        echo "🎉 [RECOVERY] {$network->name} is now broadcasting again after container restart\n";
+                    }
                 }
 
                 Log::info($logMessage, $logData);
@@ -1013,8 +1015,8 @@ class NetworkBroadcastService
             $result['success'] = $success;
             $result['programme'] = $programme->title;
 
-            // Direct console output for recovery success
-            if ($success) {
+            // Direct console output for recovery success (not during tests)
+            if ($success && app()->isProduction()) {
                 echo "🔄 [TICK RECOVERY] {$network->name} broadcast restarted successfully\n";
             }
 
@@ -1141,8 +1143,10 @@ class NetworkBroadcastService
             Log::info("BOOT RECOVERY: Recovered {$recovered} network(s) for broadcast");
             Log::info('🚀 CONTAINER BOOT RECOVERY COMPLETE: Broadcasting systems are ready');
 
-            // Direct console output to ensure it shows up in container logs
-            echo "🚀 [BOOT RECOVERY] Container recovery complete - {$recovered} network(s) ready for broadcasting\n";
+            // Direct console output to ensure it shows up in container logs (not during tests)
+            if (app()->isProduction()) {
+                echo "🚀 [BOOT RECOVERY] Container recovery complete - {$recovered} network(s) ready for broadcasting\n";
+            }
         }
 
         return $recovered;
