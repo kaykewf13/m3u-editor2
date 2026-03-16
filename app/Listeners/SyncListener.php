@@ -9,6 +9,7 @@ use App\Jobs\MergeChannels;
 use App\Jobs\RunPlaylistFindReplaceRules;
 use App\Jobs\RunPostProcess;
 use App\Models\Epg;
+use App\Models\Playlist;
 use Filament\Notifications\Notification;
 use Throwable;
 
@@ -19,7 +20,7 @@ class SyncListener
      */
     public function handle(SyncCompleted $event): void
     {
-        if ($event->model instanceof \App\Models\Playlist) {
+        if ($event->model instanceof Playlist) {
             $playlist = $event->model;
             $lastSync = $playlist->syncStatuses()->first();
 
@@ -45,7 +46,7 @@ class SyncListener
                 ));
             });
         }
-        if ($event->model instanceof \App\Models\Epg) {
+        if ($event->model instanceof Epg) {
             $event->model->postProcesses()->where([
                 ['event', 'synced'],
                 ['enabled', true],
