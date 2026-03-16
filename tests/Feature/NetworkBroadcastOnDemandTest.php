@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\MediaServerIntegration;
 use App\Models\Network;
 use App\Models\NetworkProgramme;
+use App\Services\EmbyJellyfinService;
 use App\Services\NetworkBroadcastService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -83,6 +85,7 @@ it('marks waiting state on model when requested and on-demand with no connection
 it('stops running on-demand broadcast after disconnect window but keeps request state', function () {
     config()->set('proxy.broadcast_on_demand_disconnect_seconds', 120);
     config()->set('proxy.broadcast_on_demand_overlap_seconds', 30);
+    config()->set('proxy.broadcast_on_demand_startup_grace_seconds', 0);
 
     Http::fake([
         '*/broadcast/*/stop' => Http::response(['status' => 'stopped', 'final_segment_number' => 0], 200),
@@ -129,6 +132,68 @@ it('stops running on-demand broadcast after disconnect window but keeps request 
     Carbon::setTestNow();
 });
 
+it('does not stop running on-demand broadcast during startup grace without heartbeat', function () {
+    config()->set('proxy.broadcast_on_demand_disconnect_seconds', 120);
+    config()->set('proxy.broadcast_on_demand_overlap_seconds', 30);
+    config()->set('proxy.broadcast_on_demand_startup_grace_seconds', 30);
+
+    Carbon::setTestNow(now());
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_on_demand' => true,
+        'broadcast_started_at' => now()->subSeconds(10),
+        'broadcast_pid' => 12345,
+        'broadcast_last_connection_at' => null,
+    ]);
+
+    NetworkProgramme::factory()->create([
+        'network_id' => $network->id,
+        'start_time' => now()->subMinutes(20),
+        'end_time' => now()->addMinutes(20),
+    ]);
+
+    $service = Mockery::mock(NetworkBroadcastService::class, function ($mock): void {
+        $mock->makePartial();
+        $mock->shouldAllowMockingProtectedMethods();
+        $mock->shouldReceive('isProcessRunning')->andReturn(true);
+        $mock->shouldNotReceive('stop');
+    });
+
+    $result = $service->tick($network);
+
+    expect($result['action'])->toBe('monitoring');
+
+    Carbon::setTestNow();
+});
+
+it('treats startup as running when local pid exists during startup grace', function () {
+    config()->set('proxy.broadcast_on_demand_startup_grace_seconds', 30);
+
+    Carbon::setTestNow(now());
+
+    $network = Network::factory()->create([
+        'enabled' => true,
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_on_demand' => true,
+        'broadcast_started_at' => now()->subSeconds(5),
+        'broadcast_pid' => 7654,
+    ]);
+
+    Http::fake([
+        '*/broadcast/*/status' => Http::response(['status' => 'stopped'], 404),
+    ]);
+
+    $service = app(NetworkBroadcastService::class);
+
+    expect($service->isProcessRunning($network))->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
 it('preserves playback timeline across on-demand idle stop and reconnect start', function () {
     Carbon::setTestNow(now());
 
@@ -167,4 +232,35 @@ it('preserves playback timeline across on-demand idle stop and reconnect start',
     expect($network->fresh()->getPersistedBroadcastSeekForNow())->toBe(630);
 
     Carbon::setTestNow();
+});
+
+it('preserves static direct stream for emby even with internal options', function () {
+    $integration = new MediaServerIntegration([
+        'type' => 'emby',
+        'host' => 'emby.local',
+        'port' => 8096,
+        'ssl' => false,
+        'api_key' => 'emby-token',
+    ]);
+
+    Http::fake([
+        'http://emby.local:8096/Users' => Http::response([
+            ['Id' => 'user-1', 'Policy' => ['IsAdministrator' => true]],
+        ], 200),
+    ]);
+
+    $service = EmbyJellyfinService::make($integration);
+    $request = new \Illuminate\Http\Request;
+    $request->merge([
+        'StartTimeTicks' => 300000000,
+    ]);
+
+    $url = $service->getDirectStreamUrl($request, 'item-123', 'ts', [
+        'skip_plex_transcode' => true,
+        'session_id' => 'abc123',
+    ]);
+
+    expect($url)->toContain('/Videos/item-123/stream.ts');
+    expect($url)->toContain('static=true');
+    expect($url)->toContain('StartTimeTicks=300000000');
 });

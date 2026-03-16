@@ -69,6 +69,7 @@ class NetworkPlaylistController extends Controller
         if ($network->broadcast_enabled) {
             if ($network->enabled && $network->broadcast_requested && $network->broadcast_on_demand && ! $network->isBroadcasting()) {
                 $broadcastService = app(NetworkBroadcastService::class);
+                $broadcastService->markConnectionSeen($network);
                 $broadcastService->startNow($network);
             }
 

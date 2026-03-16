@@ -639,6 +639,16 @@ class NetworkBroadcastService
      */
     public function isProcessRunning(Network $network): bool
     {
+        // Trust local state briefly after startup to avoid false negatives while
+        // proxy status catches up (cold starts can report 404 for a few seconds).
+        $startupGraceSeconds = max(0, (int) config('proxy.broadcast_on_demand_startup_grace_seconds', 30));
+        if ($startupGraceSeconds > 0
+            && $network->broadcast_pid
+            && $network->broadcast_started_at
+            && $network->broadcast_started_at->gte(now()->subSeconds($startupGraceSeconds))) {
+            return true;
+        }
+
         try {
             $response = $this->getProxyService()->proxyRequest(
                 'GET',
@@ -1117,7 +1127,12 @@ class NetworkBroadcastService
             return $result;
         }
 
-        if ($network->isOnDemandBroadcast() && ! $network->hasRecentBroadcastConnection($network->getBroadcastConnectionWindowSeconds())) {
+        $startupGraceSeconds = max(0, (int) config('proxy.broadcast_on_demand_startup_grace_seconds', 30));
+        $inStartupGrace = $startupGraceSeconds > 0
+            && $network->broadcast_started_at
+            && $network->broadcast_started_at->gte(now()->subSeconds($startupGraceSeconds));
+
+        if ($network->isOnDemandBroadcast() && ! $inStartupGrace && ! $network->hasRecentBroadcastConnection($network->getBroadcastConnectionWindowSeconds())) {
             $this->stop($network, keepRequested: true, preservePlaybackReference: true);
             $result['action'] = 'stopped_waiting_for_connection';
 

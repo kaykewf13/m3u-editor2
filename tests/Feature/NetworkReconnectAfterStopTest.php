@@ -112,6 +112,9 @@ it('playlist touch starts on-demand requested broadcast', function () {
     ]);
 
     $service = Mockery::mock(\App\Services\NetworkBroadcastService::class);
+    $service->shouldReceive('markConnectionSeen')->once()->andReturnUsing(function (Network $n): void {
+        $n->update(['broadcast_last_connection_at' => now()]);
+    });
     $service->shouldReceive('startNow')->once()->andReturnUsing(function (Network $n): bool {
         $n->update([
             'broadcast_started_at' => now(),
@@ -127,7 +130,7 @@ it('playlist touch starts on-demand requested broadcast', function () {
     $playlistResp->assertStatus(200);
 
     $network->refresh();
-    expect($network->broadcast_last_connection_at)->toBeNull();
+    expect($network->broadcast_last_connection_at)->not->toBeNull();
 
     Carbon::setTestNow();
 })->group('serial');
@@ -170,12 +173,14 @@ it('waits briefly for first on-demand playlist after start', function () {
 
     config()->set('proxy.broadcast_on_demand_startup_wait_seconds', 2);
     config()->set('proxy.broadcast_on_demand_startup_poll_ms', 100);
+    config()->set('proxy.broadcast_on_demand_startup_min_segments', 3);
 
     Http::fake([
         '*/broadcast/*/live.m3u8' => Http::sequence()
             ->push('Not found', 404)
-            ->push('Not found', 404)
-            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n", 200),
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n", 200)
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n#EXTINF:6,\nlive000002.ts\n", 200)
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n#EXTINF:6,\nlive000002.ts\n#EXTINF:6,\nlive000003.ts\n", 200),
     ]);
 
     $network = Network::factory()->for($this->user)->create([
@@ -188,6 +193,11 @@ it('waits briefly for first on-demand playlist after start', function () {
     ]);
 
     $service = Mockery::mock(\App\Services\NetworkBroadcastService::class);
+    $service->shouldReceive('markConnectionSeen')->once()->andReturnUsing(function (Network $n): void {
+        $n->update([
+            'broadcast_last_connection_at' => now(),
+        ]);
+    });
     $service->shouldReceive('startNow')->once()->andReturnUsing(function (Network $n): bool {
         $n->update([
             'broadcast_started_at' => now(),
@@ -202,6 +212,40 @@ it('waits briefly for first on-demand playlist after start', function () {
     $playlistResp = $this->get(route('network.hls.playlist', ['network' => $network->uuid]));
     $playlistResp->assertStatus(200);
     expect(str_contains($playlistResp->getContent(), '#EXTM3U'))->toBeTrue();
+
+    Carbon::setTestNow();
+})->group('serial');
+
+it('waits for runway even when startup playlist initially returns 200 with too few segments', function () {
+    Carbon::setTestNow(now());
+
+    config()->set('proxy.broadcast_on_demand_startup_wait_seconds', 2);
+    config()->set('proxy.broadcast_on_demand_startup_poll_ms', 100);
+    config()->set('proxy.broadcast_on_demand_startup_min_segments', 3);
+
+    Http::fake([
+        '*/broadcast/*/live.m3u8' => Http::sequence()
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n", 200)
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n#EXTINF:6,\nlive000002.ts\n", 200)
+            ->push("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nlive000001.ts\n#EXTINF:6,\nlive000002.ts\n#EXTINF:6,\nlive000003.ts\n", 200),
+    ]);
+
+    $network = Network::factory()->for($this->user)->create([
+        'broadcast_enabled' => true,
+        'broadcast_requested' => true,
+        'broadcast_on_demand' => true,
+        'enabled' => true,
+        'broadcast_started_at' => now(),
+        'broadcast_pid' => 9876,
+    ]);
+
+    $service = Mockery::mock(\App\Services\NetworkBroadcastService::class);
+    $service->shouldNotReceive('startNow');
+    app()->instance(\App\Services\NetworkBroadcastService::class, $service);
+
+    $playlistResp = $this->get(route('network.hls.playlist', ['network' => $network->uuid]));
+    $playlistResp->assertStatus(200);
+    expect(substr_count($playlistResp->getContent(), '.ts'))->toBeGreaterThanOrEqual(3);
 
     Carbon::setTestNow();
 })->group('serial');

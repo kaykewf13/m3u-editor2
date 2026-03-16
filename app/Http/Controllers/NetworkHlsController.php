@@ -41,6 +41,7 @@ class NetworkHlsController extends Controller
 
         if ($network->enabled && $network->broadcast_requested && $network->broadcast_on_demand) {
             if (! $network->isBroadcasting()) {
+                $this->broadcastService->markConnectionSeen($network);
                 $this->broadcastService->startNow($network);
                 $network->refresh();
             }
@@ -117,17 +118,26 @@ class NetworkHlsController extends Controller
         /** @var \Illuminate\Http\Client\Response $response */
         $response = $request->get($playlistUrl);
 
+        $waitSeconds = max(0, (int) config('proxy.broadcast_on_demand_startup_wait_seconds', 8));
+        $pollMs = max(100, (int) config('proxy.broadcast_on_demand_startup_poll_ms', 400));
+        $minSegments = max(1, (int) config('proxy.broadcast_on_demand_startup_min_segments', 3));
+
+        $startedRecently = $network->broadcast_started_at
+            && $network->broadcast_started_at->gte(now()->subSeconds(max(1, $waitSeconds + 2)));
+
+        $hasStartupRunway = $response->successful() && $this->hasMinimumPlaylistSegments($response->body(), $minSegments);
+
         $shouldWaitForStartup = $network->broadcast_on_demand &&
             $network->broadcast_requested &&
             $network->isBroadcasting() &&
-            in_array($response->status(), [404, 503], true);
+            $startedRecently &&
+            (! $hasStartupRunway) &&
+            ($response->successful() || in_array($response->status(), [404, 503], true));
 
         if (! $shouldWaitForStartup) {
             return $response;
         }
 
-        $waitSeconds = max(0, (int) config('proxy.broadcast_on_demand_startup_wait_seconds', 8));
-        $pollMs = max(100, (int) config('proxy.broadcast_on_demand_startup_poll_ms', 400));
         $deadline = microtime(true) + $waitSeconds;
 
         while (microtime(true) < $deadline) {
@@ -135,15 +145,27 @@ class NetworkHlsController extends Controller
             /** @var \Illuminate\Http\Client\Response $response */
             $response = $request->get($playlistUrl);
 
-            if ($response->successful()) {
+            if ($response->successful() && $this->hasMinimumPlaylistSegments($response->body(), $minSegments)) {
                 return $response;
             }
 
-            if (! in_array($response->status(), [404, 503], true)) {
+            if (! $response->successful() && ! in_array($response->status(), [404, 503], true)) {
                 return $response;
             }
         }
 
         return $response;
+    }
+
+    protected function hasMinimumPlaylistSegments(string $playlist, int $minSegments): bool
+    {
+        if ($minSegments <= 1) {
+            return true;
+        }
+
+        preg_match_all('/^live\d+\.ts$/m', $playlist, $matches);
+        $segmentCount = count($matches[0] ?? []);
+
+        return $segmentCount >= $minSegments;
     }
 }
