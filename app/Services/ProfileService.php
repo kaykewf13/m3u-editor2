@@ -134,6 +134,12 @@ class ProfileService
             'client_identifier' => $clientIdentifier,
         ]);
 
+        // Pre-fetch proxy counts for all profiles in one request, then add
+        // per-profile pending reservations from Redis. This replaces N individual
+        // proxy calls with a single batch call.
+        $profileIds = $profiles->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $proxyCounts = M3uProxyService::getActiveStreamsCountsBatch('provider_profile_id', $profileIds);
+
         // Check client affinity — prefer the profile the client used before.
         // Only active when enable_provider_affinity is set on the playlist.
         if ($clientIdentifier !== null && $playlist->enable_provider_affinity) {
@@ -142,22 +148,25 @@ class ProfileService
             if ($affinityProfileId !== null) {
                 $affinityProfile = $profiles->firstWhere('id', $affinityProfileId);
 
-                if ($affinityProfile && static::hasCapacity($affinityProfile)) {
-                    Log::debug('Returning affinity profile for client', [
-                        'client_identifier' => $clientIdentifier,
-                        'profile_id' => $affinityProfile->id,
-                        'profile_name' => $affinityProfile->name,
-                    ]);
-
-                    return $affinityProfile;
-                }
-
                 if ($affinityProfile) {
+                    $affinityCount = ((int) ($proxyCounts[(string) $affinityProfile->id] ?? 0))
+                        + static::countPendingReservations($affinityProfile);
+
+                    if ($affinityCount < $affinityProfile->effective_max_streams) {
+                        Log::debug('Returning affinity profile for client', [
+                            'client_identifier' => $clientIdentifier,
+                            'profile_id' => $affinityProfile->id,
+                            'profile_name' => $affinityProfile->name,
+                        ]);
+
+                        return $affinityProfile;
+                    }
+
                     Log::info('Affinity profile at capacity, selecting next available', [
                         'client_identifier' => $clientIdentifier,
                         'affinity_profile_id' => $affinityProfile->id,
                         'affinity_profile_name' => $affinityProfile->name,
-                        'active_connections' => static::getEffectiveConnectionCount($affinityProfile),
+                        'active_connections' => $affinityCount,
                         'max_connections' => $affinityProfile->effective_max_streams,
                     ]);
                 }
@@ -167,7 +176,8 @@ class ProfileService
         $connectionCounts = [];
 
         foreach ($profiles as $profile) {
-            $connectionCounts[$profile->id] = static::getEffectiveConnectionCount($profile);
+            $connectionCounts[$profile->id] = ((int) ($proxyCounts[(string) $profile->id] ?? 0))
+                + static::countPendingReservations($profile);
             $activeConnections = $connectionCounts[$profile->id];
             $maxConnections = $profile->effective_max_streams;
             $hasCapacity = $activeConnections < $maxConnections;
@@ -421,6 +431,29 @@ class ProfileService
     }
 
     /**
+     * Count in-flight reservations for a profile.
+     *
+     * Reservations are stream set entries prefixed with "reservation:" — they
+     * represent slots claimed inside the lock but not yet visible to the proxy.
+     */
+    public static function countPendingReservations(PlaylistProfile $profile): int
+    {
+        $streamsKey = static::getProfileStreamsKey($profile);
+
+        try {
+            $streamIds = Redis::smembers($streamsKey);
+
+            return count(array_filter($streamIds, fn ($id) => str_starts_with($id, 'reservation:')));
+        } catch (\Exception $e) {
+            Log::warning("Failed to count pending reservations for profile {$profile->id}", [
+                'exception' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
+    }
+
+    /**
      * Get the effective connection count for capacity enforcement.
      *
      * Uses the proxy API as ground truth (actual upstream connections), plus any
@@ -433,27 +466,12 @@ class ProfileService
      */
     public static function getEffectiveConnectionCount(PlaylistProfile $profile): int
     {
-        // Ground truth: actual upstream streams confirmed by the proxy.
         $proxyCount = M3uProxyService::getActiveStreamsCountByMetadata(
             'provider_profile_id',
             (string) $profile->id
         );
 
-        // Add in-flight reservations (streams being created, not yet in the proxy).
-        // Reservations are stored in the profile's stream set with a "reservation:" prefix.
-        $streamsKey = static::getProfileStreamsKey($profile);
-        $pendingCount = 0;
-
-        try {
-            $streamIds = Redis::smembers($streamsKey);
-            $pendingCount = count(array_filter($streamIds, fn ($id) => str_starts_with($id, 'reservation:')));
-        } catch (\Exception $e) {
-            Log::warning("Failed to count pending reservations for profile {$profile->id}", [
-                'exception' => $e->getMessage(),
-            ]);
-        }
-
-        return $proxyCount + $pendingCount;
+        return $proxyCount + static::countPendingReservations($profile);
     }
 
     /**
@@ -566,15 +584,16 @@ class ProfileService
         }
 
         return Cache::remember("pool_status_{$playlist->id}", 5, function () use ($playlist) {
+            $allProfiles = $playlist->profiles()->get();
+            $profileIds = $allProfiles->pluck('id')->map(fn ($id) => (string) $id)->all();
+            $proxyCounts = M3uProxyService::getActiveStreamsCountsBatch('provider_profile_id', $profileIds);
+
             $profiles = [];
             $totalCapacity = 0;
             $totalActive = 0;
 
-            foreach ($playlist->profiles()->get() as $profile) {
-                $activeCount = M3uProxyService::getActiveStreamsCountByMetadata(
-                    'provider_profile_id',
-                    (string) $profile->id
-                );
+            foreach ($allProfiles as $profile) {
+                $activeCount = (int) ($proxyCounts[(string) $profile->id] ?? 0);
                 $maxStreams = $profile->effective_max_streams;
 
                 $providerInfo = $profile->provider_info;

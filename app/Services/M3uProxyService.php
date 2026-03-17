@@ -346,6 +346,60 @@ class M3uProxyService
     }
 
     /**
+     * Get active stream counts for multiple metadata values in a single request.
+     *
+     * Returns a map of value → stream count. Values not found in the proxy
+     * are returned with a count of 0. Falls back to all-zeros on failure.
+     *
+     * @param  string[]  $values
+     * @return array<string, int>
+     */
+    public static function getActiveStreamsCountsBatch(string $field, array $values): array
+    {
+        if (empty($values)) {
+            return [];
+        }
+
+        $service = new self;
+
+        if (empty($service->apiBaseUrl)) {
+            return array_fill_keys($values, 0);
+        }
+
+        try {
+            $endpoint = $service->apiBaseUrl.'/streams/counts-by-metadata';
+            $response = Http::timeout(5)->acceptJson()
+                ->withHeaders($service->apiToken ? [
+                    'X-API-Token' => $service->apiToken,
+                ] : [])
+                ->get($endpoint, [
+                    'field' => $field,
+                    'values' => implode(',', $values),
+                    'active_only' => true,
+                ]);
+
+            if ($response->successful()) {
+                $counts = $response->json('counts', []);
+
+                // Ensure every requested value has an entry (default 0 for missing)
+                foreach ($values as $value) {
+                    if (! array_key_exists($value, $counts)) {
+                        $counts[$value] = 0;
+                    }
+                }
+
+                return $counts;
+            }
+
+            return array_fill_keys($values, 0);
+        } catch (Exception $e) {
+            Log::warning("Failed to get batch stream counts for {$field}: ".$e->getMessage());
+
+            return array_fill_keys($values, 0);
+        }
+    }
+
+    /**
      * Get cached active streams count with smart invalidation
      */
     public static function getCachedActiveStreamsCountByMetadata(string $field, string $value, int $cacheTtlSeconds = 2): int

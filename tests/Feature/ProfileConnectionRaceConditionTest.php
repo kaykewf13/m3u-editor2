@@ -159,8 +159,12 @@ test('reconcileAndSelectProfile returns profile and reservation after correcting
         ->withMaxStreams(2)
         ->create();
 
-    // Proxy returns 0 active streams → profile has capacity
+    // selectProfile uses batch endpoint; proxy returns 0 active streams → profile has capacity
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 0],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_clients' => 0,
@@ -201,6 +205,10 @@ test('reconcileAndSelectProfile returns null when truly at capacity', function (
 
     // Mock proxy confirming 1 active stream (truly at capacity)
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 1],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [
                 [

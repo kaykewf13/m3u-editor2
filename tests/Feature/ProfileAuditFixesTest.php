@@ -180,8 +180,12 @@ test('selectAndReserveProfile returns profile and reservation ID on success', fu
         ->withProviderInfo(0, 5)
         ->create();
 
-    // getEffectiveConnectionCount: proxy returns 0 active streams + no pending reservations
+    // selectProfile uses batch endpoint; getEffectiveConnectionCount uses per-profile endpoint
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 0],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_clients' => 0,
@@ -213,7 +217,7 @@ test('selectAndReserveProfile returns null tuple when no capacity', function () 
         'profiles_enabled' => true,
     ]);
 
-    PlaylistProfile::factory()
+    $profile = PlaylistProfile::factory()
         ->for($playlist)
         ->for($this->user)
         ->primary()
@@ -222,7 +226,13 @@ test('selectAndReserveProfile returns null tuple when no capacity', function () 
         ->create();
 
     // Proxy confirms 1 active stream = profile at max_streams=1
-    Http::fake(['*/streams/by-metadata*' => Http::response(['matching_streams' => [], 'total_matching' => 1, 'total_clients' => 1])]);
+    Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 1],
+        ]),
+        '*/streams/by-metadata*' => Http::response(['matching_streams' => [], 'total_matching' => 1, 'total_clients' => 1]),
+    ]);
     Redis::shouldReceive('smembers')->andReturn([]);
 
     [$selected, $reservationId] = ProfileService::selectAndReserveProfile($playlist);
@@ -551,8 +561,12 @@ test('reconcileAndSelectProfile returns array with profile and reservation on su
         ->withProviderInfo(0, 5)
         ->create();
 
-    // Proxy returns 0 active streams → profile has capacity
+    // selectProfile uses batch endpoint; proxy returns 0 active streams → profile has capacity
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 0],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_clients' => 0,
@@ -607,6 +621,10 @@ test('reconcileAndSelectProfile returns null tuple when truly at capacity after 
 
     // Proxy confirms 1 active stream (at max capacity)
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 1],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [
                 [

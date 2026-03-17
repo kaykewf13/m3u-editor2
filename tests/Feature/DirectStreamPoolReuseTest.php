@@ -123,6 +123,10 @@ test('selectProfile finds capacity when proxy count is below max even if Redis w
 
     // Proxy says 1 active stream; Redis INCR would have said 2 (stale after proxy restart)
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 1],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_matching' => 1,
@@ -141,13 +145,17 @@ test('selectProfile finds capacity when proxy count is below max even if Redis w
 test('selectProfile returns null when proxy API count is at max capacity', function () {
     $playlist = Playlist::factory()->for($this->user)->create(['profiles_enabled' => true]);
 
-    PlaylistProfile::factory()
+    $profile = PlaylistProfile::factory()
         ->for($playlist)->for($this->user)->primary()
         ->withMaxStreams(1)->withProviderInfo(0, 1)
         ->create(['priority' => 0]);
 
     // Proxy says 1 active stream = profile is at max_streams=1
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 1],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_matching' => 1,
@@ -172,6 +180,10 @@ test('selectProfile treats pending reservations as consumed capacity to prevent 
 
     // Proxy says 0 confirmed streams (stream being created hasn't appeared yet)
     Http::fake([
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [(string) $profile->id => 0],
+        ]),
         '*/streams/by-metadata*' => Http::response([
             'matching_streams' => [],
             'total_matching' => 0,
@@ -208,15 +220,14 @@ test('selectProfile force-selects least-loaded profile using proxy-based effecti
 
     // Both at capacity per proxy, but profileB has fewer actual streams
     Http::fake([
-        '*/streams/by-metadata*' => function ($request) use ($profileA) {
-            $value = (int) $request->data()['value'];
-
-            if ($value === $profileA->id) {
-                return Http::response(['matching_streams' => [], 'total_matching' => 2, 'total_clients' => 2]);
-            }
-
-            return Http::response(['matching_streams' => [], 'total_matching' => 1, 'total_clients' => 1]);
-        },
+        '*/streams/counts-by-metadata*' => Http::response([
+            'field' => 'provider_profile_id',
+            'counts' => [
+                (string) $profileA->id => 2,
+                (string) $profileB->id => 1,
+            ],
+        ]),
+        '*/streams/by-metadata*' => Http::response(['matching_streams' => [], 'total_matching' => 1, 'total_clients' => 1]),
     ]);
 
     Redis::shouldReceive('smembers')->andReturn([]);
