@@ -3,12 +3,20 @@
 namespace App\Filament\Resources\ExtensionPlugins\RelationManagers;
 
 use App\Filament\Resources\ExtensionPlugins\ExtensionPluginResource;
+use App\Models\ExtensionPluginRun;
+use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\Layout\Panel;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 class RunsRelationManager extends RelationManager
 {
@@ -24,6 +32,11 @@ class RunsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->heading('Run History')
+            ->description('Manual actions, hook-triggered automation, and scheduled jobs. Open a run to inspect payload, metrics, and live activity.')
+            ->filtersTriggerAction(fn ($action) => $action->button()->label('Refine runs'))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->poll('3s')
             ->defaultSort('created_at', 'desc')
             ->recordUrl(fn ($record): string => ExtensionPluginResource::getUrl('run', [
@@ -33,42 +46,96 @@ class RunsRelationManager extends RelationManager
             ->emptyStateHeading('No run history yet')
             ->emptyStateDescription('Queue a plugin action from the page header to create the first run.')
             ->columns([
-                TextColumn::make('created_at')
-                    ->label('Queued At')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'completed' => 'success',
-                        'failed' => 'danger',
-                        'running' => 'warning',
-                        default => 'gray',
-                    }),
-                TextColumn::make('trigger')
-                    ->badge(),
-                TextColumn::make('invocation_type')
-                    ->badge(),
-                TextColumn::make('action')
-                    ->toggleable(),
-                TextColumn::make('hook')
-                    ->toggleable(),
-                IconColumn::make('dry_run')
-                    ->boolean(),
-                TextColumn::make('result.data.totals.repair_candidates')
-                    ->label('Candidates')
-                    ->numeric()
-                    ->toggleable(),
-                TextColumn::make('result.data.totals.repairs_applied')
-                    ->label('Applied')
-                    ->numeric()
-                    ->toggleable(),
-                TextColumn::make('summary')
-                    ->wrap()
-                    ->limit(100),
-                TextColumn::make('finished_at')
-                    ->since()
-                    ->toggleable(),
+                Split::make([
+                    Stack::make([
+                        TextColumn::make('run_reference')
+                            ->label('Run')
+                            ->state(fn (ExtensionPluginRun $record): string => self::runLabel($record))
+                            ->weight('medium')
+                            ->wrap()
+                            ->searchable(query: function (Builder $query, string $search): Builder {
+                                return $query->where(function (Builder $runQuery) use ($search): void {
+                                    $runQuery
+                                        ->where('action', 'like', "%{$search}%")
+                                        ->orWhere('hook', 'like', "%{$search}%")
+                                        ->orWhere('summary', 'like', "%{$search}%");
+                                });
+                            }),
+                        TextColumn::make('summary')
+                            ->label('Summary')
+                            ->placeholder('This run has not written a summary yet.')
+                            ->wrap(),
+                        TextColumn::make('created_at')
+                            ->label('Queued')
+                            ->since()
+                            ->color('gray')
+                            ->tooltip(fn (ExtensionPluginRun $record): ?string => $record->created_at?->toDateTimeString()),
+                    ]),
+                    Stack::make([
+                        TextColumn::make('status')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => Str::headline($state))
+                            ->color(fn (string $state) => match ($state) {
+                                'completed' => 'success',
+                                'failed' => 'danger',
+                                'running' => 'warning',
+                                default => 'gray',
+                            }),
+                        TextColumn::make('trigger')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => Str::headline($state)),
+                        TextColumn::make('dry_run')
+                            ->badge()
+                            ->label('Mode')
+                            ->state(fn (ExtensionPluginRun $record): string => $record->dry_run ? 'Dry Run' : 'Apply')
+                            ->color(fn (ExtensionPluginRun $record): string => $record->dry_run ? 'gray' : 'primary'),
+                    ])->grow(false),
+                ])->from('lg'),
+                Panel::make([
+                    Split::make([
+                        Stack::make([
+                            TextColumn::make('scope')
+                                ->label('Target Scope')
+                                ->state(fn (ExtensionPluginRun $record): string => self::targetScope($record))
+                                ->wrap(),
+                            TextColumn::make('timing')
+                                ->label('Timing')
+                                ->state(fn (ExtensionPluginRun $record): string => self::timingSummary($record))
+                                ->wrap(),
+                        ]),
+                        Stack::make([
+                            TextColumn::make('invocation_type')
+                                ->label('Invocation')
+                                ->badge()
+                                ->formatStateUsing(fn (string $state): string => Str::headline($state)),
+                            TextColumn::make('metrics')
+                                ->label('Returned Metrics')
+                                ->state(fn (ExtensionPluginRun $record): ?string => self::metricsSummary($record))
+                                ->placeholder('No aggregate totals were returned by this run.')
+                                ->wrap(),
+                        ])->grow(false),
+                    ])->from('md'),
+                ])->collapsible()->collapsed(),
+            ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->options([
+                        'running' => 'Running',
+                        'completed' => 'Completed',
+                        'failed' => 'Failed',
+                    ]),
+                SelectFilter::make('trigger')
+                    ->options([
+                        'manual' => 'Manual',
+                        'hook' => 'Hook',
+                        'schedule' => 'Schedule',
+                    ]),
+                SelectFilter::make('invocation_type')
+                    ->label('Invocation')
+                    ->options([
+                        'action' => 'Action',
+                        'hook' => 'Hook',
+                    ]),
             ])
             ->recordActions([
                 Action::make('open')
@@ -79,5 +146,112 @@ class RunsRelationManager extends RelationManager
                         'run' => $record,
                     ])),
             ]);
+    }
+
+    public function getTabs(): array
+    {
+        $pluginId = $this->getOwnerRecord()->getKey();
+
+        $allCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->count();
+        $runningCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->where('status', 'running')
+            ->count();
+        $failedCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->where('status', 'failed')
+            ->count();
+        $manualCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->where('trigger', 'manual')
+            ->count();
+        $hookCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->where('trigger', 'hook')
+            ->count();
+        $scheduledCount = ExtensionPluginRun::query()
+            ->where('extension_plugin_id', $pluginId)
+            ->where('trigger', 'schedule')
+            ->count();
+
+        return [
+            'all' => Tab::make('All Runs')
+                ->badge($allCount),
+            'running' => Tab::make('Running')
+                ->badge($runningCount)
+                ->badgeColor('warning')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'running')),
+            'failed' => Tab::make('Failed')
+                ->badge($failedCount)
+                ->badgeColor('danger')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'failed')),
+            'manual' => Tab::make('Manual')
+                ->badge($manualCount)
+                ->badgeColor('primary')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('trigger', 'manual')),
+            'hooks' => Tab::make('Hooks')
+                ->badge($hookCount)
+                ->badgeColor('info')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('trigger', 'hook')),
+            'scheduled' => Tab::make('Scheduled')
+                ->badge($scheduledCount)
+                ->badgeColor('gray')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('trigger', 'schedule')),
+        ];
+    }
+
+    protected static function runLabel(ExtensionPluginRun $record): string
+    {
+        $name = $record->action ?: $record->hook ?: 'run';
+
+        return Str::headline($name).' #'.$record->getKey();
+    }
+
+    protected static function targetScope(ExtensionPluginRun $record): string
+    {
+        $payload = $record->payload ?? [];
+        $parts = [];
+
+        if ($playlistId = Arr::get($payload, 'playlist_id')) {
+            $parts[] = 'Playlist #'.$playlistId;
+        }
+
+        if ($epgId = Arr::get($payload, 'epg_id')) {
+            $parts[] = 'EPG #'.$epgId;
+        }
+
+        if ($channelId = Arr::get($payload, 'channel_id')) {
+            $parts[] = 'Channel #'.$channelId;
+        }
+
+        if ($parts === []) {
+            $parts[] = 'This run did not declare a specific playlist, EPG, or channel target.';
+        }
+
+        return implode(' • ', $parts);
+    }
+
+    protected static function timingSummary(ExtensionPluginRun $record): string
+    {
+        $started = $record->started_at?->toDateTimeString() ?? 'Not started yet';
+        $finished = $record->finished_at?->toDateTimeString() ?? 'Still running';
+
+        return "Started: {$started}\nFinished: {$finished}";
+    }
+
+    protected static function metricsSummary(ExtensionPluginRun $record): ?string
+    {
+        $totals = collect(data_get($record->result, 'data.totals', []))
+            ->filter(fn ($value) => is_scalar($value))
+            ->map(fn ($value, $key) => Str::headline((string) $key).': '.$value)
+            ->values();
+
+        if ($totals->isEmpty()) {
+            return null;
+        }
+
+        return $totals->implode("\n");
     }
 }

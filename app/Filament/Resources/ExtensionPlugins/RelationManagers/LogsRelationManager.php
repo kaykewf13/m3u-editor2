@@ -3,10 +3,19 @@
 namespace App\Filament\Resources\ExtensionPlugins\RelationManagers;
 
 use App\Filament\Resources\ExtensionPlugins\ExtensionPluginResource;
+use App\Models\ExtensionPluginRunLog;
+use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\Layout\Panel;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class LogsRelationManager extends RelationManager
 {
@@ -22,53 +31,162 @@ class LogsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->heading('Live Activity Feed')
+            ->description('Streaming notes from running and recent jobs. Open any run to inspect the payload, result snapshot, and full trail.')
+            ->filtersTriggerAction(fn ($action) => $action->button()->label('Refine feed'))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->poll('2s')
             ->defaultSort('created_at', 'desc')
             ->emptyStateHeading('No live activity yet')
             ->emptyStateDescription('Run a plugin action to see step-by-step activity appear here.')
             ->columns([
-                TextColumn::make('created_at')
-                    ->label('Timestamp')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('level')
-                    ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'error' => 'danger',
-                        'warning' => 'warning',
-                        default => 'info',
+                Split::make([
+                    Stack::make([
+                        TextColumn::make('message')
+                            ->label('Activity')
+                            ->weight('medium')
+                            ->wrap()
+                            ->searchable(),
+                        TextColumn::make('created_at')
+                            ->label('Seen')
+                            ->since()
+                            ->color('gray')
+                            ->tooltip(fn (ExtensionPluginRunLog $record): ?string => $record->created_at?->toDateTimeString()),
+                    ]),
+                    Stack::make([
+                        TextColumn::make('level')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => Str::headline($state))
+                            ->color(fn (string $state) => match ($state) {
+                                'error' => 'danger',
+                                'warning' => 'warning',
+                                default => 'info',
+                            }),
+                        TextColumn::make('run_reference')
+                            ->label('Run')
+                            ->badge()
+                            ->state(fn (ExtensionPluginRunLog $record): string => self::runLabel($record))
+                            ->color(fn (ExtensionPluginRunLog $record): string => match ($record->run?->status) {
+                                'completed' => 'success',
+                                'failed' => 'danger',
+                                'running' => 'warning',
+                                default => 'gray',
+                            })
+                            ->url(fn (ExtensionPluginRunLog $record): ?string => $record->run
+                                ? ExtensionPluginResource::getUrl('run', [
+                                    'record' => $this->getOwnerRecord(),
+                                    'run' => $record->run,
+                                ])
+                                : null),
+                    ])->grow(false),
+                ])->from('md'),
+                Panel::make([
+                    Stack::make([
+                        TextColumn::make('context_summary')
+                            ->label('Structured Context')
+                            ->state(fn (ExtensionPluginRunLog $record): ?string => self::contextSummary($record->context ?? []))
+                            ->placeholder('No structured context was attached to this activity line.')
+                            ->wrap(),
+                        TextColumn::make('run_summary')
+                            ->label('Run Summary')
+                            ->state(fn (ExtensionPluginRunLog $record): ?string => $record->run?->summary)
+                            ->placeholder('This run has not written a summary yet.')
+                            ->wrap(),
+                    ]),
+                ])->collapsible()->collapsed(),
+            ])
+            ->filters([
+                SelectFilter::make('level')
+                    ->options([
+                        'info' => 'Info',
+                        'warning' => 'Warning',
+                        'error' => 'Error',
+                    ]),
+                SelectFilter::make('run_status')
+                    ->label('Run status')
+                    ->options([
+                        'running' => 'Running',
+                        'completed' => 'Completed',
+                        'failed' => 'Failed',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $status = $data['value'] ?? null;
+
+                        if (! $status) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('run', fn (Builder $runQuery) => $runQuery->where('status', $status));
                     }),
-                TextColumn::make('run_reference')
-                    ->label('Run')
-                    ->state(fn ($record) => $record->run?->action
-                        ? str($record->run->action)->headline().' #'.$record->extension_plugin_run_id
-                        : str($record->run?->hook ?? 'Hook')->headline().' #'.$record->extension_plugin_run_id)
-                    ->url(fn ($record): ?string => $record->run
+            ])
+            ->recordActions([
+                Action::make('open')
+                    ->label('Open run')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn (ExtensionPluginRunLog $record): ?string => $record->run
                         ? ExtensionPluginResource::getUrl('run', [
                             'record' => $this->getOwnerRecord(),
                             'run' => $record->run,
                         ])
-                        : null)
-                    ->wrap(),
-                TextColumn::make('message')
-                    ->wrap()
-                    ->searchable(),
-                TextColumn::make('context_summary')
-                    ->label('Context')
-                    ->state(function ($record): ?string {
-                        $context = $record->context ?? [];
+                        : null),
+            ])
+            ->toolbarActions([]);
+    }
 
-                        if ($context === []) {
-                            return null;
-                        }
+    public function getTabs(): array
+    {
+        $pluginId = $this->getOwnerRecord()->getKey();
 
-                        return collect($context)
-                            ->map(fn ($value, $key) => $key.': '.(is_scalar($value) || $value === null ? json_encode($value) : '[…]'))
-                            ->take(4)
-                            ->implode("\n");
-                    })
-                    ->wrap()
-                    ->toggleable(),
-            ]);
+        $allCount = ExtensionPluginRunLog::query()
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->count();
+        $runningCount = ExtensionPluginRunLog::query()
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->where('status', 'running'))
+            ->count();
+        $warningCount = ExtensionPluginRunLog::query()
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->where('level', 'warning')
+            ->count();
+        $errorCount = ExtensionPluginRunLog::query()
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->where('level', 'error')
+            ->count();
+
+        return [
+            'all' => Tab::make('All Activity')
+                ->badge($allCount),
+            'running' => Tab::make('Running Run')
+                ->badge($runningCount)
+                ->badgeColor('warning')
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereHas('run', fn (Builder $runQuery) => $runQuery->where('status', 'running'))),
+            'warnings' => Tab::make('Warnings')
+                ->badge($warningCount)
+                ->badgeColor('warning')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('level', 'warning')),
+            'errors' => Tab::make('Errors')
+                ->badge($errorCount)
+                ->badgeColor('danger')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('level', 'error')),
+        ];
+    }
+
+    protected static function runLabel(ExtensionPluginRunLog $record): string
+    {
+        $name = $record->run?->action ?: $record->run?->hook ?: 'run';
+
+        return Str::headline($name).' #'.$record->extension_plugin_run_id;
+    }
+
+    protected static function contextSummary(array $context): ?string
+    {
+        if ($context === []) {
+            return null;
+        }
+
+        return collect($context)
+            ->map(fn ($value, $key) => $key.': '.(is_scalar($value) || $value === null ? json_encode($value) : '[…]'))
+            ->take(6)
+            ->implode("\n");
     }
 }
