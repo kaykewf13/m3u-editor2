@@ -43,12 +43,6 @@ services:
       - M3U_PROXY_PORT=${M3U_PROXY_PORT:-38085}
       - M3U_PROXY_HOST=${M3U_PROXY_HOST:-m3u-proxy} # Internal network hostname of m3u-proxy container
       - M3U_PROXY_TOKEN=${M3U_PROXY_TOKEN:-changeme}
-
-      # On-demand broadcast tuning (optional)
-      # - BROADCAST_ON_DEMAND_DISCONNECT_SECONDS=${BROADCAST_ON_DEMAND_DISCONNECT_SECONDS:-120}
-      # - BROADCAST_ON_DEMAND_OVERLAP_SECONDS=${BROADCAST_ON_DEMAND_OVERLAP_SECONDS:-30}
-      # - BROADCAST_ON_DEMAND_STARTUP_WAIT_SECONDS=${BROADCAST_ON_DEMAND_STARTUP_WAIT_SECONDS:-10}
-      # - BROADCAST_ON_DEMAND_STARTUP_POLL_MS=${BROADCAST_ON_DEMAND_STARTUP_POLL_MS:-300}
     volumes:
       # Persistent configuration data
       - ./data:/var/www/config
