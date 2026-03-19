@@ -20,6 +20,8 @@
         $confidenceBreakdown = data_get($resultData, 'confidence_breakdown', []);
         $report = data_get($resultData, 'report', []);
         $previewChannels = data_get($resultData, 'channels_preview', []);
+        $candidateRows = $this->candidateRows;
+        $candidateItems = collect($candidateRows->items());
         $playlistTarget = data_get($resultData, 'playlist');
         $epgTarget = data_get($resultData, 'epg');
         $totals = data_get($resultData, 'totals', []);
@@ -31,7 +33,6 @@
         $allowSourceSwitch = data_get($run->payload, 'allow_source_switch');
         $maxRepairs = data_get($run->payload, 'max_repairs');
         $reviewData = data_get($resultData, 'review', []);
-        $reviewDecisions = data_get($reviewData, 'decisions', []);
         $reviewCounts = data_get($reviewData, 'counts', []);
         $reviewableRun = $this->isReviewableScanRun();
     @endphp
@@ -243,14 +244,14 @@
                         <h2 class="text-sm font-semibold text-gray-950 dark:text-white">Channel evidence</h2>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             @if($reviewableRun)
-                                Review visible candidates here, approve the ones you trust, then use <span class="font-medium text-gray-700 dark:text-gray-200">Apply Reviewed</span>.
+                                Review the persisted candidates here, approve the ones you trust, then use <span class="font-medium text-gray-700 dark:text-gray-200">Apply Reviewed</span>.
                             @else
-                                A preview of exactly what the plugin found and what it wanted to do.
+                                This is the stored candidate set for the run, with pagination instead of a truncated preview only.
                             @endif
                         </p>
                     </div>
                     <div class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                        Showing {{ count($previewChannels) }} of {{ number_format((int) data_get($resultData, 'channels_total_count', count($previewChannels))) }}
+                        Showing {{ number_format($candidateRows->firstItem() ?? 0) }}-{{ number_format($candidateRows->lastItem() ?? 0) }} of {{ number_format($candidateRows->total()) }}
                     </div>
                 </div>
 
@@ -264,7 +265,7 @@
                     </div>
                 @endif
 
-                @if($previewChannels !== [])
+                @if($candidateItems->isNotEmpty())
                     <div class="mt-5 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-800">
@@ -281,42 +282,41 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                    @foreach($previewChannels as $item)
+                                    @foreach($candidateItems as $item)
                                         @php
-                                            $reviewDecision = $reviewDecisions[(string) data_get($item, 'channel_id')] ?? null;
-                                            $reviewStatus = data_get($reviewDecision, 'status', 'pending');
-                                            $canReviewItem = $reviewableRun && data_get($item, 'repairable') && filled(data_get($item, 'suggested_epg_channel_id'));
+                                            $reviewStatus = $item->review_status ?? 'pending';
+                                            $canReviewItem = $reviewableRun && $item->repairable && filled($item->suggested_epg_channel_id);
                                         @endphp
                                         <tr class="align-top">
                                             <td class="px-4 py-4">
-                                                <div class="font-medium text-gray-950 dark:text-white">{{ data_get($item, 'channel_name', 'Unknown channel') }}</div>
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Channel ID {{ data_get($item, 'channel_id', 'n/a') }}</div>
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Playlist {{ data_get($item, 'playlist_name', data_get($playlistTarget, 'name', 'n/a')) }}</div>
+                                                <div class="font-medium text-gray-950 dark:text-white">{{ $item->channel?->title_custom ?? $item->channel?->title ?? $item->channel?->name_custom ?? $item->channel?->name ?? 'Unknown channel' }}</div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Channel ID {{ $item->channel_id ?? 'n/a' }}</div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Playlist {{ $item->playlist_name ?: data_get($playlistTarget, 'name', 'n/a') }}</div>
                                             </td>
                                             <td class="px-4 py-4">
-                                                <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \Illuminate\Support\Str::headline((string) data_get($item, 'issue', 'unknown')) }}</span>
+                                                <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \Illuminate\Support\Str::headline((string) ($item->issue ?? 'unknown')) }}</span>
                                             </td>
                                             <td class="px-4 py-4">
-                                                <div class="font-medium text-gray-950 dark:text-white">{{ data_get($item, 'current_epg_channel_name') ?: 'No current mapping' }}</div>
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ data_get($item, 'current_epg_source_name') ?: 'No current EPG source' }}</div>
-                                                @if(filled(data_get($item, 'current_epg_channel_id')))
+                                                <div class="font-medium text-gray-950 dark:text-white">{{ $item->current_epg_channel_name ?: 'No current mapping' }}</div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->current_epg_source_name ?: 'No current EPG source' }}</div>
+                                                @if(filled($item->current_epg_channel_id))
                                                     <div class="mt-1 text-xs text-gray-400 dark:text-gray-500">EPG Channel ID {{ data_get($item, 'current_epg_channel_id') }}</div>
                                                 @endif
                                             </td>
                                             <td class="px-4 py-4">
-                                                <div class="font-medium text-gray-950 dark:text-white">{{ data_get($item, 'suggested_epg_channel_name') ?: 'No suggestion' }}</div>
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ data_get($item, 'suggested_epg_source_name', data_get($epgTarget, 'name', 'Unknown EPG source')) }}</div>
+                                                <div class="font-medium text-gray-950 dark:text-white">{{ $item->suggested_epg_channel_name ?: 'No suggestion' }}</div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->suggested_epg_source_name ?: data_get($epgTarget, 'name', 'Unknown EPG source') }}</div>
                                                 <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                                                    <span class="inline-flex rounded-full bg-success-50 px-2.5 py-1 font-medium text-success-700 dark:bg-success-950/40 dark:text-success-300">{{ \Illuminate\Support\Str::headline((string) data_get($item, 'confidence_band', 'none')) }}</span>
-                                                    @if(filled(data_get($item, 'confidence')))
-                                                        <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ data_get($item, 'confidence') }}</span>
+                                                    <span class="inline-flex rounded-full bg-success-50 px-2.5 py-1 font-medium text-success-700 dark:bg-success-950/40 dark:text-success-300">{{ \Illuminate\Support\Str::headline((string) ($item->confidence_band ?? 'none')) }}</span>
+                                                    @if(filled($item->confidence))
+                                                        <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ $item->confidence }}</span>
                                                     @endif
                                                 </div>
-                                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline((string) data_get($item, 'match_reason', 'no_match_reason')) }}</div>
-                                                @if(count(data_get($item, 'source_candidates', [])) > 1)
+                                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline((string) ($item->match_reason ?? 'no_match_reason')) }}</div>
+                                                @if(count($item->source_candidates ?? []) > 1)
                                                     <div class="mt-3 space-y-1 rounded-xl bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-950/60 dark:text-gray-300">
                                                         <div class="font-semibold text-gray-700 dark:text-gray-100">Alternative sources</div>
-                                                        @foreach(data_get($item, 'source_candidates', []) as $candidate)
+                                                        @foreach(($item->source_candidates ?? []) as $candidate)
                                                             <div>
                                                                 {{ data_get($candidate, 'epg_name') }} → {{ data_get($candidate, 'epg_channel_name') }}
                                                                 <span class="text-gray-400 dark:text-gray-500">({{ data_get($candidate, 'confidence_band') }})</span>
@@ -326,22 +326,20 @@
                                                 @endif
                                             </td>
                                             <td class="px-4 py-4">
-                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ data_get($item, 'decision') === 'repairable' ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}">
-                                                    {{ \Illuminate\Support\Str::headline((string) data_get($item, 'decision', 'unknown')) }}
+                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $item->decision === 'repairable' ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}">
+                                                    {{ \Illuminate\Support\Str::headline((string) ($item->decision ?? 'unknown')) }}
                                                 </span>
                                                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                    {{ data_get($item, 'repairable') ? 'The plugin considers this safe enough to apply.' : 'Needs review before any apply run.' }}
+                                                    {{ $item->repairable ? 'The plugin considers this safe enough to apply.' : 'Needs review before any apply run.' }}
                                                 </div>
-                                                @if(filled(data_get($item, 'apply_outcome')))
+                                                @if(filled($item->apply_outcome))
                                                     <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                        Apply outcome: {{ \Illuminate\Support\Str::headline((string) data_get($item, 'apply_outcome')) }}
+                                                        Apply outcome: {{ \Illuminate\Support\Str::headline((string) $item->apply_outcome) }}
                                                     </div>
                                                 @endif
-                                                @if(array_key_exists('applied', $item))
-                                                    <div class="mt-2 text-xs font-medium {{ data_get($item, 'applied') ? 'text-success-600 dark:text-success-400' : 'text-gray-500 dark:text-gray-400' }}">
-                                                        {{ data_get($item, 'applied') ? 'Applied in this run' : 'Preview only' }}
-                                                    </div>
-                                                @endif
+                                                <div class="mt-2 text-xs font-medium {{ $item->applied ? 'text-success-600 dark:text-success-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                                    {{ $item->applied ? 'Applied in this run' : 'Stored as review evidence' }}
+                                                </div>
                                             </td>
                                             @if($reviewableRun)
                                                 <td class="px-4 py-4">
@@ -357,14 +355,14 @@
                                                         <div class="mt-3 flex flex-wrap gap-2">
                                                             <button
                                                                 type="button"
-                                                                wire:click="markReviewDecision({{ (int) data_get($item, 'channel_id') }}, 'approved')"
+                                                                wire:click="markReviewDecision({{ (int) $item->channel_id }}, 'approved')"
                                                                 class="inline-flex items-center rounded-full bg-success-50 px-3 py-1.5 text-xs font-medium text-success-700 transition hover:bg-success-100 dark:bg-success-950/40 dark:text-success-300"
                                                             >
                                                                 Approve
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                wire:click="markReviewDecision({{ (int) data_get($item, 'channel_id') }}, 'rejected')"
+                                                                wire:click="markReviewDecision({{ (int) $item->channel_id }}, 'rejected')"
                                                                 class="inline-flex items-center rounded-full bg-danger-50 px-3 py-1.5 text-xs font-medium text-danger-700 transition hover:bg-danger-100 dark:bg-danger-950/40 dark:text-danger-300"
                                                             >
                                                                 Reject
@@ -372,7 +370,7 @@
                                                             @if($reviewStatus !== 'pending')
                                                                 <button
                                                                     type="button"
-                                                                    wire:click="markReviewDecision({{ (int) data_get($item, 'channel_id') }}, 'pending')"
+                                                                    wire:click="markReviewDecision({{ (int) $item->channel_id }}, 'pending')"
                                                                     class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
                                                                 >
                                                                     Reset
@@ -381,13 +379,13 @@
                                                         </div>
                                                     @elseif(! $canReviewItem)
                                                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                            This candidate cannot be reviewed from the preview table.
+                                                            This candidate cannot be reviewed from the stored candidate table.
                                                         </div>
                                                     @endif
 
-                                                    @if(filled(data_get($reviewDecision, 'user_name')))
+                                                    @if(filled($item->reviewed_by_user_name))
                                                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ data_get($reviewDecision, 'user_name') }} · {{ data_get($reviewDecision, 'updated_at') }}
+                                                            {{ $item->reviewed_by_user_name }} · {{ optional($item->reviewed_at)->toDateTimeString() }}
                                                         </div>
                                                     @endif
                                                 </td>
@@ -398,9 +396,12 @@
                             </table>
                         </div>
                     </div>
-                    @if(data_get($resultData, 'channels_truncated'))
-                        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">The preview is truncated. Use the CSV report to inspect the full set of affected channels. Only visible preview candidates can be reviewed from this screen right now.</p>
-                    @endif
+                    <div class="mt-4">
+                        {{ $candidateRows->links() }}
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        The stored candidate table is the source of truth for review and apply-reviewed actions. The run summary above remains compact on purpose.
+                    </p>
                     @if($applyOutcomeBreakdown !== [])
                         <div class="mt-4 flex flex-wrap gap-2">
                             @foreach($applyOutcomeBreakdown as $outcome => $count)

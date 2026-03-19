@@ -14,6 +14,7 @@ use App\Plugins\Support\PluginExecutionContext;
 use App\Plugins\Support\PluginUninstallContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -567,7 +568,7 @@ class PluginManager
 
         foreach ($ownership['tables'] ?? [] as $table) {
             if (Schema::hasTable($table)) {
-                Schema::drop($table);
+                DB::table($table)->delete();
             }
         }
     }

@@ -14,6 +14,9 @@
     "epg.cache.generated"
   ],
   "data_ownership": {
+    "tables": [
+      "plugin_epg_repair_scan_candidates"
+    ],
     "directories": [
       "plugin-reports/epg-repair"
     ],

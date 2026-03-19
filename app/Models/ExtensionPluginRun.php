@@ -65,6 +65,11 @@ class ExtensionPluginRun extends Model
         return $this->hasMany(ExtensionPluginRunLog::class)->latest();
     }
 
+    public function epgRepairCandidates(): HasMany
+    {
+        return $this->hasMany(PluginEpgRepairScanCandidate::class);
+    }
+
     public function isStale(int $minutes = 15): bool
     {
         if ($this->status !== 'running' || ! $this->last_heartbeat_at) {

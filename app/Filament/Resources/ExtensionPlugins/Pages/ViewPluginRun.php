@@ -6,20 +6,23 @@ use App\Filament\Resources\ExtensionPlugins\ExtensionPluginResource;
 use App\Jobs\ExecutePluginInvocation;
 use App\Models\ExtensionPlugin;
 use App\Models\ExtensionPluginRun;
+use App\Models\PluginEpgRepairScanCandidate;
 use App\Plugins\PluginManager;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Livewire\WithPagination;
 
 class ViewPluginRun extends Page
 {
     use InteractsWithRecord;
+    use WithPagination;
 
     protected static string $resource = ExtensionPluginResource::class;
 
@@ -28,6 +31,20 @@ class ViewPluginRun extends Page
     public ExtensionPluginRun $runRecord;
 
     public Collection $logs;
+
+    public function getCandidateRowsProperty(): LengthAwarePaginator
+    {
+        return $this->runRecord->epgRepairCandidates()
+            ->orderByDesc('repairable')
+            ->orderByRaw('CASE review_status WHEN ? THEN 0 WHEN ? THEN 1 WHEN ? THEN 2 ELSE 3 END', [
+                'approved',
+                'pending',
+                'rejected',
+            ])
+            ->orderByDesc('confidence')
+            ->orderBy('id')
+            ->paginate(25, pageName: 'candidatesPage');
+    }
 
     public function mount(int|string $record, int|string $run): void
     {
@@ -65,12 +82,26 @@ class ViewPluginRun extends Page
 
     public function reviewDecisions(): array
     {
-        return data_get($this->runRecord->result, 'data.review.decisions', []);
+        return $this->candidateRows
+            ->getCollection()
+            ->mapWithKeys(fn (PluginEpgRepairScanCandidate $candidate): array => [
+                (string) $candidate->channel_id => [
+                    'status' => $candidate->review_status ?? 'pending',
+                    'updated_at' => optional($candidate->reviewed_at)->toIso8601String(),
+                    'user_id' => $candidate->reviewed_by_user_id,
+                    'user_name' => $candidate->reviewed_by_user_name,
+                ],
+            ])
+            ->all();
     }
 
     public function approvedReviewCount(): int
     {
-        return (int) data_get($this->runRecord->result, 'data.review.counts.approved', 0);
+        return (int) $this->runRecord->epgRepairCandidates()
+            ->where('repairable', true)
+            ->whereNotNull('suggested_epg_channel_id')
+            ->where('review_status', 'approved')
+            ->count();
     }
 
     public function markReviewDecision(int $channelId, string $status): void
@@ -83,26 +114,21 @@ class ViewPluginRun extends Page
             return;
         }
 
-        $previewItem = collect(data_get($this->runRecord->result, 'data.channels_preview', []))
-            ->firstWhere('channel_id', $channelId);
+        $candidate = $this->runRecord->epgRepairCandidates()
+            ->where('channel_id', $channelId)
+            ->first();
 
-        if (! $previewItem || ! data_get($previewItem, 'repairable') || ! filled(data_get($previewItem, 'suggested_epg_channel_id'))) {
+        if (! $candidate || ! $candidate->repairable || ! filled($candidate->suggested_epg_channel_id)) {
             Notification::make()
                 ->danger()
                 ->title('Candidate not reviewable')
-                ->body('Only reviewable preview candidates can be approved or rejected from this screen.')
+                ->body('Only persisted, repairable candidates can be approved or rejected from this screen.')
                 ->send();
 
             return;
         }
 
-        $result = $this->runRecord->result ?? [];
-        $data = $result['data'] ?? [];
-        $review = $data['review'] ?? [];
-        $decisions = $review['decisions'] ?? [];
-        $existingStatus = Arr::get($decisions, (string) $channelId.'.status');
-
-        if ($existingStatus === 'applied') {
+        if ($candidate->review_status === 'applied') {
             Notification::make()
                 ->warning()
                 ->title('Candidate already applied')
@@ -112,26 +138,14 @@ class ViewPluginRun extends Page
             return;
         }
 
-        if ($status === 'pending') {
-            unset($decisions[(string) $channelId]);
-        } else {
-            $decisions[(string) $channelId] = [
-                'status' => $status,
-                'updated_at' => now()->toIso8601String(),
-                'user_id' => auth()->id(),
-                'user_name' => auth()->user()?->name,
-                'item' => $previewItem,
-            ];
-        }
+        $candidate->forceFill([
+            'review_status' => $status,
+            'reviewed_by_user_id' => $status === 'pending' ? null : auth()->id(),
+            'reviewed_by_user_name' => $status === 'pending' ? null : auth()->user()?->name,
+            'reviewed_at' => $status === 'pending' ? null : now(),
+        ])->save();
 
-        $review['decisions'] = $decisions;
-        $review['counts'] = $this->reviewCounts($data['channels_preview'] ?? [], $decisions);
-        $review['updated_at'] = now()->toIso8601String();
-
-        $data['review'] = $review;
-        $result['data'] = $data;
-
-        $this->runRecord->forceFill(['result' => $result])->save();
+        $this->syncRunReviewSnapshotFromCandidates();
         $this->runRecord->logs()->create([
             'level' => 'info',
             'message' => 'Candidate review updated.',
@@ -161,42 +175,30 @@ class ViewPluginRun extends Page
             return;
         }
 
-        $previewItems = collect(data_get($this->runRecord->result, 'data.channels_preview', []))
-            ->filter(fn (array $item): bool => (bool) data_get($item, 'repairable') && filled(data_get($item, 'suggested_epg_channel_id')))
-            ->reject(fn (array $item): bool => data_get($this->runRecord->result, 'data.review.decisions.'.(string) $item['channel_id'].'.status') === 'applied')
-            ->values();
+        $candidateIds = collect($this->candidateRows->items())
+            ->filter(fn (PluginEpgRepairScanCandidate $candidate): bool => $candidate->repairable && filled($candidate->suggested_epg_channel_id) && $candidate->review_status !== 'applied')
+            ->pluck('id')
+            ->all();
 
-        if ($previewItems->isEmpty()) {
+        if ($candidateIds === []) {
             return;
         }
 
-        $result = $this->runRecord->result ?? [];
-        $data = $result['data'] ?? [];
-        $review = $data['review'] ?? [];
-        $decisions = $review['decisions'] ?? [];
+        $this->runRecord->epgRepairCandidates()
+            ->whereIn('id', $candidateIds)
+            ->update([
+                'review_status' => 'approved',
+                'reviewed_by_user_id' => auth()->id(),
+                'reviewed_by_user_name' => auth()->user()?->name,
+                'reviewed_at' => now(),
+            ]);
 
-        foreach ($previewItems as $item) {
-            $decisions[(string) $item['channel_id']] = [
-                'status' => 'approved',
-                'updated_at' => now()->toIso8601String(),
-                'user_id' => auth()->id(),
-                'user_name' => auth()->user()?->name,
-                'item' => $item,
-            ];
-        }
-
-        $review['decisions'] = $decisions;
-        $review['counts'] = $this->reviewCounts($data['channels_preview'] ?? [], $decisions);
-        $review['updated_at'] = now()->toIso8601String();
-        $data['review'] = $review;
-        $result['data'] = $data;
-
-        $this->runRecord->forceFill(['result' => $result])->save();
+        $this->syncRunReviewSnapshotFromCandidates();
         $this->runRecord->logs()->create([
             'level' => 'info',
             'message' => 'All visible reviewable candidates were approved.',
             'context' => [
-                'candidate_count' => $previewItems->count(),
+                'candidate_count' => count($candidateIds),
                 'user_id' => auth()->id(),
             ],
         ]);
@@ -206,7 +208,7 @@ class ViewPluginRun extends Page
         Notification::make()
             ->success()
             ->title('Visible candidates approved')
-            ->body('Apply Reviewed can now consume these approved preview candidates.')
+            ->body('Apply Reviewed can now consume these approved candidates on the current page.')
             ->send();
     }
 
@@ -216,20 +218,18 @@ class ViewPluginRun extends Page
             return;
         }
 
-        $result = $this->runRecord->result ?? [];
-        $data = $result['data'] ?? [];
-        $existingDecisions = data_get($data, 'review.decisions', []);
-        $appliedDecisions = collect($existingDecisions)
-            ->filter(fn (array $decision): bool => ($decision['status'] ?? null) === 'applied')
-            ->all();
-        $data['review'] = [
-            'decisions' => $appliedDecisions,
-            'counts' => $this->reviewCounts($data['channels_preview'] ?? [], $appliedDecisions),
-            'updated_at' => now()->toIso8601String(),
-        ];
-        $result['data'] = $data;
+        $this->runRecord->epgRepairCandidates()
+            ->where('repairable', true)
+            ->whereNotNull('suggested_epg_channel_id')
+            ->where('review_status', '!=', 'applied')
+            ->update([
+                'review_status' => 'pending',
+                'reviewed_by_user_id' => null,
+                'reviewed_by_user_name' => null,
+                'reviewed_at' => null,
+            ]);
 
-        $this->runRecord->forceFill(['result' => $result])->save();
+        $this->syncRunReviewSnapshotFromCandidates();
         $this->runRecord->logs()->create([
             'level' => 'info',
             'message' => 'Review decisions cleared by operator.',
@@ -243,7 +243,7 @@ class ViewPluginRun extends Page
         Notification::make()
             ->success()
             ->title('Review decisions cleared')
-            ->body('All preview candidates are back to pending review.')
+            ->body('All persisted candidates are back to pending review.')
             ->send();
     }
 
@@ -354,31 +354,46 @@ class ViewPluginRun extends Page
         $this->logs = $this->runRecord->logs()->latest()->limit(150)->get()->reverse()->values();
     }
 
-    private function reviewCounts(array $previewItems, array $decisions): array
+    private function syncRunReviewSnapshotFromCandidates(): void
     {
-        $reviewableIds = collect($previewItems)
-            ->filter(fn (array $item): bool => (bool) data_get($item, 'repairable') && filled(data_get($item, 'suggested_epg_channel_id')))
+        $result = $this->runRecord->result ?? [];
+        $data = $result['data'] ?? [];
+        $previewIds = collect($data['channels_preview'] ?? [])
             ->pluck('channel_id')
-            ->map(fn (mixed $id): string => (string) $id)
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
             ->all();
 
-        $counts = [
-            'approved' => 0,
-            'rejected' => 0,
-            'applied' => 0,
-            'pending' => 0,
+        $reviewableQuery = $this->runRecord->epgRepairCandidates()
+            ->where('repairable', true)
+            ->whereNotNull('suggested_epg_channel_id');
+
+        $data['review'] = [
+            'decisions' => $previewIds === []
+                ? []
+                : $this->runRecord->epgRepairCandidates()
+                    ->whereIn('channel_id', $previewIds)
+                    ->get()
+                    ->mapWithKeys(fn (PluginEpgRepairScanCandidate $candidate): array => [
+                        (string) $candidate->channel_id => [
+                            'status' => $candidate->review_status ?? 'pending',
+                            'updated_at' => optional($candidate->reviewed_at)->toIso8601String(),
+                            'user_id' => $candidate->reviewed_by_user_id,
+                            'user_name' => $candidate->reviewed_by_user_name,
+                        ],
+                    ])
+                    ->all(),
+            'counts' => [
+                'approved' => (clone $reviewableQuery)->where('review_status', 'approved')->count(),
+                'rejected' => (clone $reviewableQuery)->where('review_status', 'rejected')->count(),
+                'applied' => (clone $reviewableQuery)->where('review_status', 'applied')->count(),
+                'pending' => (clone $reviewableQuery)->where('review_status', 'pending')->count(),
+            ],
+            'updated_at' => now()->toIso8601String(),
         ];
 
-        foreach ($reviewableIds as $channelId) {
-            $status = Arr::get($decisions, $channelId.'.status', 'pending');
-
-            if (! array_key_exists($status, $counts)) {
-                $status = 'pending';
-            }
-
-            $counts[$status]++;
-        }
-
-        return $counts;
+        $result['data'] = $data;
+        $this->runRecord->forceFill(['result' => $result])->save();
     }
+
 }

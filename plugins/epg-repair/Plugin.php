@@ -8,6 +8,7 @@ use App\Models\Epg;
 use App\Models\EpgChannel;
 use App\Models\ExtensionPluginRun;
 use App\Models\Playlist;
+use App\Models\PluginEpgRepairScanCandidate;
 use App\Plugins\Contracts\EpgRepairPluginInterface;
 use App\Plugins\Contracts\HookablePluginInterface;
 use App\Plugins\Contracts\ScheduledPluginInterface;
@@ -168,7 +169,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 ),
                 [
                     'dry_run' => $context->dryRun || $implicitDryRun,
-                    ...$this->resultSnapshot($issues),
+                    ...$this->resultSnapshot($issues, $context->run),
                 ],
             );
         }
@@ -185,7 +186,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             $summary,
             [
                 'dry_run' => $context->dryRun || $implicitDryRun,
-                ...$this->resultSnapshot($issues),
+                ...$this->resultSnapshot($issues, $context->run),
             ],
         );
     }
@@ -237,7 +238,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 "Apply stopped after {$applied} EPG repair(s). Resume the run to continue from the last saved checkpoint.",
                 [
                     'dry_run' => false,
-                    ...$this->resultSnapshot($report),
+                    ...$this->resultSnapshot($report, $context->run),
                 ],
             );
         }
@@ -253,7 +254,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             "Applied {$applied} EPG repair(s).",
             [
                 'dry_run' => false,
-                ...$this->resultSnapshot($report),
+                ...$this->resultSnapshot($report, $context->run),
             ],
         );
     }
@@ -272,11 +273,34 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
         }
 
         $sourceData = data_get($sourceRun->result, 'data', []);
-        $approved = collect(data_get($sourceData, 'review.decisions', []))
-            ->filter(fn (array $decision): bool => ($decision['status'] ?? null) === 'approved')
-            ->map(fn (array $decision) => $decision['item'] ?? null)
-            ->filter(fn ($item): bool => is_array($item) && filled($item['suggested_epg_channel_id'] ?? null))
-            ->values();
+        $approved = $sourceRun->epgRepairCandidates()
+            ->where('repairable', true)
+            ->whereNotNull('suggested_epg_channel_id')
+            ->where('review_status', 'approved')
+            ->orderBy('id')
+            ->get();
+
+        if ($approved->isEmpty()) {
+            $legacyApproved = collect(data_get($sourceData, 'review.decisions', []))
+                ->filter(fn (array $decision): bool => ($decision['status'] ?? null) === 'approved')
+                ->map(fn (array $decision) => $decision['item'] ?? null)
+                ->filter(fn ($item): bool => is_array($item) && filled($item['suggested_epg_channel_id'] ?? null))
+                ->values();
+
+            if ($legacyApproved->isNotEmpty()) {
+                foreach ($legacyApproved as $item) {
+                    $item['review_status'] = 'approved';
+                    $this->persistCandidate($sourceRun, $item);
+                }
+
+                $approved = $sourceRun->epgRepairCandidates()
+                    ->where('repairable', true)
+                    ->whereNotNull('suggested_epg_channel_id')
+                    ->where('review_status', 'approved')
+                    ->orderBy('id')
+                    ->get();
+            }
+        }
 
         if ($approved->isEmpty()) {
             return PluginActionResult::failure('No approved repair candidates were found on the selected scan run.');
@@ -321,7 +345,8 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
 
         $appliedChannels = [];
 
-        foreach ($approved as $item) {
+        foreach ($approved as $candidate) {
+            $item = $this->candidateItemFromRow($candidate);
             $checkpoint['channels_scanned']++;
             $checkpoint['last_channel_id'] = $item['channel_id'];
             $checkpoint['channels_with_existing_programmes'] += filled($item['current_epg_channel_id']) ? 1 : 0;
@@ -349,8 +374,11 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
 
             $item['applied'] = $applyOutcome === 'applied';
             $item['apply_outcome'] = $applyOutcome;
+            $item['review_status'] = $applyOutcome === 'applied' ? 'applied' : ($candidate->review_status ?? 'approved');
+            $item['last_apply_run_id'] = $applyOutcome === 'applied' ? $context->run->id : null;
 
             $this->recordPreviewItem($checkpoint, $item);
+            $this->persistCandidate($context->run, $item, $sourceRun->id);
             $this->incrementBreakdown($checkpoint, 'issue_breakdown', $item['issue'] ?? 'reviewed_candidate');
             $this->incrementBreakdown($checkpoint, 'decision_breakdown', $item['decision'] ?? 'reviewed_candidate');
             $this->incrementBreakdown($checkpoint, 'confidence_breakdown', $item['confidence_band'] ?? 'none');
@@ -404,7 +432,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             [
                 'dry_run' => false,
                 'source_run_id' => $sourceRun->id,
-                ...$this->resultSnapshot($report),
+                ...$this->resultSnapshot($report, $context->run),
             ],
         );
     }
@@ -559,7 +587,6 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                     'selected_epg_source_name' => $epg->name,
                 ];
 
-                $this->recordPreviewItem($checkpoint, $item);
                 $this->incrementBreakdown($checkpoint, 'decision_breakdown', $item['decision']);
                 $this->incrementBreakdown($checkpoint, 'confidence_breakdown', $item['confidence_band']);
                 if (($comparison['best_match']?->epg_id ?? null) !== null && $comparison['best_match']?->epg_id !== $epg->id) {
@@ -569,7 +596,8 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 if (! $applyRepairs || ! $repairable) {
                     $item['applied'] = false;
                     $item['apply_outcome'] = $applyRepairs ? 'needs_review' : 'preview_only';
-                    $this->updatePreviewItem($checkpoint, $item);
+                    $this->recordPreviewItem($checkpoint, $item);
+                    $this->persistCandidate($context->run, $item);
                     $this->appendReportRow($checkpoint, $item);
                     $this->incrementBreakdown($checkpoint, 'apply_outcome_breakdown', $item['apply_outcome']);
                     continue;
@@ -586,7 +614,8 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 if (! $mayApply) {
                     $item['applied'] = false;
                     $item['apply_outcome'] = $applyOutcome;
-                    $this->updatePreviewItem($checkpoint, $item);
+                    $this->recordPreviewItem($checkpoint, $item);
+                    $this->persistCandidate($context->run, $item);
                     $this->appendReportRow($checkpoint, $item);
                     $this->incrementBreakdown($checkpoint, 'apply_outcome_breakdown', $item['apply_outcome']);
                     continue;
@@ -601,7 +630,10 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 $checkpoint['repairs_applied']++;
                 $item['applied'] = true;
                 $item['apply_outcome'] = 'applied';
-                $this->updatePreviewItem($checkpoint, $item);
+                $item['review_status'] = 'applied';
+                $item['last_apply_run_id'] = $context->run->id;
+                $this->recordPreviewItem($checkpoint, $item);
+                $this->persistCandidate($context->run, $item);
                 $this->appendReportRow($checkpoint, $item);
                 $this->incrementBreakdown($checkpoint, 'apply_outcome_breakdown', $item['apply_outcome']);
 
@@ -685,7 +717,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             'apply_outcome_breakdown' => $checkpoint['apply_outcome_breakdown'],
             'channels' => $checkpoint['preview_channels'],
             'source_scope' => $checkpoint['source_scope'],
-            'review' => $this->initialReviewState($checkpoint['preview_channels']),
+            'review' => $this->reviewSummaryForRun($context->run, $checkpoint['preview_channels']),
             'report' => [
                 'path' => $checkpoint['report_path'],
                 'filename' => $checkpoint['report_filename'],
@@ -915,7 +947,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
     private function csvRow(array $columns): string
     {
         $stream = fopen('php://temp', 'r+');
-        fputcsv($stream, $columns);
+        fputcsv($stream, $columns, ',', '"', '');
         rewind($stream);
         $csv = stream_get_contents($stream) ?: '';
         fclose($stream);
@@ -935,11 +967,11 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             ->implode(' | ');
     }
 
-    private function resultSnapshot(array $report): array
+    private function resultSnapshot(array $report, ?ExtensionPluginRun $run = null): array
     {
         $channels = $report['channels'] ?? [];
         $preview = array_slice($channels, 0, self::MAX_RESULT_CHANNELS);
-        $review = $report['review'] ?? $this->initialReviewState($preview);
+        $review = $run ? $this->reviewSummaryForRun($run, $preview) : ($report['review'] ?? $this->initialReviewState($preview));
 
         return [
             'progress' => $report['progress'] ?? 100,
@@ -991,17 +1023,6 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
     {
         $checkpoint['preview_channels'] ??= [];
 
-        if (count($checkpoint['preview_channels']) < self::MAX_RESULT_CHANNELS) {
-            $checkpoint['preview_channels'][] = $item;
-
-            return;
-        }
-
-        $checkpoint['preview_truncated'] = true;
-    }
-
-    private function updatePreviewItem(array &$checkpoint, array $item): void
-    {
         foreach ($checkpoint['preview_channels'] ?? [] as $index => $previewItem) {
             if (($previewItem['channel_id'] ?? null) !== ($item['channel_id'] ?? null)) {
                 continue;
@@ -1011,6 +1032,14 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
 
             return;
         }
+
+        if (count($checkpoint['preview_channels']) < self::MAX_RESULT_CHANNELS) {
+            $checkpoint['preview_channels'][] = $item;
+
+            return;
+        }
+
+        $checkpoint['preview_truncated'] = true;
     }
 
     private function isReviewStillCurrent(Channel $channel, array $item): bool
@@ -1027,51 +1056,171 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
             return;
         }
 
-        $result = $sourceRun->result ?? [];
-        $data = $result['data'] ?? [];
-        $review = $data['review'] ?? $this->initialReviewState($data['channels_preview'] ?? []);
-        $decisions = $review['decisions'] ?? [];
-
         foreach ($appliedChannels as $channelId => $applyOutcome) {
-            if (! isset($decisions[$channelId])) {
+            $candidate = $sourceRun->epgRepairCandidates()
+                ->where('channel_id', (int) $channelId)
+                ->first();
+
+            if (! $candidate) {
                 continue;
             }
 
-            $decisions[$channelId]['status'] = $applyOutcome === 'applied' ? 'applied' : $decisions[$channelId]['status'];
-            $decisions[$channelId]['last_apply_outcome'] = $applyOutcome;
-            $decisions[$channelId]['last_apply_run_id'] = $applyRunId;
-            $decisions[$channelId]['updated_at'] = now()->toIso8601String();
+            $candidate->forceFill([
+                'review_status' => $applyOutcome === 'applied' ? 'applied' : $candidate->review_status,
+                'apply_outcome' => $applyOutcome,
+                'applied' => $applyOutcome === 'applied',
+                'last_apply_run_id' => $applyRunId,
+                'reviewed_at' => now(),
+            ])->save();
         }
+
+        $this->syncRunReviewSnapshotFromCandidates($sourceRun);
+    }
+
+    private function persistCandidate(ExtensionPluginRun $run, array $item, ?int $sourceRunId = null): void
+    {
+        PluginEpgRepairScanCandidate::query()->updateOrCreate(
+            [
+                'extension_plugin_run_id' => $run->id,
+                'channel_id' => (int) $item['channel_id'],
+            ],
+            $this->candidateRowPayload($run, $item, $sourceRunId),
+        );
+    }
+
+    private function candidateRowPayload(ExtensionPluginRun $run, array $item, ?int $sourceRunId = null): array
+    {
+        $reviewStatus = $item['review_status']
+            ?? (($item['applied'] ?? false) ? 'applied' : ((bool) ($item['repairable'] ?? false) && filled($item['suggested_epg_channel_id'] ?? null) ? 'pending' : 'pending'));
+
+        return [
+            'source_run_id' => $sourceRunId,
+            'playlist_id' => $item['playlist_id'] ?? null,
+            'playlist_name' => $item['playlist_name'] ?? null,
+            'issue' => $item['issue'] ?? null,
+            'decision' => $item['decision'] ?? null,
+            'current_epg_channel_id' => $item['current_epg_channel_id'] ?? null,
+            'current_epg_channel_name' => $item['current_epg_channel_name'] ?? null,
+            'current_epg_source_id' => $item['current_epg_source_id'] ?? null,
+            'current_epg_source_name' => $item['current_epg_source_name'] ?? null,
+            'suggested_epg_channel_id' => $item['suggested_epg_channel_id'] ?? null,
+            'suggested_epg_channel_name' => $item['suggested_epg_channel_name'] ?? null,
+            'suggested_epg_source_id' => $item['suggested_epg_source_id'] ?? null,
+            'suggested_epg_source_name' => $item['suggested_epg_source_name'] ?? null,
+            'selected_epg_source_id' => $item['selected_epg_source_id'] ?? null,
+            'selected_epg_source_name' => $item['selected_epg_source_name'] ?? null,
+            'source_scope' => $item['source_scope'] ?? 'selected_only',
+            'confidence' => $item['confidence'] ?? null,
+            'confidence_band' => $item['confidence_band'] ?? null,
+            'match_reason' => $item['match_reason'] ?? null,
+            'repairable' => (bool) ($item['repairable'] ?? false),
+            'source_candidates' => $item['source_candidates'] ?? [],
+            'apply_outcome' => $item['apply_outcome'] ?? null,
+            'applied' => (bool) ($item['applied'] ?? false),
+            'review_status' => $reviewStatus,
+            'reviewed_by_user_id' => $item['reviewed_by_user_id'] ?? null,
+            'reviewed_by_user_name' => $item['reviewed_by_user_name'] ?? null,
+            'reviewed_at' => $item['reviewed_at'] ?? (($reviewStatus !== 'pending' || ($item['applied'] ?? false)) ? now() : null),
+            'last_apply_run_id' => $item['last_apply_run_id'] ?? null,
+        ];
+    }
+
+    private function candidateItemFromRow(PluginEpgRepairScanCandidate $candidate): array
+    {
+        return [
+            'channel_id' => $candidate->channel_id,
+            'channel_name' => $candidate->channel?->title_custom ?? $candidate->channel?->title ?? $candidate->channel?->name_custom ?? $candidate->channel?->name,
+            'playlist_id' => $candidate->playlist_id,
+            'playlist_name' => $candidate->playlist_name,
+            'issue' => $candidate->issue,
+            'decision' => $candidate->decision,
+            'current_epg_channel_id' => $candidate->current_epg_channel_id,
+            'current_epg_channel_name' => $candidate->current_epg_channel_name,
+            'current_epg_source_id' => $candidate->current_epg_source_id,
+            'current_epg_source_name' => $candidate->current_epg_source_name,
+            'suggested_epg_channel_id' => $candidate->suggested_epg_channel_id,
+            'suggested_epg_channel_name' => $candidate->suggested_epg_channel_name,
+            'suggested_epg_source_id' => $candidate->suggested_epg_source_id,
+            'suggested_epg_source_name' => $candidate->suggested_epg_source_name,
+            'selected_epg_source_id' => $candidate->selected_epg_source_id,
+            'selected_epg_source_name' => $candidate->selected_epg_source_name,
+            'source_scope' => $candidate->source_scope,
+            'confidence' => $candidate->confidence,
+            'confidence_band' => $candidate->confidence_band,
+            'match_reason' => $candidate->match_reason,
+            'repairable' => $candidate->repairable,
+            'source_candidates' => $candidate->source_candidates ?? [],
+            'source_candidates_count' => count($candidate->source_candidates ?? []),
+            'apply_outcome' => $candidate->apply_outcome,
+            'applied' => $candidate->applied,
+            'review_status' => $candidate->review_status,
+            'reviewed_by_user_id' => $candidate->reviewed_by_user_id,
+            'reviewed_by_user_name' => $candidate->reviewed_by_user_name,
+            'reviewed_at' => optional($candidate->reviewed_at)?->toIso8601String(),
+            'last_apply_run_id' => $candidate->last_apply_run_id,
+        ];
+    }
+
+    private function reviewSummaryForRun(ExtensionPluginRun $run, array $previewChannels = []): array
+    {
+        $reviewableQuery = $run->epgRepairCandidates()
+            ->where('repairable', true)
+            ->whereNotNull('suggested_epg_channel_id');
 
         $counts = [
-            'approved' => 0,
-            'rejected' => 0,
-            'applied' => 0,
-            'pending' => 0,
+            'approved' => (clone $reviewableQuery)->where('review_status', 'approved')->count(),
+            'rejected' => (clone $reviewableQuery)->where('review_status', 'rejected')->count(),
+            'applied' => (clone $reviewableQuery)->where('review_status', 'applied')->count(),
+            'pending' => (clone $reviewableQuery)->where('review_status', 'pending')->count(),
         ];
 
-        $reviewableIds = collect($data['channels_preview'] ?? [])
-            ->filter(fn (array $item): bool => (bool) ($item['repairable'] ?? false) && filled($item['suggested_epg_channel_id'] ?? null))
+        $previewIds = collect($previewChannels)
             ->pluck('channel_id')
-            ->map(fn (mixed $id): string => (string) $id)
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
             ->all();
 
-        foreach ($reviewableIds as $channelId) {
-            $status = data_get($decisions, $channelId.'.status', 'pending');
-            if (! array_key_exists($status, $counts)) {
-                $status = 'pending';
-            }
+        $decisions = [];
 
-            $counts[$status]++;
+        if ($previewIds !== []) {
+            $decisions = $run->epgRepairCandidates()
+                ->whereIn('channel_id', $previewIds)
+                ->get()
+                ->mapWithKeys(fn (PluginEpgRepairScanCandidate $candidate): array => [
+                    (string) $candidate->channel_id => $this->decisionPayloadFromCandidate($candidate),
+                ])
+                ->all();
         }
 
-        $review['decisions'] = $decisions;
-        $review['counts'] = $counts;
-        $review['updated_at'] = now()->toIso8601String();
-        $data['review'] = $review;
+        return [
+            'decisions' => $decisions,
+            'counts' => $counts,
+            'updated_at' => now()->toIso8601String(),
+        ];
+    }
+
+    private function decisionPayloadFromCandidate(PluginEpgRepairScanCandidate $candidate): array
+    {
+        return [
+            'status' => $candidate->review_status ?? 'pending',
+            'updated_at' => optional($candidate->reviewed_at)->toIso8601String(),
+            'user_id' => $candidate->reviewed_by_user_id,
+            'user_name' => $candidate->reviewed_by_user_name,
+            'last_apply_outcome' => $candidate->apply_outcome,
+            'last_apply_run_id' => $candidate->last_apply_run_id,
+            'item' => $this->candidateItemFromRow($candidate),
+        ];
+    }
+
+    private function syncRunReviewSnapshotFromCandidates(ExtensionPluginRun $run): void
+    {
+        $result = $run->result ?? [];
+        $data = $result['data'] ?? [];
+        $previewChannels = $data['channels_preview'] ?? [];
+        $data['review'] = $this->reviewSummaryForRun($run, $previewChannels);
         $result['data'] = $data;
 
-        $sourceRun->forceFill(['result' => $result])->save();
+        $run->forceFill(['result' => $result])->save();
     }
 
     private function emptyMatchInsight(): array
