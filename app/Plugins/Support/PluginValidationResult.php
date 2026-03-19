@@ -10,5 +10,6 @@ class PluginValidationResult
         public readonly ?PluginManifest $manifest = null,
         public readonly array $manifestData = [],
         public readonly ?string $pluginId = null,
+        public readonly array $hashes = [],
     ) {}
 }

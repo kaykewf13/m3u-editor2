@@ -8,9 +8,11 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use InvalidArgumentException;
 
 class PluginSchemaMapper
@@ -148,7 +150,7 @@ class PluginSchemaMapper
                     'number' => ['numeric'],
                     'textarea', 'text' => ['string'],
                     'select' => ['string', Rule::in(array_keys($field['options'] ?? []))],
-                    'model_select' => ['integer', 'exists:'.app($field['model'])->getTable().',id'],
+                    'model_select' => ['integer', $this->modelSelectExistsRule($field)],
                     default => ['string'],
                 },
             ];
@@ -157,5 +159,19 @@ class PluginSchemaMapper
         }
 
         return $rules;
+    }
+
+    private function modelSelectExistsRule(array $field): Exists
+    {
+        /** @var class-string<Model> $modelClass */
+        $modelClass = $field['model'];
+        $model = app($modelClass);
+        $rule = Rule::exists($model->getTable(), 'id');
+
+        if (($field['scope'] ?? null) === 'owned' && auth()->check() && ! auth()->user()->isAdmin() && Schema::hasColumn($model->getTable(), 'user_id')) {
+            $rule->where(fn ($query) => $query->where('user_id', auth()->id()));
+        }
+
+        return $rule;
     }
 }

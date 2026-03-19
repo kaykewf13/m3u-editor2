@@ -7,7 +7,9 @@
 - Plugins extend published capabilities instead of reaching into arbitrary internals.
 - Discovery is local and explicit. V1 does not support ZIP upload or remote install.
 - Long-running work runs through queued invocations.
-- Validation happens before a plugin can be enabled.
+- Validation happens before a plugin can be trusted.
+- Trust is explicit. Discovery does not imply trust.
+- Execution requires: installed + enabled + valid + trusted + integrity verified.
 
 ## Directory Layout
 
@@ -56,6 +58,10 @@ Example:
   "class": "AppLocalPlugins\\EpgRepair\\Plugin",
   "capabilities": ["epg_repair", "scheduled"],
   "hooks": ["epg.cache.generated"],
+  "permissions": ["db_read", "queue_jobs", "hook_subscriptions", "scheduled_runs"],
+  "schema": {
+    "tables": []
+  },
   "data_ownership": {
     "directories": ["plugin-reports/epg-repair"],
     "default_cleanup_policy": "preserve"
@@ -77,9 +83,36 @@ Important fields:
 - `api_version`: must match the host plugin API version
 - `capabilities`: determines which contract interfaces the plugin class must implement
 - `hooks`: optional lifecycle hooks the plugin wants to receive
+- `permissions`: explicit host-facing declaration of what the plugin expects to do
+- `schema`: host-managed plugin-owned table declarations
 - `settings`: operator-configurable schema
 - `actions`: manual actions exposed in the plugin edit page
 - `data_ownership`: plugin-owned tables, files, and directories that uninstall may preserve or purge
+
+## Trust And Integrity
+
+Plugins are **trusted-local**, not sandboxed.
+
+Current trust lifecycle:
+
+- `pending_review`: discovered but not yet trusted
+- `trusted`: admin reviewed and pinned the current plugin hashes
+- `blocked`: admin explicitly blocked execution
+
+Current integrity states:
+
+- `unknown`: discovered but not yet trusted
+- `verified`: current files match the trusted hash snapshot
+- `changed`: files changed after trust and need review again
+- `missing`: plugin files are missing on disk
+
+Admin review should check:
+
+- manifest permissions
+- owned schema
+- owned storage paths
+- intended hooks/schedules
+- current file integrity state
 
 ## Lifecycle
 
@@ -147,6 +180,54 @@ Invalid examples:
 
 The host uses these declarations during uninstall so it can safely preserve or purge plugin-owned artifacts without guessing.
 
+## Permissions
+
+Supported permissions:
+
+- `db_read`
+- `db_write`
+- `schema_manage`
+- `filesystem_read`
+- `filesystem_write`
+- `network_egress`
+- `queue_jobs`
+- `hook_subscriptions`
+- `scheduled_runs`
+
+Rules:
+
+- hooks require `hook_subscriptions`
+- scheduled capability requires `scheduled_runs`
+- declared schema requires `schema_manage`
+- declared files/directories require `filesystem_write`
+
+`network_egress` is declarative only in this phase. It is shown during review, but not OS-sandboxed.
+
+## Host-Managed Schema
+
+Plugins do not run arbitrary migrations.
+
+Instead, they declare owned tables in `schema.tables`, and the host creates or purges them.
+
+Current supported column types:
+
+- `id`
+- `foreignId`
+- `string`
+- `text`
+- `boolean`
+- `integer`
+- `bigInteger`
+- `decimal`
+- `json`
+- `timestamp`
+- `timestamps`
+
+Current supported index types:
+
+- `index`
+- `unique`
+
 ## Capabilities
 
 Current capabilities:
@@ -209,6 +290,9 @@ Supported schema field types:
 - `php artisan plugins:discover`
 - `php artisan plugins:validate`
 - `php artisan plugins:validate epg-repair`
+- `php artisan plugins:verify-integrity`
+- `php artisan plugins:trust epg-repair`
+- `php artisan plugins:block epg-repair`
 - `php artisan make:plugin "Acme XML Tools"`
 - `php artisan plugins:doctor`
 - `php artisan plugins:uninstall epg-repair --cleanup=preserve`
@@ -235,17 +319,19 @@ Operational rule:
 1. Run plugin discovery.
 2. Open `Tools -> Extensions`.
 3. Validate a plugin.
-4. Configure settings.
-5. Enable it.
-6. Run manual actions or let hooks/schedules invoke it.
-7. If you remove the plugin later, choose whether uninstall should preserve or purge the declared plugin-owned data.
+4. Review permissions, schema, and integrity.
+5. Trust it.
+6. Configure settings.
+7. Enable it.
+8. Run manual actions or let hooks/schedules invoke it.
+9. If you remove the plugin later, choose whether uninstall should preserve or purge the declared plugin-owned data.
 
 ## Scaffold Workflow
 
 1. Run `php artisan make:plugin "Your Plugin Name"`.
 2. Edit the generated `plugin.json` capabilities, hooks, settings, and ownership declarations.
 3. Replace the generated `health_check` behavior with the real plugin logic in `Plugin.php`.
-4. Run discovery and validation.
+4. Run discovery, validation, and trust.
 5. Open `Tools -> Extensions` and test the scaffold from the UI.
 
 ## Execution Model
@@ -254,6 +340,7 @@ Operational rule:
 - Hook invocations are queued through `PluginHookDispatcher`
 - Runs are persisted in `extension_plugin_runs`
 - Uninstalled plugins cannot execute until they are explicitly reinstalled
+- Untrusted or integrity-changed plugins cannot execute until they are reviewed again
 - Uninstall cleanup only touches plugin-owned data declared in the manifest
 
 ## Reference Plugin

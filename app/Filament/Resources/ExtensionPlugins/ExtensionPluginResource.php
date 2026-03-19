@@ -161,6 +161,7 @@ class ExtensionPluginResource extends Resource
                         ]),
                     Tab::make('Settings')
                         ->icon('heroicon-m-cog-6-tooth')
+                        ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                         ->schema([
                             Section::make('Settings')
                                 ->description('These settings are used by hook-triggered runs, scheduled runs, and as defaults for manual actions.')
@@ -190,6 +191,23 @@ class ExtensionPluginResource extends Resource
                     ->color(fn (string $state) => match ($state) {
                         'valid' => 'success',
                         'invalid' => 'danger',
+                        default => 'warning',
+                    }),
+                TextColumn::make('trust_state')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => Str::headline($state ?: 'pending_review'))
+                    ->color(fn (?string $state) => match ($state) {
+                        'trusted' => 'success',
+                        'blocked' => 'danger',
+                        default => 'warning',
+                    }),
+                TextColumn::make('integrity_status')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => Str::headline($state ?: 'unknown'))
+                    ->color(fn (?string $state) => match ($state) {
+                        'verified' => 'success',
+                        'changed' => 'danger',
+                        'missing' => 'danger',
                         default => 'warning',
                     }),
                 IconColumn::make('available')
@@ -239,6 +257,8 @@ class ExtensionPluginResource extends Resource
         return self::stackedLines([
             $enabled,
             $validation,
+            'Trust: <span class="font-medium">'.e(Str::headline($record?->trust_state ?? 'pending_review')).'</span>',
+            'Integrity: <span class="font-medium">'.e(Str::headline($record?->integrity_status ?? 'unknown')).'</span>',
             'Plugin ID: <span class="font-mono text-xs">'.e($record?->plugin_id ?? 'unknown').'</span>',
             'API: <span class="font-medium">'.e($record?->api_version ?? 'unknown').'</span>',
         ]);
@@ -275,6 +295,7 @@ class ExtensionPluginResource extends Resource
                         <div class="grid gap-3 sm:grid-cols-3">
                             '.self::statPill('Implementation', e($record->class_name ? class_basename($record->class_name) : 'Unknown class'), 'The plugin class discovered from the manifest.').'
                             '.self::statPill('Availability', $record->available ? 'Available on disk' : 'Missing from disk', 'Whether the plugin files are currently present.').'
+                            '.self::statPill('Trust posture', e(Str::headline($record->trust_state ?? 'pending_review')).' · '.e(Str::headline($record->integrity_status ?? 'unknown')), 'Execution requires both admin trust and verified file integrity.').'
                             '.self::statPill('Defaults', e(self::targetSummary($record)), 'Saved targets used for manual defaults and automation.').'
                         </div>
                     </div>
@@ -285,6 +306,7 @@ class ExtensionPluginResource extends Resource
                             '.self::stackedStat('Last validation', $record->last_validated_at?->toDateTimeString() ?? 'Not validated yet').'
                             '.self::stackedStat('Focus run', $focusRun?->created_at?->toDateTimeString() ?? 'No runs queued yet').'
                             '.self::stackedStat('Source', e(Str::headline($record->source_type ?? 'local'))).'
+                            '.self::stackedStat('Trusted by', e($record->trusted_at?->toDateTimeString() ?? 'Awaiting admin review')).'
                         </div>
                         <div class="mt-5 flex flex-wrap gap-2">
                             '.$runLink.'
@@ -393,6 +415,10 @@ class ExtensionPluginResource extends Resource
 
         if ($record->validation_status !== 'valid') {
             $message = 'Validate the plugin before you enable it or queue any work. The system should treat this plugin as untrusted until the contract checks pass.';
+        } elseif (! $record->isTrusted()) {
+            $message = 'An administrator still needs to trust this plugin. Review the declared permissions, owned schema, and file integrity before enabling it.';
+        } elseif (! $record->hasVerifiedIntegrity()) {
+            $message = 'Integrity is no longer verified. Re-run integrity verification and trust review before allowing this plugin to execute again.';
         } elseif (! $record->enabled) {
             $message = 'The plugin is valid but disabled. Enable it first, then run a dry scan so you can inspect the output before applying repairs.';
         } elseif (! $latestRun) {
@@ -410,7 +436,9 @@ class ExtensionPluginResource extends Resource
                 <div class="rounded-2xl border border-primary-200 bg-primary-50/70 px-4 py-4 text-sm leading-6 text-primary-900 dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-100">'.e($message).'</div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     '.self::stackedStat('Validation', e(Str::headline($record->validation_status ?? 'pending'))).'
+                    '.self::stackedStat('Trust', e(Str::headline($record->trust_state ?? 'pending_review'))).'
                     '.self::stackedStat('Enabled', $record->enabled ? 'Yes' : 'No').'
+                    '.self::stackedStat('Integrity', e(Str::headline($record->integrity_status ?? 'unknown'))).'
                     '.self::stackedStat('Lifecycle', e(Str::headline($record->installation_status ?? 'installed'))).'
                     '.self::stackedStat('Cleanup default', e(Str::headline($record->defaultCleanupMode()))).'
                 </div>
@@ -430,6 +458,7 @@ class ExtensionPluginResource extends Resource
             '<div class="text-base font-semibold text-gray-950 dark:text-white">'.e($record->name).'</div>',
             '<div class="text-sm text-gray-600 dark:text-gray-300">Version '.e($record->version).' · '.e($record->description ?: 'No description provided.').'</div>',
             '<div class="text-xs text-gray-500 dark:text-gray-400">Class: '.e($record->class_name ?: 'Unknown').'</div>',
+            '<div class="text-xs text-gray-500 dark:text-gray-400">Permissions: '.e(collect($record->permissions ?? [])->map(fn (string $permission) => Str::headline($permission))->implode(', ') ?: 'None declared').'</div>',
             '<div class="text-xs text-gray-500 dark:text-gray-400">Lifecycle: disable pauses execution, uninstall changes lifecycle state, forget registry only removes the row.</div>',
             '<div class="text-xs text-gray-500 dark:text-gray-400">Declared ownership: '.e(self::ownershipSummary($record)).'</div>',
         ]);
@@ -521,12 +550,24 @@ class ExtensionPluginResource extends Resource
             return '<span class="inline-flex items-center rounded-full border border-gray-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-800 dark:bg-gray-900/80 dark:text-gray-300">Uninstalled</span>';
         }
 
+        if ($record->isBlocked()) {
+            return '<span class="inline-flex items-center rounded-full border border-danger-200 bg-danger-50 px-3 py-1.5 text-xs font-semibold text-danger-700 dark:border-danger-800 dark:bg-danger-950/40 dark:text-danger-300">Blocked</span>';
+        }
+
         if (! $record->enabled) {
             return '<span class="inline-flex items-center rounded-full border border-gray-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-800 dark:bg-gray-900/80 dark:text-gray-300">Disabled</span>';
         }
 
         if ($record->validation_status !== 'valid') {
             return '<span class="inline-flex items-center rounded-full border border-warning-200 bg-warning-50 px-3 py-1.5 text-xs font-semibold text-warning-700 dark:border-warning-800 dark:bg-warning-950/40 dark:text-warning-300">Needs validation</span>';
+        }
+
+        if (! $record->isTrusted()) {
+            return '<span class="inline-flex items-center rounded-full border border-warning-200 bg-warning-50 px-3 py-1.5 text-xs font-semibold text-warning-700 dark:border-warning-800 dark:bg-warning-950/40 dark:text-warning-300">Pending trust review</span>';
+        }
+
+        if (! $record->hasVerifiedIntegrity()) {
+            return '<span class="inline-flex items-center rounded-full border border-danger-200 bg-danger-50 px-3 py-1.5 text-xs font-semibold text-danger-700 dark:border-danger-800 dark:bg-danger-950/40 dark:text-danger-300">Integrity changed</span>';
         }
 
         return '<span class="inline-flex items-center rounded-full border border-success-200 bg-success-50 px-3 py-1.5 text-xs font-semibold text-success-700 dark:border-success-800 dark:bg-success-950/40 dark:text-success-300">Enabled and ready</span>';

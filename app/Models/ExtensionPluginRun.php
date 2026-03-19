@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class ExtensionPluginRun extends Model
 {
@@ -77,5 +78,31 @@ class ExtensionPluginRun extends Model
         }
 
         return $this->last_heartbeat_at->lt(now()->subMinutes($minutes));
+    }
+
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->where('user_id', $user->id);
+    }
+
+    public function canBeViewedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $this->user_id !== null && $this->user_id === $user->id;
     }
 }

@@ -6,6 +6,7 @@ use App\Plugins\Contracts\HookablePluginInterface;
 use App\Plugins\Contracts\PluginInterface;
 use App\Plugins\Support\PluginManifest;
 use App\Plugins\Support\PluginValidationResult;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -13,6 +14,7 @@ class PluginValidator
 {
     public function __construct(
         private readonly PluginManifestLoader $loader,
+        private readonly PluginIntegrityService $integrityService,
     ) {}
 
     public function validatePath(string $pluginPath): PluginValidationResult
@@ -27,8 +29,10 @@ class PluginValidator
             $manifestData = $manifest->raw;
             $pluginId = $manifest->id;
         } catch (Throwable $exception) {
-            return new PluginValidationResult(false, [$exception->getMessage()], null, $manifestData, $pluginId);
+            return new PluginValidationResult(false, [$exception->getMessage()], null, $manifestData, $pluginId, []);
         }
+
+        $hashes = $this->integrityService->hashesForPlugin($pluginPath, $manifest->entrypoint);
 
         foreach (['id', 'name', 'entrypoint', 'class'] as $key) {
             if (blank($manifestData[$key] ?? null)) {
@@ -52,6 +56,35 @@ class PluginValidator
             if (! is_string($hook) || ! in_array($hook, $knownHooks, true)) {
                 $errors[] = "Unknown hook [{$hook}]";
             }
+        }
+
+        $knownPermissions = array_keys(config('plugins.permissions', []));
+        foreach ($manifest->permissions as $permission) {
+            if (! in_array($permission, $knownPermissions, true)) {
+                $errors[] = "Unknown permission [{$permission}]";
+            }
+        }
+
+        if (($manifest->actions !== [] || $manifest->hooks !== [] || in_array('scheduled', $manifest->capabilities, true))
+            && ! in_array('queue_jobs', $manifest->permissions, true)) {
+            $errors[] = 'Plugins that queue actions, hooks, or schedules must declare [queue_jobs].';
+        }
+
+        if ($manifest->hooks !== [] && ! in_array('hook_subscriptions', $manifest->permissions, true)) {
+            $errors[] = 'Plugins declaring hooks must declare [hook_subscriptions].';
+        }
+
+        if (in_array('scheduled', $manifest->capabilities, true) && ! in_array('scheduled_runs', $manifest->permissions, true)) {
+            $errors[] = 'Plugins using the [scheduled] capability must declare [scheduled_runs].';
+        }
+
+        if (($manifest->schema['tables'] ?? []) !== [] && ! in_array('schema_manage', $manifest->permissions, true)) {
+            $errors[] = 'Plugins declaring [schema.tables] must declare [schema_manage].';
+        }
+
+        if ((($manifest->dataOwnership['directories'] ?? []) !== [] || ($manifest->dataOwnership['files'] ?? []) !== [])
+            && ! in_array('filesystem_write', $manifest->permissions, true)) {
+            $errors[] = 'Plugins declaring owned files or directories must declare [filesystem_write].';
         }
 
         $fieldTypes = config('plugins.field_types', []);
@@ -79,6 +112,7 @@ class PluginValidator
         }
 
         $errors = [...$errors, ...$this->validateDataOwnership($manifest)];
+        $errors = [...$errors, ...$this->validateSchema($manifest)];
 
         if (! file_exists($manifest->entrypointPath())) {
             $errors[] = "Missing entrypoint file [{$manifest->entrypoint}]";
@@ -109,7 +143,7 @@ class PluginValidator
             }
         }
 
-        return new PluginValidationResult($errors === [], $errors, $manifest, $manifestData, $pluginId);
+        return new PluginValidationResult($errors === [], $errors, $manifest, $manifestData, $pluginId, $hashes);
     }
 
     private function validateFieldDefinition(array $field, array $fieldTypes, string $group): array
@@ -176,6 +210,64 @@ class PluginValidator
 
                 if (! Str::contains($path, '/'.$manifest->id) && ! Str::contains($path, '/'.Str::of($manifest->id)->replace('-', '_')->value())) {
                     $errors[] = "Declared {$group} path [{$path}] must include the plugin id so cleanup stays namespaced.";
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    private function validateSchema(PluginManifest $manifest): array
+    {
+        $errors = [];
+        $tablePrefix = (string) data_get($manifest->dataOwnership, 'table_prefix', '');
+        $supportedColumnTypes = config('plugins.schema_column_types', []);
+        $supportedIndexTypes = config('plugins.schema_index_types', []);
+
+        foreach ($manifest->schema['tables'] ?? [] as $table) {
+            $tableName = trim((string) ($table['name'] ?? ''));
+
+            if ($tableName === '') {
+                $errors[] = 'Schema tables require [name].';
+                continue;
+            }
+
+            if (! Str::startsWith($tableName, $tablePrefix)) {
+                $errors[] = "Declared schema table [{$tableName}] must start with [{$tablePrefix}].";
+            }
+
+            if (($table['columns'] ?? []) === []) {
+                $errors[] = "Declared schema table [{$tableName}] must define at least one column.";
+            }
+
+            foreach ($table['columns'] ?? [] as $index => $column) {
+                $columnPath = "schema.tables.{$tableName}.columns.{$index}";
+                $type = $column['type'] ?? null;
+
+                if (! is_string($type) || ! in_array($type, $supportedColumnTypes, true)) {
+                    $errors[] = "{$columnPath} uses unsupported type [{$type}]";
+                    continue;
+                }
+
+                if ($type !== 'timestamps' && blank($column['name'] ?? null)) {
+                    $errors[] = "{$columnPath} requires [name]";
+                }
+
+                if ($type === 'foreignId' && blank($column['references'] ?? null)) {
+                    $errors[] = "{$columnPath} foreignId columns require [references]";
+                }
+            }
+
+            foreach ($table['indexes'] ?? [] as $index => $definition) {
+                $indexPath = "schema.tables.{$tableName}.indexes.{$index}";
+                $indexType = $definition['type'] ?? 'index';
+
+                if (! in_array($indexType, $supportedIndexTypes, true)) {
+                    $errors[] = "{$indexPath} uses unsupported type [{$indexType}]";
+                }
+
+                if (Arr::wrap($definition['columns'] ?? []) === []) {
+                    $errors[] = "{$indexPath} requires [columns]";
                 }
             }
         }

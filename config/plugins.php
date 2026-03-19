@@ -12,9 +12,34 @@ return [
         'purge',
     ],
 
+    'trust_states' => [
+        'pending_review',
+        'trusted',
+        'blocked',
+    ],
+
+    'integrity_statuses' => [
+        'unknown',
+        'verified',
+        'changed',
+        'missing',
+    ],
+
     'owned_storage_roots' => [
         'plugin-data',
         'plugin-reports',
+    ],
+
+    'permissions' => [
+        'db_read' => 'Read plugin-relevant database records',
+        'db_write' => 'Write plugin-relevant database records',
+        'schema_manage' => 'Ask the host to create or remove plugin-owned schema',
+        'filesystem_read' => 'Read plugin-owned files from storage',
+        'filesystem_write' => 'Write plugin-owned files to storage',
+        'network_egress' => 'Call external services or remote APIs',
+        'queue_jobs' => 'Run actions, hooks, or schedules through background jobs',
+        'hook_subscriptions' => 'Receive host lifecycle hook invocations',
+        'scheduled_runs' => 'Run scheduled plugin actions',
     ],
 
     'capabilities' => [
@@ -43,5 +68,24 @@ return [
         'textarea',
         'select',
         'model_select',
+    ],
+
+    'schema_column_types' => [
+        'id',
+        'foreignId',
+        'string',
+        'text',
+        'boolean',
+        'integer',
+        'bigInteger',
+        'decimal',
+        'json',
+        'timestamp',
+        'timestamps',
+    ],
+
+    'schema_index_types' => [
+        'index',
+        'unique',
     ],
 ];

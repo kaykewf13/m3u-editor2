@@ -64,6 +64,8 @@ class ViewPluginRun extends Page
             throw (new ModelNotFoundException)->setModel(ExtensionPluginRun::class, [$run]);
         }
 
+        abort_unless($runRecord->canBeViewedBy(auth()->user()), 403);
+
         $this->runRecord = $runRecord;
         $this->logs = $runRecord->logs()->latest()->limit(150)->get()->reverse()->values();
     }

@@ -9,6 +9,7 @@ use App\Models\EpgChannel;
 use App\Models\ExtensionPluginRun;
 use App\Models\Playlist;
 use App\Models\PluginEpgRepairScanCandidate;
+use App\Models\User;
 use App\Plugins\Contracts\EpgRepairPluginInterface;
 use App\Plugins\Contracts\HookablePluginInterface;
 use App\Plugins\Contracts\ScheduledPluginInterface;
@@ -111,7 +112,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
 
     private function scan(array $payload, PluginExecutionContext $context, bool $implicitDryRun): PluginActionResult
     {
-        [$playlist, $epg] = $this->resolveTargets($payload, $context->settings);
+        [$playlist, $epg] = $this->resolveTargets($payload, $context->settings, $context->user);
         if (! $playlist || ! $epg) {
             $context->error('EPG Repair scan failed because the selected playlist or EPG could not be resolved.', [
                 'playlist_id' => $payload['playlist_id'] ?? $context->settings['default_playlist_id'] ?? null,
@@ -193,7 +194,7 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
 
     private function apply(array $payload, PluginExecutionContext $context): PluginActionResult
     {
-        [$playlist, $epg] = $this->resolveTargets($payload, $context->settings);
+        [$playlist, $epg] = $this->resolveTargets($payload, $context->settings, $context->user);
         if (! $playlist || ! $epg) {
             $context->error('EPG Repair apply failed because the selected playlist or EPG could not be resolved.', [
                 'playlist_id' => $payload['playlist_id'] ?? $context->settings['default_playlist_id'] ?? null,
@@ -267,6 +268,10 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
                 ->where('extension_plugin_id', $context->plugin->id)
                 ->find($sourceRunId)
             : null;
+
+        if ($sourceRun && ! $sourceRun->canBeViewedBy($context->user)) {
+            return PluginActionResult::failure('You do not have access to the selected scan run.');
+        }
 
         if (! $sourceRun || $sourceRun->action !== 'scan' || $sourceRun->status !== 'completed') {
             return PluginActionResult::failure('A completed scan run is required before reviewed repairs can be applied.');
@@ -726,15 +731,26 @@ class Plugin implements EpgRepairPluginInterface, HookablePluginInterface, Sched
         ], $cancelled];
     }
 
-    private function resolveTargets(array $payload, array $settings): array
+    private function resolveTargets(array $payload, array $settings, ?User $user): array
     {
         $playlistId = $payload['playlist_id'] ?? $settings['default_playlist_id'] ?? null;
         $epgId = $payload['epg_id'] ?? $settings['default_epg_id'] ?? null;
 
-        $playlist = $playlistId ? Playlist::find($playlistId) : null;
-        $epg = $epgId ? Epg::find($epgId) : null;
+        $playlist = $playlistId ? $this->resolveOwnedModel(Playlist::class, (int) $playlistId, $user) : null;
+        $epg = $epgId ? $this->resolveOwnedModel(Epg::class, (int) $epgId, $user) : null;
 
         return [$playlist, $epg];
+    }
+
+    private function resolveOwnedModel(string $modelClass, int $id, ?User $user): ?object
+    {
+        $query = $modelClass::query();
+
+        if ($user && ! $user->isAdmin()) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query->find($id);
     }
 
     private function detectIssue(Channel $channel, Epg $epg, array $programmes): ?string

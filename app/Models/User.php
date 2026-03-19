@@ -228,6 +228,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Plugin management is intentionally admin-only in the trusted-local model.
+     */
+    public function canManagePlugins(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    /**
      * Check if user can use stream file sync.
      */
     public function canUseStreamFileSync(): bool

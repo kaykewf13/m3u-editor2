@@ -13,6 +13,61 @@
   "hooks": [
     "epg.cache.generated"
   ],
+  "permissions": [
+    "db_read",
+    "db_write",
+    "schema_manage",
+    "filesystem_write",
+    "queue_jobs",
+    "hook_subscriptions",
+    "scheduled_runs"
+  ],
+  "schema": {
+    "tables": [
+      {
+        "name": "plugin_epg_repair_scan_candidates",
+        "columns": [
+          { "name": "id", "type": "id" },
+          { "name": "extension_plugin_run_id", "type": "foreignId", "references": "extension_plugin_runs", "on_delete": "cascade" },
+          { "name": "source_run_id", "type": "foreignId", "references": "extension_plugin_runs", "nullable": true, "on_delete": "null" },
+          { "name": "channel_id", "type": "foreignId", "references": "channels", "on_delete": "cascade" },
+          { "name": "playlist_id", "type": "foreignId", "references": "playlists", "nullable": true, "on_delete": "null" },
+          { "name": "playlist_name", "type": "string", "nullable": true },
+          { "name": "issue", "type": "string", "nullable": true },
+          { "name": "decision", "type": "string", "nullable": true },
+          { "name": "current_epg_channel_id", "type": "foreignId", "references": "epg_channels", "nullable": true, "on_delete": "null" },
+          { "name": "current_epg_channel_name", "type": "string", "nullable": true },
+          { "name": "current_epg_source_id", "type": "foreignId", "references": "epgs", "nullable": true, "on_delete": "null" },
+          { "name": "current_epg_source_name", "type": "string", "nullable": true },
+          { "name": "suggested_epg_channel_id", "type": "foreignId", "references": "epg_channels", "nullable": true, "on_delete": "null" },
+          { "name": "suggested_epg_channel_name", "type": "string", "nullable": true },
+          { "name": "suggested_epg_source_id", "type": "foreignId", "references": "epgs", "nullable": true, "on_delete": "null" },
+          { "name": "suggested_epg_source_name", "type": "string", "nullable": true },
+          { "name": "selected_epg_source_id", "type": "foreignId", "references": "epgs", "nullable": true, "on_delete": "null" },
+          { "name": "selected_epg_source_name", "type": "string", "nullable": true },
+          { "name": "source_scope", "type": "string", "default": "selected_only" },
+          { "name": "confidence", "type": "decimal", "nullable": true, "precision": 8, "scale": 4 },
+          { "name": "confidence_band", "type": "string", "nullable": true },
+          { "name": "match_reason", "type": "string", "nullable": true },
+          { "name": "repairable", "type": "boolean", "default": false },
+          { "name": "source_candidates", "type": "json", "nullable": true },
+          { "name": "apply_outcome", "type": "string", "nullable": true },
+          { "name": "applied", "type": "boolean", "default": false },
+          { "name": "review_status", "type": "string", "default": "pending" },
+          { "name": "reviewed_by_user_id", "type": "foreignId", "references": "users", "nullable": true, "on_delete": "null" },
+          { "name": "reviewed_by_user_name", "type": "string", "nullable": true },
+          { "name": "reviewed_at", "type": "timestamp", "nullable": true },
+          { "name": "last_apply_run_id", "type": "foreignId", "references": "extension_plugin_runs", "nullable": true, "on_delete": "null" },
+          { "type": "timestamps" }
+        ],
+        "indexes": [
+          { "type": "unique", "columns": ["extension_plugin_run_id", "channel_id"], "name": "plugin_epg_repair_run_channel_unique" },
+          { "type": "index", "columns": ["extension_plugin_run_id", "review_status"], "name": "plugin_epg_repair_run_review_status_idx" },
+          { "type": "index", "columns": ["extension_plugin_run_id", "repairable"], "name": "plugin_epg_repair_run_repairable_idx" }
+        ]
+      }
+    ]
+  },
   "data_ownership": {
     "tables": [
       "plugin_epg_repair_scan_candidates"

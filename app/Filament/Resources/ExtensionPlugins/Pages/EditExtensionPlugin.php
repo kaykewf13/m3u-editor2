@@ -32,6 +32,8 @@ class EditExtensionPlugin extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
+        abort_unless(auth()->user()?->canManagePlugins(), 403);
+
         /** @var ExtensionPlugin $record */
         app(PluginManager::class)->updateSettings($record, $data['settings'] ?? []);
 
@@ -41,10 +43,12 @@ class EditExtensionPlugin extends EditRecord
     protected function getHeaderActions(): array
     {
         $record = $this->record;
+        $canManagePlugins = auth()->user()?->canManagePlugins() ?? false;
         $actions = [
             Action::make('validate')
                 ->label('Validate')
                 ->icon('heroicon-o-shield-check')
+                ->visible(fn () => $canManagePlugins)
                 ->action(function () use ($record): void {
                     $plugin = app(PluginManager::class)->validate($record);
 
@@ -62,8 +66,9 @@ class EditExtensionPlugin extends EditRecord
                 ->label('Enable')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
+                ->visible(fn () => $canManagePlugins)
                 ->hidden(fn () => $this->record->enabled || ! $this->record->isInstalled())
-                ->disabled(fn () => $this->record->validation_status !== 'valid' || ! $this->record->available)
+                ->disabled(fn () => $this->record->validation_status !== 'valid' || ! $this->record->available || ! $this->record->isTrusted() || ! $this->record->hasVerifiedIntegrity())
                 ->requiresConfirmation()
                 ->action(function () use ($record): void {
                     $record->update(['enabled' => true]);
@@ -74,6 +79,7 @@ class EditExtensionPlugin extends EditRecord
                 ->label('Disable')
                 ->icon('heroicon-o-x-circle')
                 ->color('warning')
+                ->visible(fn () => $canManagePlugins)
                 ->hidden(fn () => ! $this->record->enabled || ! $this->record->isInstalled())
                 ->requiresConfirmation()
                 ->action(function () use ($record): void {
@@ -81,10 +87,73 @@ class EditExtensionPlugin extends EditRecord
                     Notification::make()->success()->title('Plugin disabled')->send();
                     $this->refreshFormData(['enabled']);
                 }),
+            Action::make('verify_integrity')
+                ->label('Verify Integrity')
+                ->icon('heroicon-o-finger-print')
+                ->visible(fn () => $canManagePlugins)
+                ->action(function () use ($record): void {
+                    $plugin = app(PluginManager::class)->verifyIntegrity($record);
+
+                    Notification::make()
+                        ->title('Integrity refreshed')
+                        ->body("Integrity is now [{$plugin->integrity_status}] and trust is [{$plugin->trust_state}].")
+                        ->color($plugin->hasVerifiedIntegrity() ? 'success' : 'warning')
+                        ->send();
+
+                    $this->refreshFormData(['integrity_status', 'trust_state', 'enabled']);
+                }),
+            Action::make('trust')
+                ->label('Trust Plugin')
+                ->icon('heroicon-o-shield-check')
+                ->color('success')
+                ->visible(fn () => $canManagePlugins)
+                ->hidden(fn () => $this->record->isTrusted() && $this->record->hasVerifiedIntegrity())
+                ->disabled(fn () => $this->record->validation_status !== 'valid' || ! $this->record->available || ! $this->record->isInstalled())
+                ->requiresConfirmation()
+                ->modalDescription('Trust pins the current plugin hashes, verifies integrity, and applies any declared plugin-owned schema through the host.')
+                ->action(function () use ($record): void {
+                    try {
+                        $plugin = app(PluginManager::class)->trust($record, auth()->id());
+
+                        Notification::make()
+                            ->success()
+                            ->title('Plugin trusted')
+                            ->body('The plugin is now trusted. You can enable it when you are ready.')
+                            ->send();
+
+                        $this->refreshFormData(['trust_state', 'integrity_status', 'trusted_at']);
+                    } catch (\RuntimeException $exception) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Trust blocked')
+                            ->body($exception->getMessage())
+                            ->send();
+                    }
+                }),
+            Action::make('block')
+                ->label('Block Plugin')
+                ->icon('heroicon-o-no-symbol')
+                ->color('danger')
+                ->visible(fn () => $canManagePlugins)
+                ->hidden(fn () => $this->record->isBlocked())
+                ->requiresConfirmation()
+                ->modalDescription('Blocking disables the plugin immediately and prevents execution until an administrator trusts it again.')
+                ->action(function () use ($record): void {
+                    $plugin = app(PluginManager::class)->block($record, userId: auth()->id());
+
+                    Notification::make()
+                        ->success()
+                        ->title('Plugin blocked')
+                        ->body('Execution is now disabled until an administrator reviews and trusts this plugin again.')
+                        ->send();
+
+                    $this->refreshFormData(['enabled', 'trust_state', 'integrity_status']);
+                }),
             Action::make('reinstall')
                 ->label('Reinstall')
                 ->icon('heroicon-o-arrow-path')
                 ->color('info')
+                ->visible(fn () => $canManagePlugins)
                 ->hidden(fn () => $this->record->isInstalled())
                 ->disabled(fn () => ! $this->record->available)
                 ->requiresConfirmation()
@@ -106,6 +175,7 @@ class EditExtensionPlugin extends EditRecord
                 ->label('Uninstall Plugin')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
+                ->visible(fn () => $canManagePlugins)
                 ->hidden(fn () => ! $this->record->isInstalled())
                 ->requiresConfirmation()
                 ->modalHeading('Uninstall plugin')
@@ -158,7 +228,7 @@ class EditExtensionPlugin extends EditRecord
                 ->label($pluginAction['label'] ?? ucfirst($actionId))
                 ->icon($pluginAction['icon'] ?? 'heroicon-o-play')
                 ->color(($pluginAction['destructive'] ?? false) ? 'danger' : 'primary')
-                ->disabled(fn () => ! $this->record->enabled || ! $this->record->isInstalled() || $this->record->validation_status !== 'valid')
+                ->disabled(fn () => ! $this->record->enabled || ! $this->record->isInstalled() || $this->record->validation_status !== 'valid' || ! $this->record->isTrusted() || ! $this->record->hasVerifiedIntegrity())
                 ->requiresConfirmation((bool) ($pluginAction['requires_confirmation'] ?? false))
                 ->schema(app(PluginSchemaMapper::class)->actionComponents($record, $actionId))
                 ->action(function (array $data) use ($record, $pluginAction, $actionId): void {
@@ -184,6 +254,7 @@ class EditExtensionPlugin extends EditRecord
 
         $actions[] = DeleteAction::make()
             ->label('Forget Registry Record')
+            ->visible(fn () => $canManagePlugins)
             ->disabled(fn () => $this->record->hasActiveRuns())
             ->modalDescription('This deletes the registry row, saved plugin settings, and recorded run history. It does not uninstall the local plugin files and does not clean plugin-owned data. Discovery will register the plugin again if its folder still exists.')
             ->successRedirectUrl(ExtensionPluginResource::getUrl());

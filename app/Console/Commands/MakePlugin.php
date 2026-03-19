@@ -113,6 +113,7 @@ class MakePlugin extends Command
         $this->line('Next steps:');
         $this->line("  php artisan plugins:discover");
         $this->line("  php artisan plugins:validate {$pluginId}");
+        $this->line("  php artisan plugins:trust {$pluginId}");
 
         return self::SUCCESS;
     }
@@ -143,6 +144,14 @@ class MakePlugin extends Command
             ];
         }
 
+        $permissions = ['queue_jobs', 'filesystem_write'];
+        if ($hooks !== []) {
+            $permissions[] = 'hook_subscriptions';
+        }
+        if (in_array('scheduled', $capabilities, true)) {
+            $permissions[] = 'scheduled_runs';
+        }
+
         return [
             'id' => $pluginId,
             'name' => $displayName,
@@ -153,6 +162,10 @@ class MakePlugin extends Command
             'class' => "AppLocalPlugins\\{$classSegment}\\Plugin",
             'capabilities' => $capabilities,
             'hooks' => $hooks,
+            'permissions' => array_values(array_unique($permissions)),
+            'schema' => [
+                'tables' => [],
+            ],
             'data_ownership' => [
                 'tables' => [],
                 'directories' => [

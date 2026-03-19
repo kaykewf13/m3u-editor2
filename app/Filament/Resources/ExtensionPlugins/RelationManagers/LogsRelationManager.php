@@ -33,6 +33,7 @@ class LogsRelationManager extends RelationManager
         return $table
             ->heading('Live Activity Feed')
             ->description('Streaming notes from running and recent jobs. Open any run to inspect the payload, result snapshot, and full trail.')
+            ->modifyQueryUsing(fn (Builder $query) => $query->whereHas('run', fn (Builder $runQuery) => $runQuery->visibleTo(auth()->user())))
             ->filtersTriggerAction(fn ($action) => $action->button()->label('Refine feed'))
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(10)
@@ -141,17 +142,17 @@ class LogsRelationManager extends RelationManager
         $pluginId = $this->getOwnerRecord()->getKey();
 
         $allCount = ExtensionPluginRunLog::query()
-            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->visibleTo(auth()->user()))
             ->count();
         $runningCount = ExtensionPluginRunLog::query()
-            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->where('status', 'running'))
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->visibleTo(auth()->user())->where('status', 'running'))
             ->count();
         $warningCount = ExtensionPluginRunLog::query()
-            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->visibleTo(auth()->user()))
             ->where('level', 'warning')
             ->count();
         $errorCount = ExtensionPluginRunLog::query()
-            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId))
+            ->whereHas('run', fn (Builder $query) => $query->where('extension_plugin_id', $pluginId)->visibleTo(auth()->user()))
             ->where('level', 'error')
             ->count();
 

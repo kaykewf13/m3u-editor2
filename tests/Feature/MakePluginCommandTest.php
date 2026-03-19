@@ -56,6 +56,8 @@ it('scaffolds a valid local plugin with optional capabilities, hooks, and lifecy
         expect($manifest['class'])->toBe("AppLocalPlugins\\{$classSegment}\\Plugin");
         expect($manifest['capabilities'])->toBe(['channel_processor', 'scheduled']);
         expect($manifest['hooks'])->toBe(['playlist.synced']);
+        expect($manifest['permissions'])->toContain('queue_jobs', 'filesystem_write', 'hook_subscriptions', 'scheduled_runs');
+        expect(data_get($manifest, 'schema.tables'))->toBe([]);
         expect(data_get($manifest, 'data_ownership.directories'))->toContain("plugin-data/{$pluginId}");
         expect(data_get($manifest, 'data_ownership.directories'))->toContain("plugin-reports/{$pluginId}");
         expect(data_get($manifest, 'settings.0.id'))->toBe('schedule_enabled');
@@ -79,6 +81,10 @@ it('scaffolds a valid local plugin with optional capabilities, hooks, and lifecy
 
         expect($plugin)->not->toBeNull();
         expect($plugin->validation_status)->toBe('valid');
+        expect($plugin->trust_state)->toBe('pending_review');
+
+        $plugin = app(PluginManager::class)->trust($plugin->fresh());
+        $plugin->update(['enabled' => true]);
 
         $run = app(PluginManager::class)->executeAction($plugin->fresh(), 'health_check', [
             'source' => 'test-suite',

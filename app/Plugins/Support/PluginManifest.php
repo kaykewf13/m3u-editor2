@@ -18,6 +18,8 @@ class PluginManifest
         public readonly string $className,
         public readonly array $capabilities,
         public readonly array $hooks,
+        public readonly array $permissions,
+        public readonly array $schema,
         public readonly array $settings,
         public readonly array $actions,
         public readonly array $dataOwnership,
@@ -28,6 +30,10 @@ class PluginManifest
     public static function fromArray(array $manifest, string $path): self
     {
         $pluginId = (string) ($manifest['id'] ?? basename($path));
+        $schema = self::normalizeSchema(
+            Arr::get($manifest, 'schema', []),
+            $pluginId,
+        );
 
         return new self(
             id: $pluginId,
@@ -39,11 +45,14 @@ class PluginManifest
             className: (string) ($manifest['class'] ?? ''),
             capabilities: array_values($manifest['capabilities'] ?? []),
             hooks: array_values($manifest['hooks'] ?? []),
+            permissions: self::normalizeStringList($manifest['permissions'] ?? [], 'permissions'),
+            schema: $schema,
             settings: array_values($manifest['settings'] ?? []),
             actions: array_values($manifest['actions'] ?? []),
             dataOwnership: self::normalizeDataOwnership(
                 Arr::get($manifest, 'data_ownership', []),
                 $pluginId,
+                $schema,
             ),
             path: $path,
             raw: $manifest,
@@ -55,10 +64,10 @@ class PluginManifest
         return rtrim($this->path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$this->entrypoint;
     }
 
-    private static function normalizeDataOwnership(mixed $dataOwnership, string $pluginId): array
+    private static function normalizeDataOwnership(mixed $dataOwnership, string $pluginId, array $schema): array
     {
         if ($dataOwnership === [] || $dataOwnership === null) {
-            return self::defaultDataOwnership();
+            return self::defaultDataOwnership($pluginId, $schema);
         }
 
         if (! is_array($dataOwnership)) {
@@ -70,13 +79,48 @@ class PluginManifest
             throw new RuntimeException('Manifest field [data_ownership.default_cleanup_policy] must be either [preserve] or [purge].');
         }
 
+        $tables = self::normalizeStringList($dataOwnership['tables'] ?? [], 'data_ownership.tables');
+
         return [
             'plugin_id' => $pluginId,
             'table_prefix' => 'plugin_'.Str::of($pluginId)->replace('-', '_')->lower()->value().'_',
-            'tables' => self::normalizeStringList($dataOwnership['tables'] ?? [], 'data_ownership.tables'),
+            'tables' => array_values(array_unique([
+                ...$tables,
+                ...collect($schema['tables'] ?? [])->pluck('name')->filter()->all(),
+            ])),
             'directories' => self::normalizeStoragePathList($dataOwnership['directories'] ?? [], 'data_ownership.directories'),
             'files' => self::normalizeStoragePathList($dataOwnership['files'] ?? [], 'data_ownership.files'),
             'default_cleanup_policy' => $cleanupPolicy,
+        ];
+    }
+
+    private static function normalizeSchema(mixed $schema, string $pluginId): array
+    {
+        if ($schema === [] || $schema === null) {
+            return ['tables' => []];
+        }
+
+        if (! is_array($schema)) {
+            throw new RuntimeException('Manifest field [schema] must be an object.');
+        }
+
+        $tables = collect($schema['tables'] ?? [])
+            ->map(function (mixed $table) use ($pluginId): array {
+                if (! is_array($table)) {
+                    throw new RuntimeException('Manifest field [schema.tables] must only contain objects.');
+                }
+
+                return [
+                    'name' => trim((string) ($table['name'] ?? '')),
+                    'columns' => array_values($table['columns'] ?? []),
+                    'indexes' => array_values($table['indexes'] ?? []),
+                    'plugin_id' => $pluginId,
+                ];
+            })
+            ->all();
+
+        return [
+            'tables' => $tables,
         ];
     }
 
@@ -102,12 +146,12 @@ class PluginManifest
         }, self::normalizeStringList($value, $field))));
     }
 
-    private static function defaultDataOwnership(): array
+    private static function defaultDataOwnership(string $pluginId, array $schema): array
     {
         return [
-            'plugin_id' => null,
-            'table_prefix' => null,
-            'tables' => [],
+            'plugin_id' => $pluginId,
+            'table_prefix' => 'plugin_'.Str::of($pluginId)->replace('-', '_')->lower()->value().'_',
+            'tables' => collect($schema['tables'] ?? [])->pluck('name')->filter()->values()->all(),
             'directories' => [],
             'files' => [],
             'default_cleanup_policy' => 'preserve',

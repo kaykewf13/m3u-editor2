@@ -34,6 +34,7 @@ class RunsRelationManager extends RelationManager
         return $table
             ->heading('Run History')
             ->description('Manual actions, hook-triggered automation, and scheduled jobs. Open a run to inspect payload, metrics, and live activity.')
+            ->modifyQueryUsing(fn (Builder $query) => $query->visibleTo(auth()->user()))
             ->filtersTriggerAction(fn ($action) => $action->button()->label('Refine runs'))
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(10)
@@ -158,25 +159,31 @@ class RunsRelationManager extends RelationManager
 
         $allCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->count();
         $runningCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->where('status', 'running')
             ->count();
         $failedCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->whereIn('status', ['failed', 'stale', 'cancelled'])
             ->count();
         $manualCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->where('trigger', 'manual')
             ->count();
         $hookCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->where('trigger', 'hook')
             ->count();
         $scheduledCount = ExtensionPluginRun::query()
             ->where('extension_plugin_id', $pluginId)
+            ->visibleTo(auth()->user())
             ->where('trigger', 'schedule')
             ->count();
 

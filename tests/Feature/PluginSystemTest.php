@@ -14,8 +14,10 @@ use App\Filament\Resources\ExtensionPlugins\Pages\ViewPluginRun;
 use App\Plugins\PluginManager;
 use App\Plugins\PluginSchemaMapper;
 use App\Jobs\ExecutePluginInvocation;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -31,6 +33,7 @@ function discoverPluginForTests(bool $enabled = false): ExtensionPlugin
     $plugin = $pluginManager->reinstall($plugin->fresh());
 
     if ($enabled) {
+        $plugin = $pluginManager->trust($plugin->fresh());
         $plugin->update(['enabled' => true]);
     }
 
@@ -47,8 +50,11 @@ it('discovers the bundled epg repair plugin as a valid local plugin', function (
     expect($plugin)->not->toBeNull();
     expect($plugin->validation_status)->toBe('valid');
     expect($plugin->available)->toBeTrue();
+    expect($plugin->trust_state)->toBe('pending_review');
+    expect($plugin->integrity_status)->toBe('unknown');
     expect($plugin->class_name)->toBe('AppLocalPlugins\\EpgRepair\\Plugin');
     expect($plugin->capabilities)->toContain('epg_repair');
+    expect($plugin->permissions)->toContain('queue_jobs');
     expect($plugin->actions)->toBeArray();
 });
 
@@ -62,6 +68,50 @@ it('validates a discovered plugin from the registry', function () {
 
     expect($validated->validation_status)->toBe('valid');
     expect($validated->validation_errors)->toBe([]);
+});
+
+it('requires admin trust before a plugin becomes runnable', function () {
+    $pluginManager = app(PluginManager::class);
+    $plugin = collect($pluginManager->discover())
+        ->firstWhere('plugin_id', 'epg-repair');
+
+    expect($plugin)->not->toBeNull();
+    expect($plugin->isTrusted())->toBeFalse();
+    expect($plugin->hasVerifiedIntegrity())->toBeFalse();
+
+    $trusted = $pluginManager->trust($plugin->fresh());
+
+    expect($trusted->isTrusted())->toBeTrue();
+    expect($trusted->hasVerifiedIntegrity())->toBeTrue();
+    expect($trusted->trusted_hashes)->toMatchArray([
+        'manifest_hash' => $trusted->manifest_hash,
+        'entrypoint_hash' => $trusted->entrypoint_hash,
+        'plugin_hash' => $trusted->plugin_hash,
+    ]);
+});
+
+it('downgrades trust when a trusted plugin file changes', function () {
+    $pluginManager = app(PluginManager::class);
+    $plugin = discoverPluginForTests();
+    $plugin = $pluginManager->trust($plugin->fresh());
+
+    $manifestPath = base_path('plugins/epg-repair/plugin.json');
+    $originalManifest = File::get($manifestPath);
+    $decoded = json_decode($originalManifest, true, flags: JSON_THROW_ON_ERROR);
+    $decoded['description'] = 'Tampered during test '.Str::random(6);
+
+    File::put($manifestPath, json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    try {
+        $plugin = $pluginManager->verifyIntegrity($plugin->fresh());
+
+        expect($plugin->trust_state)->toBe('pending_review');
+        expect($plugin->integrity_status)->toBe('changed');
+        expect($plugin->enabled)->toBeFalse();
+    } finally {
+        File::put($manifestPath, $originalManifest);
+        $pluginManager->validate($plugin->fresh());
+    }
 });
 
 it('scans and applies epg repairs through the plugin manager', function () {
@@ -230,6 +280,47 @@ it('explains when a scan has no enabled live channels to inspect', function () {
     expect($scanRun->summary)->toContain('no enabled live channels');
     expect(data_get($scanRun->result, 'data.totals.channels_scanned'))->toBe(0);
     expect($scanRun->logs()->pluck('message')->join(' '))->toContain('no enabled live channels');
+});
+
+it('rejects manual plugin actions against resources owned by another user', function () {
+    $pluginManager = app(PluginManager::class);
+    $plugin = discoverPluginForTests(true);
+
+    $owner = User::factory()->create(['permissions' => ['use_tools']]);
+    $attacker = User::factory()->create(['permissions' => ['use_tools']]);
+
+    $playlist = Playlist::create([
+        'name' => 'Owned Playlist',
+        'uuid' => (string) Str::uuid(),
+        'url' => 'http://example.test/owned.m3u',
+        'status' => Status::Completed,
+        'prefix' => 'owned',
+        'channels' => 0,
+        'synced' => now(),
+        'id_channel_by' => 'stream_id',
+        'user_id' => $owner->id,
+    ]);
+
+    $epg = Epg::create([
+        'name' => 'Owned EPG',
+        'url' => 'http://example.test/owned.xml',
+        'user_id' => $owner->id,
+        'status' => Status::Completed,
+    ]);
+
+    $run = $pluginManager->executeAction($plugin->fresh(), 'scan', [
+        'playlist_id' => $playlist->id,
+        'epg_id' => $epg->id,
+        'hours_ahead' => 12,
+        'confidence_threshold' => 0.6,
+    ], [
+        'trigger' => 'manual',
+        'dry_run' => true,
+        'user_id' => $attacker->id,
+    ]);
+
+    expect($run->status)->toBe('failed');
+    expect($run->summary)->toContain('do not have access');
 });
 
 it('can compare a channel against all owned epg sources during scan', function () {
@@ -631,7 +722,7 @@ it('purges declared plugin-owned data and blocks execution until reinstall', fun
     expect($plugin->isInstalled())->toBeFalse();
     expect($plugin->last_cleanup_mode)->toBe('purge');
     expect(Storage::disk('local')->exists('plugin-reports/epg-repair/remove-me.csv'))->toBeFalse();
-    expect(PluginEpgRepairScanCandidate::query()->count())->toBe(0);
+    expect(Schema::hasTable('plugin_epg_repair_scan_candidates'))->toBeFalse();
 
     expect(fn () => $pluginManager->instantiate($plugin->fresh()))
         ->toThrow(\RuntimeException::class, 'has been uninstalled');
@@ -689,6 +780,32 @@ it('supports plugin lifecycle commands from the host', function () {
 
     expect(ExtensionPlugin::query()->where('plugin_id', 'epg-repair')->exists())->toBeFalse();
     expect(Storage::disk('local')->exists('plugin-reports/epg-repair/cli-cleanup.csv'))->toBeTrue();
+});
+
+it('supports trust, block, and integrity verification commands from the host', function () {
+    $this->artisan('plugins:discover')->assertSuccessful();
+
+    $this->artisan('plugins:verify-integrity', [
+        'pluginId' => 'epg-repair',
+    ])->assertSuccessful()
+        ->expectsOutputToContain('integrity=unknown');
+
+    $this->artisan('plugins:trust', [
+        'pluginId' => 'epg-repair',
+    ])->assertSuccessful()
+        ->expectsOutputToContain('now trusted');
+
+    $plugin = app(PluginManager::class)->findPluginById('epg-repair');
+
+    expect($plugin?->trust_state)->toBe('trusted');
+    expect($plugin?->integrity_status)->toBe('verified');
+
+    $this->artisan('plugins:block', [
+        'pluginId' => 'epg-repair',
+    ])->assertSuccessful()
+        ->expectsOutputToContain('now blocked');
+
+    expect(app(PluginManager::class)->findPluginById('epg-repair')?->trust_state)->toBe('blocked');
 });
 
 it('reports plugin registry health through the doctor command', function () {

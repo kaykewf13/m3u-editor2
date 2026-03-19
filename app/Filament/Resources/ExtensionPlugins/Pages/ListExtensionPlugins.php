@@ -25,6 +25,7 @@ class ListExtensionPlugins extends ListRecords
             Action::make('discover')
                 ->label('Discover Plugins')
                 ->icon('heroicon-o-arrow-path')
+                ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                 ->action(function (): void {
                     $plugins = app(PluginManager::class)->discover();
 
