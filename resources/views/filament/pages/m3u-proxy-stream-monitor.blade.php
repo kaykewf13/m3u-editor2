@@ -160,19 +160,27 @@ echo $totalBandwidth > 1000 ? round($totalBandwidth / 1000, 1) . ' Mbps' : $tota
                                 </div>
                                 
                                 <div class="flex items-center space-x-2">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                                        {{ $stream['format'] }}
-                                    </span>
-                                    @if($stream['provider_profile'] ?? false)
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
-                                            Provider Profile: {{ $stream['provider_profile'] }}
-                                        </span>
-                                    @endif
                                     @if($stream['alias_name'] ?? false)
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
                                             Alias: {{ $stream['alias_name'] }}
                                         </span>
                                     @endif
+                                    @if($stream['playlist_name'] ?? false)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
+                                            @if($stream['profiles_enabled'] && ($stream['provider_profile'] ?? false))
+                                                {{ $stream['playlist_name'] }}: {{ $stream['provider_profile'] }}
+                                            @else
+                                                {{ $stream['playlist_name'] }}
+                                            @endif
+                                        </span>
+                                    @elseif($stream['provider_profile'] ?? false)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
+                                            {{ $stream['provider_profile'] }}
+                                        </span>
+                                    @endif
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                        {{ $stream['format'] }}
+                                    </span>
                                     @if($stream['broadcast'] ?? false)
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 ml-2">
                                             Broadcast
