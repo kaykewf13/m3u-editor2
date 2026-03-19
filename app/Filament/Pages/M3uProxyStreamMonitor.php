@@ -6,6 +6,7 @@ use App\Facades\LogoFacade;
 use App\Models\Channel;
 use App\Models\Episode;
 use App\Models\Network;
+use App\Models\Playlist;
 use App\Models\PlaylistAlias;
 use App\Models\PlaylistProfile;
 use App\Models\StreamProfile;
@@ -213,14 +214,19 @@ class M3uProxyStreamMonitor extends Page
                 ->groupBy('stream_id')
                 ->toArray();
 
-            // Pre-fetch alias names for all playlist UUIDs to avoid N+1
+            // Pre-fetch alias and playlist data for all playlist UUIDs to avoid N+1
             $playlistUuids = collect($apiStreams['streams'])
                 ->pluck('metadata.playlist_uuid')
                 ->filter()
                 ->unique()
                 ->values();
             $aliasNamesByUuid = PlaylistAlias::whereIn('uuid', $playlistUuids)
-                ->pluck('name', 'uuid');
+                ->with('playlist:id,name,profiles_enabled')
+                ->get()
+                ->keyBy('uuid');
+            $playlistsByUuid = Playlist::whereIn('uuid', $playlistUuids)
+                ->get(['id', 'uuid', 'name', 'profiles_enabled'])
+                ->keyBy('uuid');
 
             foreach ($apiStreams['streams'] as $stream) {
                 $streamId = $stream['stream_id'];
@@ -297,6 +303,23 @@ class M3uProxyStreamMonitor extends Page
                     }
                 }
 
+                // Resolve playlist name, profiles_enabled, and alias name from metadata
+                $playlistUuid = $stream['metadata']['playlist_uuid'] ?? '';
+                $aliasName = null;
+                $playlistName = null;
+                $profilesEnabled = false;
+
+                $alias = $aliasNamesByUuid[$playlistUuid] ?? null;
+                if ($alias) {
+                    $aliasName = $alias->name;
+                } else {
+                    $playlist = $playlistsByUuid[$playlistUuid] ?? null;
+                    if ($playlist) {
+                        $playlistName = $playlist->name;
+                        $profilesEnabled = (bool) $playlist->profiles_enabled;
+                    }
+                }
+
                 // Look up provider profile name from metadata
                 $providerProfileName = null;
                 $providerProfileId = $stream['metadata']['provider_profile_id'] ?? null;
@@ -304,13 +327,10 @@ class M3uProxyStreamMonitor extends Page
                     $providerProfile = PlaylistProfile::find($providerProfileId);
                     if ($providerProfile) {
                         $providerProfileName = $providerProfile->is_primary
-                            ? 'Primary'
+                            ? 'Primary profile'
                             : ($providerProfile->name ?? "Profile #{$providerProfile->id}");
                     }
                 }
-
-                // Check if this stream belongs to an alias
-                $aliasName = $aliasNamesByUuid[$stream['metadata']['playlist_uuid'] ?? ''] ?? null;
 
                 $streams[] = [
                     'stream_id' => $streamId,
@@ -331,6 +351,8 @@ class M3uProxyStreamMonitor extends Page
                     'segments_served' => $stream['total_segments_served'],
                     'transcoding' => $transcoding,
                     'transcoding_format' => $transcodingFormat,
+                    'playlist_name' => $playlistName,
+                    'profiles_enabled' => $profilesEnabled,
                     'provider_profile' => $providerProfileName,
                     'alias_name' => $aliasName,
                     // Failover details
