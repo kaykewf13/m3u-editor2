@@ -1172,8 +1172,11 @@ class PluginManager
                 throw new RuntimeException("Unable to open plugin archive [{$archivePath}] as a zip file.");
             }
 
-            $zip->extractTo($extractRoot);
-            $zip->close();
+            try {
+                $this->extractZipArchiveSafely($zip, $extractRoot, $archivePath);
+            } finally {
+                $zip->close();
+            }
 
             return $this->locateExtractedPluginRoot($extractRoot);
         }
@@ -1192,12 +1195,131 @@ class PluginManager
             }
 
             $phar = new PharData($archiveToExtract);
-            $phar->extractTo($extractRoot, null, true);
+            $this->extractPharArchiveSafely($phar, $archiveToExtract, $extractRoot, $archivePath);
 
             return $this->locateExtractedPluginRoot($extractRoot);
         }
 
         throw new RuntimeException('Plugin archives must use .zip, .tar, .tar.gz, or .tgz.');
+    }
+
+    private function extractZipArchiveSafely(ZipArchive $zip, string $extractRoot, string $archivePath): void
+    {
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $stat = $zip->statIndex($index);
+            if (! is_array($stat) || ! isset($stat['name'])) {
+                throw new RuntimeException("Plugin archive [{$archivePath}] contains an unreadable zip entry.");
+            }
+
+            $normalizedPath = $this->normalizeArchiveEntryPath((string) $stat['name'], $archivePath);
+
+            $operatingSystem = 0;
+            $attributes = 0;
+            if ($zip->getExternalAttributesIndex($index, $operatingSystem, $attributes)) {
+                $fileType = ($attributes >> 16) & 0xF000;
+                if ($fileType === 0xA000) {
+                    throw new RuntimeException("Plugin archive [{$archivePath}] contains a symlink entry [{$stat['name']}], which is not allowed.");
+                }
+            }
+
+            $destinationPath = $this->archiveDestinationPath($extractRoot, $normalizedPath);
+            if (str_ends_with((string) $stat['name'], '/')) {
+                File::ensureDirectoryExists($destinationPath);
+                continue;
+            }
+
+            $stream = $zip->getStream((string) $stat['name']);
+            if ($stream === false) {
+                throw new RuntimeException("Plugin archive [{$archivePath}] contains an unreadable file entry [{$stat['name']}].");
+            }
+
+            File::ensureDirectoryExists(dirname($destinationPath));
+
+            $handle = fopen($destinationPath, 'wb');
+            if ($handle === false) {
+                fclose($stream);
+                throw new RuntimeException("Unable to write extracted plugin file [{$destinationPath}].");
+            }
+
+            stream_copy_to_stream($stream, $handle);
+            fclose($stream);
+            fclose($handle);
+        }
+    }
+
+    private function extractPharArchiveSafely(PharData $phar, string $archiveToExtract, string $extractRoot, string $displayArchivePath): void
+    {
+        $iterator = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::SELF_FIRST);
+
+        foreach ($iterator as $entry) {
+            $relativePath = $this->relativePharEntryPath((string) $entry->getPathname(), $archiveToExtract);
+            $normalizedPath = $this->normalizeArchiveEntryPath($relativePath, $displayArchivePath);
+
+            if (method_exists($entry, 'isLink') && $entry->isLink()) {
+                throw new RuntimeException("Plugin archive [{$displayArchivePath}] contains a symlink entry [{$relativePath}], which is not allowed.");
+            }
+
+            $destinationPath = $this->archiveDestinationPath($extractRoot, $normalizedPath);
+            if ($entry->isDir()) {
+                File::ensureDirectoryExists($destinationPath);
+                continue;
+            }
+
+            if (! $entry->isFile()) {
+                throw new RuntimeException("Plugin archive [{$displayArchivePath}] contains an unsupported entry type [{$relativePath}].");
+            }
+
+            $contents = file_get_contents($entry->getPathname());
+            if ($contents === false) {
+                throw new RuntimeException("Plugin archive [{$displayArchivePath}] contains an unreadable file entry [{$relativePath}].");
+            }
+
+            File::ensureDirectoryExists(dirname($destinationPath));
+            File::put($destinationPath, $contents);
+        }
+    }
+
+    private function normalizeArchiveEntryPath(string $entryName, string $archivePath): string
+    {
+        $normalized = str_replace('\\', '/', trim($entryName));
+        $normalized = preg_replace('#/+#', '/', $normalized) ?? $normalized;
+        $normalized = preg_replace('#^(?:\./)+#', '', $normalized) ?? $normalized;
+        $trimmed = trim($normalized, '/');
+
+        if ($trimmed === '') {
+            throw new RuntimeException("Plugin archive [{$archivePath}] contains an empty entry name.");
+        }
+
+        if (str_contains($trimmed, "\0") || preg_match('/^[A-Za-z]:\//', $trimmed) === 1 || str_starts_with($normalized, '/')) {
+            throw new RuntimeException("Plugin archive [{$archivePath}] contains an absolute path entry [{$entryName}].");
+        }
+
+        $segments = explode('/', $trimmed);
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                throw new RuntimeException("Plugin archive [{$archivePath}] contains an unsafe path entry [{$entryName}].");
+            }
+        }
+
+        return implode('/', $segments);
+    }
+
+    private function relativePharEntryPath(string $entryPath, string $archiveToExtract): string
+    {
+        $normalizedEntryPath = str_replace('\\', '/', $entryPath);
+        $normalizedArchivePath = str_replace('\\', '/', (string) (realpath($archiveToExtract) ?: $archiveToExtract));
+        $prefix = 'phar://'.rtrim($normalizedArchivePath, '/').'/';
+
+        if (! Str::startsWith($normalizedEntryPath, $prefix)) {
+            throw new RuntimeException("Unable to resolve archive entry path [{$entryPath}] during plugin archive inspection.");
+        }
+
+        return Str::after($normalizedEntryPath, $prefix);
+    }
+
+    private function archiveDestinationPath(string $extractRoot, string $normalizedPath): string
+    {
+        return rtrim($extractRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
     }
 
     private function locateExtractedPluginRoot(string $extractRoot): string

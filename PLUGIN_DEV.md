@@ -11,6 +11,7 @@ Normal use should go through the reviewed-install flow for private local plugins
 - Dev mode keeps direct folder discovery for plugin authors.
 - Long-running work runs through queued invocations.
 - Validation happens before a plugin can be trusted.
+- Pre-trust validation is static: the host inspects the manifest and entrypoint without executing plugin PHP.
 - Trust is explicit. Discovery does not imply trust.
 - Execution requires: installed + enabled + valid + trusted + integrity verified.
 

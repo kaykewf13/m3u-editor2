@@ -56,6 +56,132 @@ function discoverPluginForTests(bool $enabled = false): ExtensionPlugin
     return $plugin->fresh();
 }
 
+function pluginReviewFixturePaths(string $pluginId): array
+{
+    return [
+        'source' => storage_path('app/testing-plugin-sources/'.$pluginId),
+        'archive' => storage_path('app/testing-plugin-archives/'.$pluginId.'.zip'),
+        'sentinel' => storage_path('app/testing-plugin-sentinels/'.$pluginId.'.txt'),
+    ];
+}
+
+function pluginReviewFixtureClassName(string $pluginId): string
+{
+    return 'AppLocalPlugins\\'.Str::studly(str_replace('-', ' ', $pluginId)).'\\Plugin';
+}
+
+function createReviewFixturePlugin(string $pluginId, bool $withSideEffect = false): array
+{
+    $paths = pluginReviewFixturePaths($pluginId);
+    $classSegment = Str::studly(str_replace('-', ' ', $pluginId));
+
+    File::deleteDirectory($paths['source']);
+    File::ensureDirectoryExists($paths['source']);
+    File::ensureDirectoryExists(dirname($paths['sentinel']));
+    File::delete($paths['sentinel']);
+
+    $manifest = [
+        'id' => $pluginId,
+        'name' => Str::title(str_replace('-', ' ', $pluginId)),
+        'version' => '0.1.0',
+        'description' => 'Temporary test plugin fixture.',
+        'api_version' => config('plugins.api_version'),
+        'entrypoint' => 'Plugin.php',
+        'class' => "AppLocalPlugins\\{$classSegment}\\Plugin",
+        'capabilities' => [],
+        'hooks' => [],
+        'permissions' => [],
+        'settings' => [],
+        'actions' => [],
+        'schema' => [
+            'tables' => [],
+        ],
+        'data_ownership' => [
+            'plugin_id' => $pluginId,
+            'table_prefix' => 'plugin_'.str_replace('-', '_', $pluginId).'_',
+            'tables' => [],
+            'directories' => [],
+            'files' => [],
+            'default_cleanup_policy' => 'preserve',
+        ],
+    ];
+
+    $sideEffect = $withSideEffect
+        ? "\nfile_put_contents(".var_export($paths['sentinel'], true).", 'executed');\n"
+        : "\n";
+
+    $pluginSource = <<<PHP
+<?php
+
+namespace AppLocalPlugins\\{$classSegment};
+
+use App\\Plugins\\Contracts\\PluginInterface;
+use App\\Plugins\\Support\\PluginActionResult;
+use App\\Plugins\\Support\\PluginExecutionContext;{$sideEffect}
+class Plugin implements PluginInterface
+{
+    public function runAction(string \$action, array \$payload, PluginExecutionContext \$context): PluginActionResult
+    {
+        return PluginActionResult::success('Fixture plugin action completed.', [
+            'action' => \$action,
+        ]);
+    }
+}
+PHP;
+
+    File::put(
+        $paths['source'].'/plugin.json',
+        json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL,
+    );
+    File::put($paths['source'].'/Plugin.php', $pluginSource);
+
+    return $paths;
+}
+
+function createZipArchiveForTests(string $sourcePath, string $archivePath, array $extraEntries = []): void
+{
+    File::delete($archivePath);
+    File::ensureDirectoryExists(dirname($archivePath));
+
+    $zip = new ZipArchive;
+    $opened = $zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    if ($opened !== true) {
+        throw new RuntimeException("Unable to create zip archive [{$archivePath}].");
+    }
+
+    $baseLength = strlen(rtrim($sourcePath, DIRECTORY_SEPARATOR)) + 1;
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($sourcePath, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST,
+    );
+
+    foreach ($iterator as $file) {
+        $localName = substr($file->getPathname(), $baseLength);
+
+        if ($file->isDir()) {
+            $zip->addEmptyDir($localName);
+            continue;
+        }
+
+        $zip->addFile($file->getPathname(), $localName);
+    }
+
+    foreach ($extraEntries as $localName => $contents) {
+        $zip->addFromString($localName, $contents);
+    }
+
+    $zip->close();
+}
+
+function cleanupReviewFixturePlugin(string $pluginId): void
+{
+    $paths = pluginReviewFixturePaths($pluginId);
+
+    File::deleteDirectory($paths['source']);
+    File::delete($paths['archive']);
+    File::delete($paths['sentinel']);
+}
+
 it('discovers the bundled epg repair plugin as a valid local plugin', function () {
     $plugins = app(PluginManager::class)->discover();
 
@@ -84,6 +210,58 @@ it('validates a discovered plugin from the registry', function () {
 
     expect($validated->validation_status)->toBe('valid');
     expect($validated->validation_errors)->toBe([]);
+});
+
+it('rejects top-level executable plugin php while staging a directory review', function () {
+    $pluginId = 'review-safety-'.Str::lower(Str::random(6));
+    $paths = createReviewFixturePlugin($pluginId, withSideEffect: true);
+    $className = pluginReviewFixtureClassName($pluginId);
+
+    try {
+        $review = app(PluginManager::class)->stageDirectoryReview($paths['source']);
+
+        expect($review->validation_status)->toBe('invalid');
+        expect(File::exists($paths['sentinel']))->toBeFalse();
+        expect(class_exists($className, false))->toBeFalse();
+        expect($review->validation_errors)->not->toBeEmpty();
+        expect(collect($review->validation_errors)->join(' '))->toContain('top-level executable code');
+    } finally {
+        cleanupReviewFixturePlugin($pluginId);
+    }
+});
+
+it('rejects top-level executable plugin php while staging an archive review', function () {
+    $pluginId = 'archive-safety-'.Str::lower(Str::random(6));
+    $paths = createReviewFixturePlugin($pluginId, withSideEffect: true);
+    createZipArchiveForTests($paths['source'], $paths['archive']);
+    $className = pluginReviewFixtureClassName($pluginId);
+
+    try {
+        $review = app(PluginManager::class)->stageArchiveReview($paths['archive']);
+
+        expect($review->validation_status)->toBe('invalid');
+        expect(File::exists($paths['sentinel']))->toBeFalse();
+        expect(class_exists($className, false))->toBeFalse();
+        expect($review->validation_errors)->not->toBeEmpty();
+        expect(collect($review->validation_errors)->join(' '))->toContain('top-level executable code');
+    } finally {
+        cleanupReviewFixturePlugin($pluginId);
+    }
+});
+
+it('rejects archive entries that try to escape the staging root', function () {
+    $pluginId = 'archive-escape-'.Str::lower(Str::random(6));
+    $paths = createReviewFixturePlugin($pluginId);
+    createZipArchiveForTests($paths['source'], $paths['archive'], [
+        '../escape.txt' => 'nope',
+    ]);
+
+    try {
+        expect(fn () => app(PluginManager::class)->stageArchiveReview($paths['archive']))
+            ->toThrow(RuntimeException::class, 'unsafe path entry');
+    } finally {
+        cleanupReviewFixturePlugin($pluginId);
+    }
 });
 
 it('requires admin trust before a plugin becomes runnable', function () {

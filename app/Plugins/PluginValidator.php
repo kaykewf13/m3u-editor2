@@ -116,34 +116,413 @@ class PluginValidator
 
         if (! file_exists($manifest->entrypointPath())) {
             $errors[] = "Missing entrypoint file [{$manifest->entrypoint}]";
-        } elseif (! class_exists($manifest->className, false)) {
-            try {
-                require_once $manifest->entrypointPath();
-            } catch (Throwable $exception) {
-                $errors[] = "Entrypoint failed to load: {$exception->getMessage()}";
-            }
-        }
-
-        if (! class_exists($manifest->className)) {
-            $errors[] = "Plugin class [{$manifest->className}] was not found.";
         } else {
-            if (! is_subclass_of($manifest->className, PluginInterface::class)) {
-                $errors[] = "Plugin class [{$manifest->className}] must implement ".PluginInterface::class;
+            try {
+                $entrypointAnalysis = $this->inspectEntrypoint($manifest->entrypointPath());
+            } catch (Throwable $exception) {
+                $errors[] = "Entrypoint failed static inspection: {$exception->getMessage()}";
+                $entrypointAnalysis = null;
             }
 
-            foreach ($manifest->capabilities as $capability) {
-                $requiredInterface = config("plugins.capabilities.{$capability}");
-                if ($requiredInterface && ! is_subclass_of($manifest->className, $requiredInterface)) {
-                    $errors[] = "Plugin class [{$manifest->className}] must implement [{$requiredInterface}] for capability [{$capability}]";
+            if ($entrypointAnalysis) {
+                $declaredClass = $entrypointAnalysis['class_name'];
+                $declaredInterfaces = $entrypointAnalysis['interfaces'];
+
+                if ($declaredClass !== ltrim($manifest->className, '\\')) {
+                    $errors[] = "Entrypoint declares [{$declaredClass}] but manifest expects [{$manifest->className}]";
                 }
-            }
 
-            if ($manifest->hooks !== [] && ! is_subclass_of($manifest->className, HookablePluginInterface::class)) {
-                $errors[] = "Plugin class [{$manifest->className}] must implement ".HookablePluginInterface::class.' when hooks are declared.';
+                foreach ($this->requiredInterfacesForManifest($manifest) as $requiredInterface) {
+                    if (! $this->satisfiesInterfaceRequirement($requiredInterface, $declaredInterfaces)) {
+                        $errors[] = "Plugin class [{$manifest->className}] must implement [{$requiredInterface}]";
+                    }
+                }
             }
         }
 
         return new PluginValidationResult($errors === [], $errors, $manifest, $manifestData, $pluginId, $hashes);
+    }
+
+    /**
+     * Inspect a plugin entrypoint without executing it.
+     *
+     * This keeps reviewed-install validation on the safe side of the trust
+     * boundary: the file is tokenized and matched against the manifest, but
+     * top-level PHP never runs until the plugin is trusted and invoked.
+     *
+     * @return array{class_name: string, interfaces: array<int, string>}
+     */
+    private function inspectEntrypoint(string $entrypointPath): array
+    {
+        $source = file_get_contents($entrypointPath);
+        if ($source === false) {
+            throw new \RuntimeException("Unable to read entrypoint file [{$entrypointPath}].");
+        }
+
+        $tokens = token_get_all($source);
+        $this->assertSafeTopLevelStructure($tokens);
+        $namespace = '';
+        $imports = [];
+        $className = null;
+        $interfaces = [];
+        $braceDepth = 0;
+
+        for ($index = 0; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_string($token)) {
+                if ($token === '{') {
+                    $braceDepth++;
+                } elseif ($token === '}') {
+                    $braceDepth = max(0, $braceDepth - 1);
+                }
+
+                continue;
+            }
+
+            [$id] = $token;
+
+            if ($id === T_NAMESPACE && $braceDepth === 0) {
+                [$namespace, $index] = $this->consumeNameStatement($tokens, $index + 1);
+                continue;
+            }
+
+            if ($id === T_USE && $braceDepth === 0 && $className === null) {
+                [$imports, $index] = $this->consumeUseStatements($tokens, $index + 1, $imports);
+                continue;
+            }
+
+            if ($id !== T_CLASS || $braceDepth !== 0 || $this->isAnonymousClass($tokens, $index)) {
+                continue;
+            }
+
+            $className = $this->consumeNextIdentifier($tokens, $index + 1);
+            if ($className === null) {
+                throw new \RuntimeException('Entrypoint is missing a concrete plugin class declaration.');
+            }
+
+            [$interfaces, $index] = $this->consumeClassInterfaces($tokens, $index + 1, $namespace, $imports);
+            break;
+        }
+
+        if ($className === null) {
+            throw new \RuntimeException('Entrypoint does not declare a plugin class.');
+        }
+
+        return [
+            'class_name' => $this->resolveImportedName($className, $namespace, $imports),
+            'interfaces' => array_values(array_unique($interfaces)),
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     */
+    private function assertSafeTopLevelStructure(array $tokens): void
+    {
+        for ($index = 0; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_string($token)) {
+                continue;
+            }
+
+            [$id, $text] = $token;
+
+            if (in_array($id, [T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            if (in_array($id, [T_NAMESPACE, T_USE, T_DECLARE], true)) {
+                $index = $this->skipStatement($tokens, $index + 1);
+                continue;
+            }
+
+            if (in_array($id, [T_FINAL, T_ABSTRACT], true)) {
+                continue;
+            }
+
+            if ($id === T_CLASS) {
+                return;
+            }
+
+            throw new \RuntimeException(
+                sprintf(
+                    'Entrypoint contains top-level executable code [%s]. Reviewed plugins must keep executable logic inside the plugin class.',
+                    trim($text) !== '' ? trim($text) : token_name($id),
+                ),
+            );
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function requiredInterfacesForManifest(PluginManifest $manifest): array
+    {
+        $interfaces = [PluginInterface::class];
+
+        foreach ($manifest->capabilities as $capability) {
+            $requiredInterface = config("plugins.capabilities.{$capability}");
+            if (is_string($requiredInterface) && $requiredInterface !== '') {
+                $interfaces[] = ltrim($requiredInterface, '\\');
+            }
+        }
+
+        if ($manifest->hooks !== []) {
+            $interfaces[] = HookablePluginInterface::class;
+        }
+
+        return array_values(array_unique(array_map(
+            static fn (string $interface): string => ltrim($interface, '\\'),
+            $interfaces,
+        )));
+    }
+
+    /**
+     * @param  array<int, string>  $declaredInterfaces
+     */
+    private function satisfiesInterfaceRequirement(string $requiredInterface, array $declaredInterfaces): bool
+    {
+        foreach ($declaredInterfaces as $declaredInterface) {
+            if ($declaredInterface === $requiredInterface || is_a($declaredInterface, $requiredInterface, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     * @return array{0: string, 1: int}
+     */
+    private function consumeNameStatement(array $tokens, int $index): array
+    {
+        $parts = [];
+
+        for (; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_string($token)) {
+                if (in_array($token, [';', '{'], true)) {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (in_array($token[0], [T_STRING, T_NS_SEPARATOR, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
+                $parts[] = $token[1];
+            }
+        }
+
+        return [ltrim(implode('', $parts), '\\'), $index];
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     */
+    private function skipStatement(array $tokens, int $index): int
+    {
+        $depth = 0;
+
+        for (; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (! is_string($token)) {
+                continue;
+            }
+
+            if ($token === '(') {
+                $depth++;
+                continue;
+            }
+
+            if ($token === ')') {
+                $depth = max(0, $depth - 1);
+                continue;
+            }
+
+            if (($token === ';' || $token === '{') && $depth === 0) {
+                return $index;
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     * @param  array<string, string>  $imports
+     * @return array{0: array<string, string>, 1: int}
+     */
+    private function consumeUseStatements(array $tokens, int $index, array $imports): array
+    {
+        $statement = '';
+
+        for (; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_string($token)) {
+                if ($token === ';') {
+                    break;
+                }
+
+                $statement .= $token;
+                continue;
+            }
+
+            if (in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            $statement .= $token[1];
+        }
+
+        if (str_contains($statement, '{')) {
+            throw new \RuntimeException('Grouped use statements are not supported in plugin entrypoints.');
+        }
+
+        foreach (array_filter(array_map('trim', explode(',', $statement))) as $import) {
+            if (preg_match('/^(function|const)\s+/i', $import)) {
+                continue;
+            }
+
+            $segments = preg_split('/\s+as\s+/i', $import);
+            $fqcn = ltrim(trim((string) $segments[0]), '\\');
+            $alias = trim((string) ($segments[1] ?? Str::afterLast($fqcn, '\\')));
+
+            if ($fqcn !== '' && $alias !== '') {
+                $imports[$alias] = $fqcn;
+            }
+        }
+
+        return [$imports, $index];
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     * @param  array<string, string>  $imports
+     * @return array{0: array<int, string>, 1: int}
+     */
+    private function consumeClassInterfaces(array $tokens, int $index, string $namespace, array $imports): array
+    {
+        $interfaces = [];
+        $collecting = false;
+        $buffer = '';
+
+        for (; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_string($token)) {
+                if ($token === '{') {
+                    break;
+                }
+
+                if ($collecting) {
+                    $buffer .= $token;
+                }
+
+                continue;
+            }
+
+            if (in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                if ($collecting) {
+                    $buffer .= ' ';
+                }
+
+                continue;
+            }
+
+            if ($token[0] === T_IMPLEMENTS) {
+                $collecting = true;
+                continue;
+            }
+
+            if (! $collecting) {
+                continue;
+            }
+
+            $buffer .= $token[1];
+        }
+
+        foreach (array_filter(array_map('trim', explode(',', $buffer))) as $interface) {
+            $resolved = $this->resolveImportedName($interface, $namespace, $imports);
+            if ($resolved !== '') {
+                $interfaces[] = $resolved;
+            }
+        }
+
+        return [$interfaces, $index];
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     */
+    private function consumeNextIdentifier(array $tokens, int $index): ?string
+    {
+        for (; $index < count($tokens); $index++) {
+            $token = $tokens[$index];
+
+            if (is_array($token) && $token[0] === T_STRING) {
+                return $token[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, mixed>  $tokens
+     */
+    private function isAnonymousClass(array $tokens, int $index): bool
+    {
+        for ($cursor = $index - 1; $cursor >= 0; $cursor--) {
+            $token = $tokens[$cursor];
+
+            if (is_string($token)) {
+                if (trim($token) === '') {
+                    continue;
+                }
+
+                return false;
+            }
+
+            if (in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            return $token[0] === T_NEW;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, string>  $imports
+     */
+    private function resolveImportedName(string $name, string $namespace, array $imports): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '';
+        }
+
+        if (str_starts_with($name, '\\')) {
+            return ltrim($name, '\\');
+        }
+
+        $segments = explode('\\', $name);
+        $head = $segments[0];
+
+        if (isset($imports[$head])) {
+            $tail = array_slice($segments, 1);
+
+            return $imports[$head].($tail === [] ? '' : '\\'.implode('\\', $tail));
+        }
+
+        return $namespace !== '' ? $namespace.'\\'.$name : $name;
     }
 
     private function validateFieldDefinition(array $field, array $fieldTypes, string $group): array
