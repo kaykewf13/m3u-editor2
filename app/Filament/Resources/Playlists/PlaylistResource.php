@@ -2318,6 +2318,10 @@ class PlaylistResource extends Resource
                                 ->default('channels')
                                 ->required()
                                 ->live()
+                                ->afterStateUpdated(fn (Set $set, ?string $state) => $set('column', match ($state) {
+                                    'groups', 'series' => 'name',
+                                    default => 'title',
+                                }))
                                 ->columnSpan(2),
                             Select::make('column')
                                 ->label('Column to modify')
