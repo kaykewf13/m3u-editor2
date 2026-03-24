@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ChannelLogoType;
 use App\Enums\PlaylistSourceType;
 use App\Jobs\FetchTmdbIds;
+use App\Services\PlaylistService;
 use App\Services\XtreamService;
 use App\Settings\GeneralSettings;
 use Exception;
@@ -233,7 +234,7 @@ class Channel extends Model
 
         // Always proxy the internal proxy so we can attempt to transcode the stream for better compatibility
         // This also prevents CORS and mixed-content issues
-        $url = rtrim(url("/{$urlPath}/{$username}/{$password}/".$this->id.'.'.$channelFormat), '.');
+        $url = rtrim(PlaylistService::getBaseUrl("/{$urlPath}/{$username}/{$password}/".$this->id.'.'.$channelFormat), '.');
 
         // Append query parameter so our Xtream Stream controller knows to proxy the stream regardless of playlist settings
         $url .= '?'.http_build_query([
