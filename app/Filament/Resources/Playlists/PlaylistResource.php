@@ -1867,7 +1867,7 @@ class PlaylistResource extends Resource
                                     '\[.*\]',
                                 ])
                                 ->splitKeys(['Tab', 'Return']),
-                        ])->hidden(fn (Get $get): bool => ! $get('import_prefs.preprocess') || ! $get('status')),
+                        ])->hidden(fn (Get $get): bool => ! $get('import_prefs.preprocess') || ! $get('status') || ! $get('xtream')),
 
                     Fieldset::make('Series processing')
                         ->schema([
@@ -1952,7 +1952,7 @@ class PlaylistResource extends Resource
                                     '\[.*\]',
                                 ])
                                 ->splitKeys(['Tab', 'Return']),
-                        ])->hidden(fn (Get $get): bool => ! $get('import_prefs.preprocess') || ! $get('status')),
+                        ])->hidden(fn (Get $get): bool => ! $get('import_prefs.preprocess') || ! $get('status') || ! $get('xtream')),
 
                     TagsInput::make('import_prefs.ignored_file_types')
                         ->label('Ignored file types')
@@ -1973,14 +1973,14 @@ class PlaylistResource extends Resource
                 ->columns(2)
                 ->schema([
                     Toggle::make('enable_channels')
-                        ->label('Enable new channels')
+                        ->label('Enable new Live channels')
                         ->columnSpanFull()
                         ->live()
                         ->inline(true)
                         ->default(false)
-                        ->helperText('When enabled, newly added Live and VOD channels will be enabled by default.'),
+                        ->helperText('When enabled, newly added Live channels will be enabled by default.'),
 
-                    Fieldset::make('Default options for new channels')
+                    Fieldset::make('Default options for new Live channels')
                         ->columnSpanFull()
                         ->schema([
                             Toggle::make('import_prefs.channel_default_mapping_enabled')
@@ -1996,13 +1996,34 @@ class PlaylistResource extends Resource
                         ])
                         ->hidden(fn (Get $get): bool => ! $get('enable_channels')),
 
+                    Toggle::make('enable_vod_channels')
+                        ->label('Enable new VOD channels')
+                        ->columnSpanFull()
+                        ->live()
+                        ->inline(true)
+                        ->default(false)
+                        ->helperText('When enabled, newly added VOD channels will be enabled by default.')
+                        ->hidden(fn (Get $get): bool => ! $get('xtream')),
+
+                    Fieldset::make('Default options for new VOD channels')
+                        ->columnSpanFull()
+                        ->schema([
+                            Toggle::make('import_prefs.vod_channel_default_merge_enabled')
+                                ->label('Enable merging by default')
+                                ->inline(true)
+                                ->default(true)
+                                ->helperText('When enabled, newly added VOD channels will have merging enabled by default on sync.'),
+                        ])
+                        ->hidden(fn (Get $get): bool => ! $get('enable_vod_channels')),
+
                     Toggle::make('enable_series')
                         ->label('Enable new series')
                         ->columnSpanFull()
                         ->live()
                         ->inline(true)
                         ->default(false)
-                        ->helperText('When enabled, newly added series will be enabled by default on sync.'),
+                        ->helperText('When enabled, newly added series will be enabled by default on sync.')
+                        ->hidden(fn (Get $get): bool => ! $get('xtream')),
                 ]),
 
             Section::make('Series Processing')

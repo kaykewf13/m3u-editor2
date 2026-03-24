@@ -95,6 +95,9 @@ class ProcessM3uImport implements ShouldQueue
     // Merging enabled by default
     public bool $canMergeEnabled = true;
 
+    // VOD merging enabled by default
+    public bool $canMergeVodEnabled = true;
+
     // Import via category instead of all items at once (Xtream API only)
     public bool $importViaCategory = false;
 
@@ -130,12 +133,18 @@ class ProcessM3uImport implements ShouldQueue
         $this->selectedCategories = $playlist->import_prefs['selected_categories'] ?? [];
         $this->includedCategoryPrefixes = $playlist->import_prefs['included_category_prefixes'] ?? [];
 
-        // See if channel options set
+        // See if Live channel options set
         if ($this->playlist->enable_channels ?? false) {
             $epgMapEnabled = $playlist->import_prefs['channel_default_mapping_enabled'] ?? null;
             $canMergeEnabled = $playlist->import_prefs['channel_default_merge_enabled'] ?? null;
             $this->epgMapEnabled = $epgMapEnabled !== null ? $epgMapEnabled : true;
             $this->canMergeEnabled = $canMergeEnabled !== null ? $canMergeEnabled : true;
+        }
+
+        // See if VOD channel options set
+        if ($this->playlist->enable_vod_channels ?? false) {
+            $vodCanMergeEnabled = $playlist->import_prefs['vod_channel_default_merge_enabled'] ?? null;
+            $this->canMergeVodEnabled = $vodCanMergeEnabled !== null ? $vodCanMergeEnabled : true;
         }
 
         // Get the enabled groups and categories for this playlist
@@ -519,7 +528,7 @@ class ProcessM3uImport implements ShouldQueue
                 'user_id' => $userId,
                 'import_batch_no' => $batchNo,
                 'new' => true,
-                'enabled' => $playlist->enable_channels,
+                'enabled' => false, // default to false, will be set to true if group is in enabledGroups or playlist enabled by default set
                 'catchup' => null,
                 'catchup_source' => null,
                 'shift' => 0,
@@ -555,6 +564,9 @@ class ProcessM3uImport implements ShouldQueue
 
             // Live streams collection
             if ($liveStreamsEnabled && $liveStreams) {
+                // Get default enable setting for Live channels from the playlist (default to false if not set)
+                $liveEnabledByDefault = $playlist->enable_channels ?? false;
+
                 $liveCollection = LazyCollection::make(function () use (
                     $liveStreams,
                     $streamBaseUrl,
@@ -562,7 +574,8 @@ class ProcessM3uImport implements ShouldQueue
                     $channelFields,
                     $autoSort,
                     $channelNo,
-                    $output
+                    $output,
+                    $liveEnabledByDefault
                 ) {
                     $localChannelNo = $channelNo;
                     foreach ($liveStreams as $item) {
@@ -594,7 +607,7 @@ class ProcessM3uImport implements ShouldQueue
                         if ($autoSort) {
                             $channel['sort'] = $localChannelNo;
                         }
-                        if ($this->enabledGroups->contains($category['category_name'] ?? '')) {
+                        if ($liveEnabledByDefault || $this->enabledGroups->contains($category['category_name'] ?? '')) {
                             $channel['enabled'] = true;
                         }
                         yield $channel;
@@ -605,13 +618,17 @@ class ProcessM3uImport implements ShouldQueue
 
             // VOD streams collection
             if ($vodStreamsEnabled && $vodStreams) {
+                // Get default enable setting for VOD channels from the playlist (default to false if not set)
+                $vodEnabledByDefault = $playlist->enable_vod_channels ?? false;
+
                 $vodCollection = LazyCollection::make(function () use (
                     $vodStreams,
                     $vodBaseUrl,
                     $vodCategories,
                     $channelFields,
                     $autoSort,
-                    $channelNo
+                    $channelNo,
+                    $vodEnabledByDefault
                 ) {
                     $localChannelNo = $channelNo;
                     foreach ($vodStreams as $item) {
@@ -646,7 +663,7 @@ class ProcessM3uImport implements ShouldQueue
                         if ($autoSort) {
                             $channel['sort'] = $localChannelNo;
                         }
-                        if ($this->enabledGroups->contains($category['category_name'] ?? '')) {
+                        if ($vodEnabledByDefault || $this->enabledGroups->contains($category['category_name'] ?? '')) {
                             $channel['enabled'] = true;
                         }
                         yield $channel;
@@ -785,7 +802,7 @@ class ProcessM3uImport implements ShouldQueue
                     'user_id' => $userId,
                     'import_batch_no' => $batchNo,
                     'new' => true,
-                    'enabled' => $playlist->enable_channels,
+                    'enabled' => false, // default to false, will be set to true if group is in enabledGroups or playlist enabled by default set
                     'extvlcopt' => null,
                     'kodidrop' => null,
                     'catchup' => null,
@@ -833,6 +850,7 @@ class ProcessM3uImport implements ShouldQueue
                     // NOTE: max line length is set to 65536 to prevent memory issues
                     $this->m3uParser = new M3uParser;
                     $this->m3uParser->addDefaultTags();
+                    $liveEnabledByDefault = $playlist->enable_channels ?? false;
                     $count = 0;
                     foreach ($this->m3uParser->parseFile($filePath, max_length: 65536) as $item) {
                         // Increment channel number
@@ -937,8 +955,11 @@ class ProcessM3uImport implements ShouldQueue
                                     $channel['sort'] = $channelNo;
                                 }
 
-                                // Auto-enable if in enabled group
-                                if ($this->enabledGroups->contains($channel['group'] ?? '')) {
+                                // Auto-enable if in enabled group or playlist enabled by default set
+                                // NOTE: M3U have no concept of live vs VOD channels, so we check the general enabled groups list and the general playlist enabled by default setting for live channels
+                                if ($liveEnabledByDefault) {
+                                    $channel['enabled'] = true;
+                                } elseif ($this->enabledGroups->contains($channel['group'] ?? '')) {
                                     $channel['enabled'] = true;
                                 }
 
@@ -969,8 +990,11 @@ class ProcessM3uImport implements ShouldQueue
                                 $channel['sort'] = $channelNo;
                             }
 
-                            // Auto-enable if in enabled group
-                            if ($this->enabledGroups->contains($channel['group'] ?? '')) {
+                            // Auto-enable if in enabled group or playlist enabled by default set
+                            // NOTE: M3U have no concept of live vs VOD channels, so we check the general enabled groups list and the general playlist enabled by default setting for live channels
+                            if ($liveEnabledByDefault) {
+                                $channel['enabled'] = true;
+                            } elseif ($this->enabledGroups->contains($channel['group'] ?? '')) {
                                 $channel['enabled'] = true;
                             }
 

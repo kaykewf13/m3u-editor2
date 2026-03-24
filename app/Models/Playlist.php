@@ -69,6 +69,7 @@ class Playlist extends Model
         'source_type' => PlaylistSourceType::class,
         'disable_catchup' => 'boolean',
         'enable_channels' => 'boolean',
+        'enable_vod_channels' => 'boolean',
         'enable_series' => 'boolean',
         'auto_retry_503_count' => 'integer',
         'auto_retry_503_last_at' => 'datetime',
