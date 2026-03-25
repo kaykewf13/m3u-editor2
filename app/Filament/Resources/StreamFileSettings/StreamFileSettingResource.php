@@ -100,13 +100,17 @@ class StreamFileSettingResource extends Resource
                 Select::make('url_type')
                     ->label('URL Type')
                     ->options([
-                        'proxy' => 'Proxy URL (m3u-editor)',
+                        'proxy' => 'M3U Editor (default)',
                         'original' => 'Original Source URL',
                     ])
                     ->default('proxy')
+                    ->native(false)
                     ->columnSpanFull()
-                    ->visible(fn (Get $get): bool => (bool) $get('enabled'))
-                    ->helperText('Proxy URL routes through m3u-editor. Original uses the direct source URL from your provider.'),
+                    ->hintIcon(
+                        'heroicon-s-information-circle',
+                        tooltip: 'When routing through M3U Editor, the generated .strm files will use URLs that point to the editor, which then proxies the request to the original media source, or redirects to the original source if proxy is disabled. Use original source URLs if your media server can access the original media source directly and you want to avoid the extra hop through m3u-editor. Note that using original source URLs may expose the location of your media files to clients, so ensure that your media server is properly secured if you choose this option.',
+                    )
+                    ->helperText('Default routes through M3U Editor for dynamic routing.'),
 
                 TextInput::make('location')
                     ->label('Sync Location')
