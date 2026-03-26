@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Plugins\PluginManager;
 use Illuminate\Console\Command;
+use Throwable;
 
 class RejectPluginInstall extends Command
 {
@@ -20,11 +21,17 @@ class RejectPluginInstall extends Command
             return self::FAILURE;
         }
 
-        $review = $pluginManager->rejectInstallReview(
-            $review,
-            auth()->id(),
-            $this->option('notes') ? (string) $this->option('notes') : null,
-        );
+        try {
+            $review = $pluginManager->rejectInstallReview(
+                $review,
+                auth()->id(),
+                $this->option('notes') ? (string) $this->option('notes') : null,
+            );
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Review #{$review->id} marked as rejected.");
 

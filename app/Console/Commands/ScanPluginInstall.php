@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Plugins\PluginManager;
 use Illuminate\Console\Command;
+use Throwable;
 
 class ScanPluginInstall extends Command
 {
@@ -20,7 +21,13 @@ class ScanPluginInstall extends Command
             return self::FAILURE;
         }
 
-        $review = $pluginManager->scanInstallReview($review);
+        try {
+            $review = $pluginManager->scanInstallReview($review);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Review #{$review->id} scan status: {$review->scan_status}");
         $this->line($review->scan_summary ?: 'No scan summary recorded.');

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Plugins\PluginManager;
 use Illuminate\Console\Command;
+use Throwable;
 
 class StagePluginArchive extends Command
 {
@@ -13,7 +14,13 @@ class StagePluginArchive extends Command
 
     public function handle(PluginManager $pluginManager): int
     {
-        $review = $pluginManager->stageArchiveReview((string) $this->argument('archive'), auth()->id());
+        try {
+            $review = $pluginManager->stageArchiveReview((string) $this->argument('archive'), auth()->id());
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Created install review #{$review->id} for plugin [{$review->plugin_id}]");
         $this->line("Status: {$review->status}");

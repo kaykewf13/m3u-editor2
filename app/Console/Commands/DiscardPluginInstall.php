@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Plugins\PluginManager;
 use Illuminate\Console\Command;
+use Throwable;
 
 class DiscardPluginInstall extends Command
 {
@@ -20,7 +21,13 @@ class DiscardPluginInstall extends Command
             return self::FAILURE;
         }
 
-        $pluginManager->discardInstallReview($review);
+        try {
+            $pluginManager->discardInstallReview($review);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Review #{$review->id} discarded.");
 

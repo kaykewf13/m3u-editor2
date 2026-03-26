@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Plugins\PluginManager;
 use Illuminate\Console\Command;
+use Throwable;
 
 class StagePluginDirectory extends Command
 {
@@ -13,11 +14,17 @@ class StagePluginDirectory extends Command
 
     public function handle(PluginManager $pluginManager): int
     {
-        $review = $pluginManager->stageDirectoryReview(
-            (string) $this->argument('path'),
-            auth()->id(),
-            (bool) $this->option('dev'),
-        );
+        try {
+            $review = $pluginManager->stageDirectoryReview(
+                (string) $this->argument('path'),
+                auth()->id(),
+                (bool) $this->option('dev'),
+            );
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Created install review #{$review->id} for plugin [{$review->plugin_id}]");
         $this->line("Status: {$review->status}");
