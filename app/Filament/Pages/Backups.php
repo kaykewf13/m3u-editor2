@@ -33,6 +33,11 @@ class Backups extends BaseBackups
         return auth()->check() && auth()->user()->isAdmin();
     }
 
+    public static function getNavigationIcon(): string|\BackedEnum|null
+    {
+        return null;
+    }
+
     protected function getActions(): array
     {
         $data = [];
