@@ -1,11 +1,210 @@
 # CLAUDE.md
 
-Work on `{{ plugin_id }}` as a reviewable plugin artifact for `m3u-editor`.
+Build the `{{ plugin_id }}` plugin for m3u-editor's plugin system.
 
-## Expectations
+## Plugin Architecture
 
-- Keep the runtime surface centered on `plugin.json` and `Plugin.php`.
-- Prefer small, explicit manifest changes over hidden behavior.
-- Avoid top-level side effects in PHP files.
-- Keep release artifacts reproducible with `bash scripts/package-plugin.sh`.
-- Update the published checksum whenever the release zip changes.
+This plugin lives in `plugins/{{ plugin_id }}/` with two required files:
+- `plugin.json` — manifest declaring capabilities, hooks, permissions, settings, schema, and actions
+- `Plugin.php` — entrypoint class implementing the required interfaces
+
+The host executes plugins through queued jobs. Plugins never run inline during HTTP requests.
+
+## Core API
+
+### PluginInterface (required)
+
+Every plugin must implement `runAction()` — this handles manual actions triggered from the UI:
+
+```php
+public function runAction(string $action, array $payload, PluginExecutionContext $context): PluginActionResult;
+```
+
+Match on `$action` to route to the right handler. Each action id must be declared in `plugin.json` under `actions`.
+
+### PluginActionResult
+
+Return results using the static constructors:
+
+```php
+// action succeeded — summary shown in UI, data stored in run record
+PluginActionResult::success('Processed 42 channels.', ['channels' => 42]);
+
+// action failed — error shown in UI
+PluginActionResult::failure('No channels found for provider.', ['searched' => $query]);
+
+// cancelled by user or timeout — partial results preserved
+PluginActionResult::cancelled('Stopped after processing 20 of 42.', ['processed' => 20]);
+```
+
+### PluginExecutionContext
+
+The `$context` object is your main interface to the host. Use it for everything:
+
+```php
+// logging — written to run log, visible in UI under "Live Activity"
+$context->info('Starting channel scan...');
+$context->warning('Provider returned partial data');
+$context->error('Connection timed out');
+
+// progress — updates the progress bar in the UI (0-100)
+$context->heartbeat('Processing batch 3/10', progress: 30);
+
+// checkpoint — combines heartbeat + optional log + state persistence
+$context->checkpoint(50, 'Halfway done', ['last_batch' => 3], log: true);
+
+// persistent state — survives across heartbeats, readable from UI
+$context->state('last_batch');  // read current state
+$context->heartbeat(state: ['cursor' => $nextPage]);  // write state
+
+// cancellation — check in long loops so users can stop the job
+if ($context->cancellationRequested()) {
+    return PluginActionResult::cancelled('User cancelled.');
+}
+
+// context properties
+$context->plugin;    // Plugin model
+$context->run;       // PluginRun model
+$context->trigger;   // 'manual', 'hook', or 'schedule'
+$context->dryRun;    // true = preview mode, don't write data
+$context->hook;      // hook name if trigger is 'hook', null otherwise
+$context->user;      // User who triggered it (null for scheduled runs)
+$context->settings;  // current plugin settings from the UI
+```
+
+### HookablePluginInterface (optional)
+
+Subscribe to host events by declaring hooks in `plugin.json` and implementing:
+
+```php
+public function runHook(string $hook, array $payload, PluginExecutionContext $context): PluginActionResult;
+```
+
+Available hooks and when they fire:
+- `playlist.synced` — after a playlist finishes importing/syncing
+- `epg.synced` — after EPG data finishes syncing
+- `epg.cache.generated` — after EPG cache XML files are rebuilt
+- `before.epg.map` / `after.epg.map` — before/after EPG mapping runs
+- `before.epg.output.generate` / `after.epg.output.generate` — before/after EPG output generation
+
+Hooks run as queued jobs with `dry_run: true` by default.
+
+### ScheduledPluginInterface (optional)
+
+Return scheduled actions from `scheduledActions()` — the host calls this every minute:
+
+```php
+public function scheduledActions(CarbonInterface $now, array $settings): array
+{
+    if (! ($settings['schedule_enabled'] ?? false)) {
+        return [];
+    }
+
+    // return array of action descriptors to queue
+    return [[
+        'type' => 'action',
+        'name' => 'my_action',      // must match an action in plugin.json
+        'payload' => [],
+        'dry_run' => false,
+    ]];
+}
+```
+
+Use `CronExpression` to check if the current time matches the user's configured schedule.
+
+### LifecyclePluginInterface (optional)
+
+Handle cleanup during uninstall:
+
+```php
+public function uninstall(PluginUninstallContext $context): void
+{
+    if (! $context->shouldPurge()) {
+        return; // user chose "keep data"
+    }
+    // clean up non-declarative resources here
+    // declarative resources (tables, directories) are handled by the host
+}
+```
+
+## Database Access
+
+Plugins use Eloquent directly — there's no sandbox. You have full access to all m3u-editor models:
+
+```php
+use App\Models\Channel;
+use App\Models\Playlist;
+use App\Models\Epg;
+
+$channels = Channel::query()->where('enabled', true)->get();
+$playlists = Playlist::all();
+```
+
+For plugin-owned tables, declare them in `plugin.json` under `schema.tables`. The host creates them when you trust the plugin. Table names must start with `plugin_{{ plugin_id }}_` (dashes become underscores).
+
+## Settings
+
+Declare settings in `plugin.json` under `settings`. They render automatically in the plugin's Settings tab. Access them via `$context->settings`:
+
+```json
+{
+    "settings": [
+        {"id": "batch_size", "label": "Batch Size", "type": "number", "default": 100},
+        {"id": "target_playlist", "label": "Target Playlist", "type": "model_select", "model": "App\\Models\\Playlist", "label_attribute": "name"},
+        {"id": "mode", "label": "Mode", "type": "select", "options": [{"value": "strict", "label": "Strict"}, {"value": "fuzzy", "label": "Fuzzy"}]}
+    ]
+}
+```
+
+Supported field types: `boolean`, `number`, `text`, `textarea`, `select`, `model_select`.
+
+## Actions
+
+Declare manual actions in `plugin.json` under `actions`. They appear as buttons on the plugin page:
+
+```json
+{
+    "actions": [
+        {"id": "scan", "label": "Scan Channels", "dry_run": false, "fields": []},
+        {"id": "preview", "label": "Preview Changes", "dry_run": true, "fields": [
+            {"id": "limit", "label": "Max Results", "type": "number", "default": 50}
+        ]}
+    ]
+}
+```
+
+Action fields become the `$payload` parameter in `runAction()`.
+
+## Dry Run Pattern
+
+Use `$context->dryRun` to preview changes without writing:
+
+```php
+if ($context->dryRun) {
+    $context->info("Would update {$count} channels (dry run)");
+    return PluginActionResult::success("Preview: {$count} channels to update", ['count' => $count]);
+}
+
+// actually do the work
+$updated = $this->applyChanges($channels);
+return PluginActionResult::success("Updated {$updated} channels", ['updated' => $updated]);
+```
+
+## File Storage
+
+Plugin files go under `plugin-data/{{ plugin_id }}/` or `plugin-reports/{{ plugin_id }}/`. Declare these directories in `data_ownership.directories` so the host can clean them up on uninstall.
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+Storage::disk('local')->put("plugin-data/{{ plugin_id }}/cache.json", json_encode($data));
+$report = Storage::disk('local')->path("plugin-reports/{{ plugin_id }}/latest.html");
+```
+
+## Code Style
+
+- PHP 8.4, Laravel 12, Filament 4
+- Type hints on everything — parameters and return types
+- PHPDoc blocks on public methods
+- No top-level executable code outside the Plugin class
+- Format with Pint before committing
