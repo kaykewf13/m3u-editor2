@@ -83,6 +83,65 @@
             </x-filament::card>
         </div>
 
+        <x-filament::card class="p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Runs</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                The latest plugin executions across all installed plugins.
+            </p>
+
+            @if ($recentRuns->isEmpty())
+                <div class="mt-4 rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                    No plugin runs recorded yet.
+                </div>
+            @else
+                <div class="mt-4 divide-y divide-gray-100 dark:divide-white/5">
+                    @foreach ($recentRuns as $run)
+                        @php
+        $runUrl = $run->plugin
+            ? \App\Filament\Resources\Plugins\PluginResource::getUrl('run', ['record' => $run->plugin, 'run' => $run])
+            : null;
+                        @endphp
+                        <div class="flex items-center justify-between gap-4 py-3">
+                            <div class="flex min-w-0 flex-col gap-0.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $run->plugin?->name ?? '—' }}
+                                    </span>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                        {{ \Illuminate\Support\Str::headline($run->action ?? $run->hook ?? $run->trigger ?? '') }}
+                                    </span>
+                                </div>
+                                <span class="text-xs text-gray-400 dark:text-gray-500">
+                                    {{ $run->created_at->diffForHumans() }}
+                                    @if ($run->finished_at)
+                                        · {{ $run->created_at->diffInSeconds($run->finished_at) }}s
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="flex shrink-0 items-center gap-3">
+                                <x-filament::badge :color="match ($run->status) {
+                'completed' => 'success',
+                'running' => 'info',
+                'failed' => 'danger',
+                'cancelled' => 'warning',
+                default => 'gray',
+            }">
+                                    {{ \Illuminate\Support\Str::headline($run->status) }}
+                                </x-filament::badge>
+
+                                @if ($runUrl)
+                                    <x-filament::button tag="a" href="{{ $runUrl }}" color="gray" size="sm">
+                                        View
+                                    </x-filament::button>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </x-filament::card>
+
         @if ($canManagePlugins)
             <x-filament::card class="p-6">
                 <div class="flex items-start justify-between gap-4">
@@ -138,64 +197,5 @@
                 @endif
             </x-filament::card>
         @endif
-
-        <x-filament::card class="p-6">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Runs</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                The latest plugin executions across all installed plugins.
-            </p>
-
-            @if ($recentRuns->isEmpty())
-                <div class="mt-4 rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">
-                    No plugin runs recorded yet.
-                </div>
-            @else
-                <div class="mt-4 divide-y divide-gray-100 dark:divide-white/5">
-                    @foreach ($recentRuns as $run)
-                        @php
-                            $runUrl = $run->plugin
-                                ? \App\Filament\Resources\Plugins\PluginResource::getUrl('run', ['record' => $run->plugin, 'run' => $run])
-                                : null;
-                        @endphp
-                        <div class="flex items-center justify-between gap-4 py-3">
-                            <div class="flex min-w-0 flex-col gap-0.5">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-medium text-gray-900 dark:text-white">
-                                        {{ $run->plugin?->name ?? '—' }}
-                                    </span>
-                                    <span class="text-xs text-gray-400 dark:text-gray-500">
-                                        {{ \Illuminate\Support\Str::headline($run->action ?? $run->hook ?? $run->trigger ?? '') }}
-                                    </span>
-                                </div>
-                                <span class="text-xs text-gray-400 dark:text-gray-500">
-                                    {{ $run->created_at->diffForHumans() }}
-                                    @if ($run->finished_at)
-                                        · {{ $run->created_at->diffInSeconds($run->finished_at) }}s
-                                    @endif
-                                </span>
-                            </div>
-
-                            <div class="flex shrink-0 items-center gap-3">
-                                <x-filament::badge :color="match ($run->status) {
-                                    'completed' => 'success',
-                                    'running'   => 'info',
-                                    'failed'    => 'danger',
-                                    'cancelled' => 'warning',
-                                    default     => 'gray',
-                                }">
-                                    {{ \Illuminate\Support\Str::headline($run->status) }}
-                                </x-filament::badge>
-
-                                @if ($runUrl)
-                                    <x-filament::button tag="a" href="{{ $runUrl }}" color="gray" size="sm">
-                                        View
-                                    </x-filament::button>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </x-filament::card>
     </div>
 </x-filament-panels::page>
