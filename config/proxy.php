@@ -25,4 +25,20 @@ return [
     // Logo Proxy Configuration
     'url_override' => env('PROXY_URL_OVERRIDE', null),
     'url_override_include_logos' => env('PROXY_URL_OVERRIDE_INCLUDE_LOGOS', default: null),
+
+    // On-demand network broadcasts keep running for this many seconds after
+    // the last viewer request. A small overlap is added to absorb short
+    // disconnects/reconnects from players.
+    'broadcast_on_demand_disconnect_seconds' => (int) env('BROADCAST_ON_DEMAND_DISCONNECT_SECONDS', 120),
+    'broadcast_on_demand_overlap_seconds' => (int) env('BROADCAST_ON_DEMAND_OVERLAP_SECONDS', 30),
+
+    // When an on-demand network is cold-started by the first playlist request,
+    // wait briefly for FFmpeg to generate live.m3u8 before returning 404/503.
+    'broadcast_on_demand_startup_wait_seconds' => (int) env('BROADCAST_ON_DEMAND_STARTUP_WAIT_SECONDS', 8),
+    'broadcast_on_demand_startup_poll_ms' => (int) env('BROADCAST_ON_DEMAND_STARTUP_POLL_MS', 400),
+    'broadcast_on_demand_startup_min_segments' => (int) env('BROADCAST_ON_DEMAND_STARTUP_MIN_SEGMENTS', 3),
+
+    // Grace period after a new on-demand start where idle-stop is skipped.
+    // This allows initial player buffering and first segment pulls to occur.
+    'broadcast_on_demand_startup_grace_seconds' => (int) env('BROADCAST_ON_DEMAND_STARTUP_GRACE_SECONDS', 30),
 ];
