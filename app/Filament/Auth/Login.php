@@ -2,6 +2,7 @@
 
 namespace App\Filament\Auth;
 
+use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
@@ -33,6 +34,13 @@ class Login extends \Filament\Auth\Pages\Login
      */
     public function form(Schema $schema): Schema
     {
+        // Hide the login form entirely when OIDC is the sole auth method
+        if (config('services.oidc.enabled') && config('services.oidc.hide_login_form')) {
+            return $schema
+                ->components([])
+                ->statePath('data');
+        }
+
         return $schema
             ->components([
                 // $this->getEmailFormComponent(),
@@ -41,6 +49,18 @@ class Login extends \Filament\Auth\Pages\Login
                 $this->getRememberFormComponent(),
             ])
             ->statePath('data');
+    }
+
+    /**
+     * @return array<Action>
+     */
+    protected function getFormActions(): array
+    {
+        if (config('services.oidc.enabled') && config('services.oidc.hide_login_form')) {
+            return [];
+        }
+
+        return parent::getFormActions();
     }
 
     /**

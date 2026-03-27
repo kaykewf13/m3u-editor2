@@ -45,6 +45,7 @@ return [
         'auto_redirect' => env('OIDC_AUTO_REDIRECT', false),
         'auto_create_users' => env('OIDC_AUTO_CREATE_USERS', true),
         'button_label' => env('OIDC_BUTTON_LABEL', 'Login with SSO'),
+        'hide_login_form' => env('OIDC_HIDE_LOGIN_FORM', false),
     ],
 
 ];
