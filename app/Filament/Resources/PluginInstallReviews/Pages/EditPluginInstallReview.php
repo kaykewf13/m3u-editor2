@@ -59,7 +59,7 @@ class EditPluginInstallReview extends EditRecord
                         }
                     }),
                 Action::make('approve')
-                    ->label('Install Review')
+                    ->label('Install')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Plugins\PluginManager;
 use App\Services\PluginScaffoldService;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
@@ -167,13 +168,15 @@ class CreatePlugin extends Page
     }
 
     /**
-     * Write the scaffold directly to the plugins/ directory.
+     * Write the scaffold directly to the plugins/ directory, then run it
+     * through the install review pipeline so trust can be granted immediately.
      */
     public function installToPlugins(): void
     {
         $this->form->validate();
         $data = $this->form->getState();
         $scaffoldService = app(PluginScaffoldService::class);
+        $pluginManager = app(PluginManager::class);
         $pluginRoot = collect(config('plugins.directories', [base_path('plugins')]))->first() ?: base_path('plugins');
 
         try {
@@ -191,10 +194,19 @@ class CreatePlugin extends Page
 
             $pluginId = $scaffoldService->derivePluginId($data['name']);
 
+            // Stage → scan → approve the review so the plugin can be trusted
+            // without a manual install review step.
+            $review = $pluginManager->stageDirectoryReview($pluginPath, auth()->id());
+            $review = $pluginManager->scanInstallReview($review);
+            $pluginManager->approveInstallReview($review, false, auth()->id());
+
+            // Register the plugin in the database.
+            $pluginManager->discover();
+
             Notification::make()
                 ->success()
-                ->title('Plugin created')
-                ->body("Plugin [{$pluginId}] is ready in plugins/. Run Discover Plugins from the dashboard to register it.")
+                ->title('Plugin created and ready')
+                ->body("Plugin [{$pluginId}] has been installed and reviewed. Go to Plugins, then trust and enable it to start using it.")
                 ->persistent()
                 ->send();
 
@@ -202,6 +214,13 @@ class CreatePlugin extends Page
             Notification::make()
                 ->danger()
                 ->title('Plugin creation failed')
+                ->body($e->getMessage())
+                ->persistent()
+                ->send();
+        } catch (\RuntimeException $e) {
+            Notification::make()
+                ->danger()
+                ->title('Plugin install review failed')
                 ->body($e->getMessage())
                 ->persistent()
                 ->send();
