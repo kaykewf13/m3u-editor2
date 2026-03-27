@@ -200,7 +200,7 @@ class EditPlugin extends EditRecord
             // Lifecycle management group
             ActionGroup::make([
                 Action::make('stage_review')
-                    ->label('Submit for Security Review')
+                    ->label('Submit for Review')
                     ->icon('heroicon-o-archive-box')
                     ->requiresConfirmation()
                     ->color('warning')

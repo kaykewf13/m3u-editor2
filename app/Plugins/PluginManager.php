@@ -862,6 +862,16 @@ class PluginManager
             File::deleteDirectory((string) $plugin->path);
         }
 
+        // Remove all install reviews for this plugin, cleaning up any staging directories.
+        PluginInstallReview::query()
+            ->where('plugin_id', $plugin->plugin_id)
+            ->each(function (PluginInstallReview $review): void {
+                if ($review->staging_path && is_dir($review->staging_path)) {
+                    File::deleteDirectory($review->staging_path);
+                }
+                $review->delete();
+            });
+
         $plugin->delete();
     }
 

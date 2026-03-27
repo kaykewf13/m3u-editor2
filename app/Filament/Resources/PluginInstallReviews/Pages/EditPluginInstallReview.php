@@ -109,7 +109,7 @@ class EditPluginInstallReview extends EditRecord
                         }
                     }),
                 Action::make('reject')
-                    ->label('Reject Review')
+                    ->label('Reject Install')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -127,7 +127,7 @@ class EditPluginInstallReview extends EditRecord
                         } catch (Throwable $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Reject review failed')
+                                ->title('Reject install failed')
                                 ->body($exception->getMessage())
                                 ->persistent()
                                 ->send();
