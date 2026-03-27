@@ -163,13 +163,6 @@ class RunsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                Action::make('open')
-                    ->label('Open')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->url(fn ($record): string => PluginResource::getUrl('run', [
-                        'record' => $this->getOwnerRecord(),
-                        'run' => $record,
-                    ])),
                 Action::make('delete')
                     ->label('Delete')
                     ->icon('heroicon-o-trash')
@@ -177,6 +170,13 @@ class RunsRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->disabled(fn (PluginRun $record): bool => $record->status === 'running')
                     ->action(fn (PluginRun $record) => $record->delete()),
+                Action::make('open')
+                    ->label('Open run')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn ($record): string => PluginResource::getUrl('run', [
+                        'record' => $this->getOwnerRecord(),
+                        'run' => $record,
+                    ])),
             ])
             ->bulkActions([
                 BulkAction::make('delete')
