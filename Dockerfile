@@ -4,11 +4,11 @@
 ########################################
 # Allow customization of m3u-proxy repository and branch
 # NOTE: GitHub Actions workflow automatically overrides these with dynamic values
-# based on the repository owner (e.g., sparkison/m3u-proxy for sparkison/m3u-editor)
-# Default: upstream sparkison/m3u-proxy (main branch) - used for manual builds
+# based on the repository owner (e.g., m3ue/m3u-proxy for m3ue/m3u-editor)
+# Default: upstream m3ue/m3u-proxy (main branch) - used for manual builds
 # Override: --build-arg M3U_PROXY_REPO=https://github.com/yourusername/m3u-proxy.git
 #           --build-arg M3U_PROXY_BRANCH=dev
-ARG M3U_PROXY_REPO=https://github.com/sparkison/m3u-proxy.git
+ARG M3U_PROXY_REPO=https://github.com/m3ue/m3u-proxy.git
 ARG M3U_PROXY_BRANCH=master
 
 # Optional: use a local m3u-proxy directory instead of cloning from git.
@@ -80,7 +80,7 @@ FROM alpine:3.21.3 AS proxy_builder
 ARG M3U_PROXY_COMMIT=""
 
 # Re-declare ARGs for this stage
-ARG M3U_PROXY_REPO=https://github.com/sparkison/m3u-proxy.git
+ARG M3U_PROXY_REPO=https://github.com/m3ue/m3u-proxy.git
 ARG M3U_PROXY_BRANCH=master
 ARG M3U_PROXY_LOCAL_DIR=""
 
