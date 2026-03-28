@@ -12,6 +12,7 @@ use App\Models\Playlist;
 use App\Models\Season;
 use App\Models\Series;
 use App\Services\MediaServerService;
+use App\Services\PlexManagementService;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
@@ -99,6 +100,7 @@ class MediaServerIntegrationResource extends Resource
                 'import' => 'heroicon-m-arrow-down-tray',
                 'schedule' => 'heroicon-m-calendar',
                 'status' => 'heroicon-m-information-circle',
+                'plex management' => 'heroicon-m-cog-6-tooth',
                 'networks' => 'heroicon-m-tv',
                 default => null,
             };
@@ -121,7 +123,7 @@ class MediaServerIntegrationResource extends Resource
     {
         $wizard = [];
         foreach (self::getFormSections(creating: true) as $step => $fields) {
-            if ($step === 'Status' || $step === 'Networks') {
+            if (in_array($step, ['Status', 'Networks', 'Plex Management'])) {
                 continue;
             }
 
@@ -535,6 +537,274 @@ class MediaServerIntegrationResource extends Resource
                         ]),
                     ])
                     ->visible(! $creating),
+            ],
+            'Plex Management' => [
+                Section::make('Plex Server Management')
+                    ->description('Manage your Plex server directly from m3u-editor — register DVR tuners, monitor sessions, and control libraries.')
+                    ->schema([
+                        Toggle::make('plex_management_enabled')
+                            ->label('Enable Plex Management')
+                            ->helperText('When enabled, you can manage your Plex server from this integration.')
+                            ->live()
+                            ->default(false),
+
+                        Grid::make(2)->schema([
+                            Placeholder::make('plex_server_info')
+                                ->label('Server Info')
+                                ->content(function ($record) {
+                                    if (! $record || ! $record->isPlex()) {
+                                        return new HtmlString('<span class="text-gray-400">Save integration first</span>');
+                                    }
+                                    try {
+                                        $service = PlexManagementService::make($record);
+                                        $result = $service->getServerInfo();
+                                        if ($result['success']) {
+                                            $data = $result['data'];
+
+                                            return new HtmlString(
+                                                '<div class="text-sm space-y-1">'
+                                                .'<p><strong>'.$data['name'].'</strong></p>'
+                                                .'<p>Version: '.$data['version'].'</p>'
+                                                .'<p>Platform: '.$data['platform'].'</p>'
+                                                .'</div>'
+                                            );
+                                        }
+
+                                        return new HtmlString('<span class="text-danger-500">Connection failed</span>');
+                                    } catch (\Exception $e) {
+                                        return new HtmlString('<span class="text-danger-500">Error: '.$e->getMessage().'</span>');
+                                    }
+                                }),
+
+                            Placeholder::make('plex_active_sessions')
+                                ->label('Active Sessions')
+                                ->content(function ($record) {
+                                    if (! $record || ! $record->isPlex()) {
+                                        return '—';
+                                    }
+                                    try {
+                                        $service = PlexManagementService::make($record);
+                                        $result = $service->getActiveSessions();
+                                        if ($result['success']) {
+                                            $count = $result['data']->count();
+                                            if ($count === 0) {
+                                                return 'No active sessions';
+                                            }
+                                            $lines = $result['data']->map(fn ($s) => '<li>'.$s['user'].' — '.$s['title'].' ('.$s['state'].')</li>')->implode('');
+
+                                            return new HtmlString('<ul class="text-sm list-disc list-inside">'.$lines.'</ul>');
+                                        }
+
+                                        return '—';
+                                    } catch (\Exception $e) {
+                                        return '—';
+                                    }
+                                }),
+                        ])->visible(fn (callable $get) => $get('plex_management_enabled')),
+
+                        Section::make('DVR / Live TV Tuner')
+                            ->description('Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.')
+                            ->collapsible()
+                            ->schema([
+                                Placeholder::make('plex_dvr_status')
+                                    ->label('DVR Status')
+                                    ->content(function ($record) {
+                                        if (! $record || ! $record->isPlex()) {
+                                            return new HtmlString('<span class="text-gray-400">Save integration first</span>');
+                                        }
+                                        if ($record->plex_dvr_id) {
+                                            return new HtmlString('<span class="text-success-500 font-medium">DVR registered (ID: '.$record->plex_dvr_id.')</span>');
+                                        }
+
+                                        return new HtmlString('<span class="text-warning-500">No DVR tuner registered in Plex</span>');
+                                    }),
+
+                                Placeholder::make('plex_dvr_help')
+                                    ->label('')
+                                    ->content(new HtmlString(
+                                        '<div class="text-sm text-gray-500 dark:text-gray-400">'
+                                        .'<p>This registers the playlist\'s HDHomeRun emulation endpoint as a DVR tuner in Plex.</p>'
+                                        .'<p class="mt-1">Plex will then use it for Live TV &amp; DVR, including the channel guide (EPG).</p>'
+                                        .'<p class="mt-1"><strong>Requirements:</strong> The playlist must be accessible from the Plex server (same network or port-forwarded).</p>'
+                                        .'</div>'
+                                    )),
+
+                                Actions::make([
+                                    Action::make('registerDvr')
+                                        ->label('Register DVR Tuner in Plex')
+                                        ->icon('heroicon-o-plus-circle')
+                                        ->color('success')
+                                        ->requiresConfirmation()
+                                        ->modalHeading('Register HDHomeRun Tuner')
+                                        ->modalDescription('This will register the playlist\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide.')
+                                        ->action(function ($record, $livewire) {
+                                            if (! $record->playlist_id) {
+                                                Notification::make()->danger()->title('No Playlist')->body('Sync the media server first to create a playlist.')->send();
+
+                                                return;
+                                            }
+                                            $playlist = $record->playlist;
+                                            if (! $playlist) {
+                                                Notification::make()->danger()->title('Playlist Not Found')->body('The associated playlist was not found.')->send();
+
+                                                return;
+                                            }
+                                            $hdhrUrl = url($playlist->uuid.'/hdhr');
+                                            $epgUrl = url($playlist->uuid.'/epg.xml');
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->addDvrDevice($hdhrUrl, $epgUrl);
+                                            if ($result['success']) {
+                                                Notification::make()->success()->title('DVR Registered')->body($result['message'])->send();
+                                            } else {
+                                                Notification::make()->danger()->title('Registration Failed')->body($result['message'])->send();
+                                            }
+                                        })
+                                        ->visible(fn ($record) => $record && $record->isPlex() && ! $record->plex_dvr_id),
+
+                                    Action::make('removeDvr')
+                                        ->label('Remove DVR Tuner from Plex')
+                                        ->icon('heroicon-o-trash')
+                                        ->color('danger')
+                                        ->requiresConfirmation()
+                                        ->modalHeading('Remove DVR Tuner')
+                                        ->modalDescription('This will remove the HDHomeRun tuner from Plex. Live TV & DVR will no longer work for this playlist.')
+                                        ->action(function ($record) {
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->removeDvr($record->plex_dvr_id);
+                                            if ($result['success']) {
+                                                Notification::make()->success()->title('DVR Removed')->body($result['message'])->send();
+                                            } else {
+                                                Notification::make()->danger()->title('Removal Failed')->body($result['message'])->send();
+                                            }
+                                        })
+                                        ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
+
+                                    Action::make('refreshDvrGuide')
+                                        ->label('Refresh EPG Guide')
+                                        ->icon('heroicon-o-arrow-path')
+                                        ->action(function ($record) {
+                                            if (! $record->plex_dvr_id || ! $record->playlist_id) {
+                                                Notification::make()->warning()->title('Not Configured')->body('Register a DVR tuner first.')->send();
+
+                                                return;
+                                            }
+                                            $playlist = $record->playlist;
+                                            $epgUrl = url($playlist->uuid.'/epg.xml');
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->configureGuide($record->plex_dvr_id, $epgUrl);
+                                            if ($result['success']) {
+                                                Notification::make()->success()->title('Guide Refreshed')->body($result['message'])->send();
+                                            } else {
+                                                Notification::make()->danger()->title('Refresh Failed')->body($result['message'])->send();
+                                            }
+                                        })
+                                        ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
+                                ])->fullWidth(),
+
+                                Placeholder::make('plex_dvr_channels')
+                                    ->label('DVR Channels')
+                                    ->content(function ($record) {
+                                        if (! $record || ! $record->plex_dvr_id) {
+                                            return 'Register a DVR tuner first';
+                                        }
+                                        try {
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->getDvrChannels($record->plex_dvr_id);
+                                            if ($result['success']) {
+                                                $count = $result['data']->count();
+
+                                                return "{$count} channels available in Plex DVR";
+                                            }
+
+                                            return 'Could not fetch channels';
+                                        } catch (\Exception $e) {
+                                            return 'Error: '.$e->getMessage();
+                                        }
+                                    })
+                                    ->visible(fn ($record) => $record && $record->plex_dvr_id),
+                            ])
+                            ->visible(fn (callable $get) => $get('plex_management_enabled')),
+
+                        Section::make('Libraries & Scanning')
+                            ->description('Manage Plex libraries and trigger scans.')
+                            ->collapsible()
+                            ->collapsed()
+                            ->schema([
+                                Placeholder::make('plex_libraries')
+                                    ->label('Libraries')
+                                    ->content(function ($record) {
+                                        if (! $record || ! $record->isPlex()) {
+                                            return 'Save integration first';
+                                        }
+                                        try {
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->getAllLibraries();
+                                            if ($result['success'] && $result['data']->isNotEmpty()) {
+                                                $rows = $result['data']->map(function ($lib) {
+                                                    $status = $lib['refreshing'] ? '<span class="text-warning-500">Scanning...</span>' : '<span class="text-success-500">Ready</span>';
+
+                                                    return '<tr><td class="pr-4">'.$lib['title'].'</td><td class="pr-4">'.ucfirst($lib['type']).'</td><td>'.$status.'</td></tr>';
+                                                })->implode('');
+
+                                                return new HtmlString('<table class="text-sm"><thead><tr><th class="pr-4 text-left">Name</th><th class="pr-4 text-left">Type</th><th class="text-left">Status</th></tr></thead><tbody>'.$rows.'</tbody></table>');
+                                            }
+
+                                            return 'No libraries found';
+                                        } catch (\Exception $e) {
+                                            return 'Error: '.$e->getMessage();
+                                        }
+                                    }),
+
+                                Actions::make([
+                                    Action::make('scanAllLibraries')
+                                        ->label('Scan All Libraries')
+                                        ->icon('heroicon-o-magnifying-glass')
+                                        ->requiresConfirmation()
+                                        ->action(function ($record) {
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->scanAllLibraries();
+                                            if ($result['success']) {
+                                                Notification::make()->success()->title('Scan Started')->body($result['message'])->send();
+                                            } else {
+                                                Notification::make()->danger()->title('Scan Failed')->body($result['message'])->send();
+                                            }
+                                        })
+                                        ->visible(fn ($record) => $record && $record->isPlex()),
+                                ])->fullWidth(),
+                            ])
+                            ->visible(fn (callable $get) => $get('plex_management_enabled')),
+
+                        Section::make('Recordings / DVR Subscriptions')
+                            ->description('View and manage Plex DVR recording subscriptions.')
+                            ->collapsible()
+                            ->collapsed()
+                            ->schema([
+                                Placeholder::make('plex_recordings')
+                                    ->label('Scheduled Recordings')
+                                    ->content(function ($record) {
+                                        if (! $record || ! $record->isPlex()) {
+                                            return 'Save integration first';
+                                        }
+                                        try {
+                                            $service = PlexManagementService::make($record);
+                                            $result = $service->getRecordings();
+                                            if ($result['success'] && $result['data']->isNotEmpty()) {
+                                                $rows = $result['data']->map(function ($rec) {
+                                                    return '<tr><td class="pr-4">'.$rec['title'].'</td><td class="pr-4">'.$rec['type'].'</td><td>'.($rec['created_at'] ?? '—').'</td></tr>';
+                                                })->implode('');
+
+                                                return new HtmlString('<table class="text-sm"><thead><tr><th class="pr-4 text-left">Title</th><th class="pr-4 text-left">Type</th><th class="text-left">Created</th></tr></thead><tbody>'.$rows.'</tbody></table>');
+                                            }
+
+                                            return 'No recordings found';
+                                        } catch (\Exception $e) {
+                                            return 'Error: '.$e->getMessage();
+                                        }
+                                    }),
+                            ])
+                            ->visible(fn (callable $get) => $get('plex_management_enabled')),
+                    ])
+                    ->visible(fn (callable $get) => ! $creating && $get('type') === 'plex'),
             ],
             'Networks' => [
                 Section::make('Networks (Pseudo-Live Channels)')

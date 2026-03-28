@@ -41,6 +41,7 @@ class MediaServerIntegration extends Model
         'metadata_source' => 'tmdb',
         'auto_fetch_metadata' => true,
         'scan_recursive' => true,
+        'plex_management_enabled' => false,
     ];
 
     /**
@@ -71,6 +72,7 @@ class MediaServerIntegration extends Model
         'video_extensions' => 'array',
         'scan_recursive' => 'boolean',
         'auto_fetch_metadata' => 'boolean',
+        'plex_management_enabled' => 'boolean',
     ];
 
     /**
