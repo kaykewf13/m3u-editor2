@@ -66,7 +66,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -762,12 +761,6 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerFilamentHooks(): void
     {
-        // Add scroll to top event listener
-        FilamentView::registerRenderHook(
-            PanelsRenderHook::SCRIPTS_AFTER,
-            fn (): string => new HtmlString('<script>document.addEventListener("scroll-to-top", () => window.scrollTo({top: 0, left: 0, behavior: "smooth"}))</script>'),
-        );
-
         // Add footer view
         FilamentView::registerRenderHook(
             PanelsRenderHook::FOOTER,

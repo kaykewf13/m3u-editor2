@@ -202,6 +202,11 @@ class ProcessM3uImport implements ShouldQueue
         if (! $this->force) {
             // Don't update if currently processing
             if ($this->playlist->isProcessing()) {
+                Log::info('ProcessM3uImport: Playlist is currently processing, skipping refresh', [
+                    'playlist_id' => $this->playlist->id,
+                    'name' => $this->playlist->name,
+                ]);
+
                 return;
             }
 
@@ -809,6 +814,8 @@ class ProcessM3uImport implements ShouldQueue
                     'catchup_source' => null,
                     'shift' => 0,
                     'tvg_shift' => null,
+                    'is_vod' => false, // default false, matches Xtream API path
+                    'container_extension' => null,
                     'source_id' => null, // source ID for the channel
                     'can_merge' => $this->canMergeEnabled,
                     'epg_map_enabled' => $this->epgMapEnabled,

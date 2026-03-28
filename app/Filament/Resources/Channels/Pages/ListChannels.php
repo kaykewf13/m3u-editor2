@@ -13,6 +13,7 @@ use App\Models\Channel;
 use App\Models\Playlist;
 use App\Services\EpgCacheService;
 use App\Services\PlaylistService;
+use App\Traits\RenderlessColumnUpdates;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -39,6 +40,8 @@ use Livewire\Attributes\Url;
 
 class ListChannels extends ListRecords
 {
+    use RenderlessColumnUpdates;
+
     // use HasToggleableTable;
 
     protected static string $resource = ChannelResource::class;
@@ -47,13 +50,6 @@ class ListChannels extends ListRecords
 
     #[Url(as: 'status')]
     public ?string $statusFilter = 'all';
-
-    public function setPage($page, $pageName = 'page'): void
-    {
-        parent::setPage($page, $pageName);
-
-        $this->dispatch('scroll-to-top');
-    }
 
     protected function getHeaderActions(): array
     {
