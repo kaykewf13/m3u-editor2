@@ -1306,8 +1306,8 @@ class ChannelResource extends Resource
                     Select::make('epg_channel_id')
                         ->label('EPG Channel')
                         ->helperText('Select an associated EPG channel for this channel.')
-                        ->relationship('epgChannel', 'name')
-                        ->getOptionLabelFromRecordUsing(fn ($record) => "$record->name [{$record->epg->name}]")
+                        ->relationship('epgChannel', 'name', fn ($query) => $query->with('epg'))
+                        ->getOptionLabelFromRecordUsing(fn ($record) => "$record->name [".($record->epg?->name ?? 'Unknown').']')
                         ->getSearchResultsUsing(function (string $search) {
                             $searchLower = strtolower($search);
                             $channels = auth()->user()->epgChannels()

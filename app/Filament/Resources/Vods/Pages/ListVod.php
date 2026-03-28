@@ -53,13 +53,6 @@ class ListVod extends ListRecords
     #[Url(as: 'status')]
     public ?string $statusFilter = 'all';
 
-    public function setPage($page, $pageName = 'page'): void
-    {
-        parent::setPage($page, $pageName);
-
-        $this->dispatch('scroll-to-top');
-    }
-
     protected function getHeaderActions(): array
     {
         return [
