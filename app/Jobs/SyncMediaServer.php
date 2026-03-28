@@ -466,7 +466,8 @@ class SyncMediaServer implements ShouldBeUnique, ShouldQueue
      */
     protected function ensureGroup(Playlist $playlist, string $genreName): Group
     {
-        $group = Group::where('playlist_id', $playlist->id)
+        $group = Group::withTrashed()
+            ->where('playlist_id', $playlist->id)
             ->where('name', $genreName)
             ->first();
 
@@ -481,6 +482,9 @@ class SyncMediaServer implements ShouldBeUnique, ShouldQueue
             ]);
             $this->stats['groups_created']++;
         } else {
+            if ($group->trashed()) {
+                $group->restore();
+            }
             $group->update(['import_batch_no' => $this->batchNo]);
         }
 

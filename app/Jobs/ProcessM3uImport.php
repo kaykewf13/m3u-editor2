@@ -1150,7 +1150,7 @@ class ProcessM3uImport implements ShouldQueue
                 $grouped->each(function ($channels, $groupName) use ($userId, $playlistId, $batchNo, $preProcessingLive, &$groupOrder, &$liveGroups) {
                     // Add group and associated channels
                     if (! $preProcessingLive) {
-                        $group = Group::where([
+                        $group = Group::withTrashed()->where([
                             'name_internal' => $groupName ?? '',
                             'playlist_id' => $playlistId,
                             'user_id' => $userId,
@@ -1172,6 +1172,9 @@ class ProcessM3uImport implements ShouldQueue
                             }
                             $group = Group::create($data);
                         } else {
+                            if ($group->trashed()) {
+                                $group->restore();
+                            }
                             $data = [
                                 'import_batch_no' => $batchNo,
                                 'new' => false,
@@ -1210,7 +1213,7 @@ class ProcessM3uImport implements ShouldQueue
                 $grouped->each(function ($channels, $groupName) use ($userId, $playlistId, $batchNo, $preProcessingVod, &$groupOrder, &$vodGroups) {
                     // Add group and associated channels
                     if (! $preProcessingVod) {
-                        $group = Group::where([
+                        $group = Group::withTrashed()->where([
                             'name_internal' => $groupName ?? '',
                             'playlist_id' => $playlistId,
                             'user_id' => $userId,
@@ -1232,6 +1235,9 @@ class ProcessM3uImport implements ShouldQueue
                             }
                             $group = Group::create($data);
                         } else {
+                            if ($group->trashed()) {
+                                $group->restore();
+                            }
                             $data = [
                                 'import_batch_no' => $batchNo,
                                 'new' => false,
@@ -1573,7 +1579,7 @@ class ProcessM3uImport implements ShouldQueue
             $grouped->each(function ($channels, $groupName) use ($userId, $playlistId, $batchNo, $preProcessing, &$groupOrder) {
                 // Add group and associated channels
                 if (! $preProcessing) {
-                    $group = Group::where([
+                    $group = Group::withTrashed()->where([
                         'name_internal' => $groupName ?? '',
                         'playlist_id' => $playlistId,
                         'user_id' => $userId,
@@ -1595,6 +1601,9 @@ class ProcessM3uImport implements ShouldQueue
                         }
                         $group = Group::create($data);
                     } else {
+                        if ($group->trashed()) {
+                            $group->restore();
+                        }
                         $data = [
                             'import_batch_no' => $batchNo,
                             'new' => false,

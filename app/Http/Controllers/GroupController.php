@@ -462,7 +462,7 @@ class GroupController extends Controller
                 $orphanedChannels = $channelCount;
             }
 
-            $group->delete();
+            $group->forceDelete();
         });
 
         return response()->json([
