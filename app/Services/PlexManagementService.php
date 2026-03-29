@@ -187,28 +187,48 @@ class PlexManagementService
     /**
      * Register an m3u-editor playlist's HDHR endpoint as a DVR tuner in Plex.
      *
-     * @param  string  $hdhrBaseUrl  The HDHR base URL (e.g., http://host:port/{uuid}/hdhr)
-     * @param  string  $epgUrl  The EPG XML URL for guide data
+     * Plex DVR setup flow:
+     * 1. Plex probes the HDHR device at {hdhrBaseUrl}/discover.json
+     * 2. POST /livetv/dvrs with the device URI as a query parameter
+     * 3. Configure the XMLTV guide source for the DVR
+     *
+     * @param  string  $hdhrBaseUrl  The HDHR base URL reachable by Plex (e.g., http://192.168.1.x:36400/{uuid}/hdhr)
+     * @param  string  $epgUrl  The EPG XML URL reachable by Plex
      */
     public function addDvrDevice(string $hdhrBaseUrl, string $epgUrl): array
     {
         try {
-            // Step 1: Tell Plex to discover the HDHR device
-            $discoverResponse = $this->client()->post('/livetv/dvrs', [
-                'deviceUri' => $hdhrBaseUrl,
-            ]);
-
-            if (! $discoverResponse->successful()) {
+            // Step 1: Verify Plex can reach the HDHR device
+            $verifyResponse = Http::timeout(10)->get($hdhrBaseUrl.'/discover.json');
+            if (! $verifyResponse->successful()) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to register HDHR device in Plex: '.$discoverResponse->status(),
+                    'message' => 'Cannot reach HDHR device at '.$hdhrBaseUrl.'/discover.json — Plex needs to access this URL. Check your network/APP_URL configuration.',
+                ];
+            }
+
+            // Step 2: Tell Plex to add the HDHR device as a DVR tuner
+            $discoverResponse = $this->client()->post('/livetv/dvrs?uri='.urlencode($hdhrBaseUrl));
+
+            if (! $discoverResponse->successful()) {
+                $body = $discoverResponse->body();
+                Log::warning('PlexManagementService: DVR registration failed', [
+                    'integration_id' => $this->integration->id,
+                    'hdhr_url' => $hdhrBaseUrl,
+                    'status' => $discoverResponse->status(),
+                    'response' => $body,
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'Plex rejected the DVR registration (HTTP '.$discoverResponse->status().'). Ensure the HDHR URL is reachable from Plex and returns valid discover.json/lineup.json responses.',
                 ];
             }
 
             $dvrData = $discoverResponse->json('MediaContainer.Dvr.0', []);
             $dvrId = $dvrData['key'] ?? null;
 
-            // Step 2: If we got a DVR ID, configure XMLTV guide
+            // Step 3: If we got a DVR ID, configure XMLTV guide
             if ($dvrId && $epgUrl) {
                 $this->configureGuide($dvrId, $epgUrl);
             }
@@ -220,7 +240,7 @@ class PlexManagementService
 
             return [
                 'success' => true,
-                'message' => 'HDHR device registered in Plex as DVR tuner',
+                'message' => 'HDHR device registered in Plex as DVR tuner'.($dvrId ? ' (DVR ID: '.$dvrId.')' : ''),
                 'dvr_id' => $dvrId,
             ];
         } catch (Exception $e) {
@@ -240,10 +260,7 @@ class PlexManagementService
     public function configureGuide(string $dvrId, string $epgUrl): array
     {
         try {
-            $response = $this->client()->put("/livetv/dvrs/{$dvrId}", [
-                'lineup' => $epgUrl,
-                'lineupType' => 'xmltv',
-            ]);
+            $response = $this->client()->put("/livetv/dvrs/{$dvrId}?lineup=".urlencode($epgUrl).'&lineupType=xmltv');
 
             return [
                 'success' => $response->successful(),

@@ -144,7 +144,12 @@ it('can get DVR configurations', function () {
 
 it('can register a DVR device', function () {
     Http::fake([
-        'plex.example.com:32400/livetv/dvrs' => Http::response([
+        'http://m3u-editor/hdhr/discover.json' => Http::response([
+            'FriendlyName' => 'm3u-editor',
+            'ModelNumber' => 'HDHR5-4K',
+            'DeviceID' => 'test-device',
+        ]),
+        'plex.example.com:32400/livetv/dvrs*' => Http::response([
             'MediaContainer' => [
                 'Dvr' => [
                     [
@@ -154,7 +159,7 @@ it('can register a DVR device', function () {
                 ],
             ],
         ]),
-        'plex.example.com:32400/livetv/dvrs/42' => Http::response([], 200),
+        'plex.example.com:32400/livetv/dvrs/42*' => Http::response([], 200),
     ]);
 
     $service = PlexManagementService::make($this->integration);
@@ -165,6 +170,18 @@ it('can register a DVR device', function () {
 
     $this->integration->refresh();
     expect($this->integration->plex_dvr_id)->toBe('42');
+});
+
+it('fails DVR registration when HDHR device is unreachable', function () {
+    Http::fake([
+        'http://m3u-editor/hdhr/discover.json' => Http::response(null, 500),
+    ]);
+
+    $service = PlexManagementService::make($this->integration);
+    $result = $service->addDvrDevice('http://m3u-editor/hdhr', 'http://m3u-editor/epg.xml');
+
+    expect($result['success'])->toBeFalse();
+    expect($result['message'])->toContain('Cannot reach HDHR device');
 });
 
 it('can remove a DVR', function () {

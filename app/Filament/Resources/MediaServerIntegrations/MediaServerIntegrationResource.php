@@ -636,27 +636,53 @@ class MediaServerIntegrationResource extends Resource
                                         ->color('success')
                                         ->requiresConfirmation()
                                         ->modalHeading('Register HDHomeRun Tuner')
-                                        ->modalDescription('This will register the playlist\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide.')
-                                        ->action(function ($record, $livewire) {
+                                        ->modalDescription('This will register the playlist\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide. The HDHR URL must be reachable from your Plex server.')
+                                        ->form([
+                                            TextInput::make('hdhr_base_url')
+                                                ->label('HDHR Base URL')
+                                                ->helperText('This URL must be reachable from your Plex server. Use your machine\'s LAN IP, not localhost.')
+                                                ->default(function ($record) {
+                                                    $playlist = $record->playlist;
+                                                    if (! $playlist) {
+                                                        return '';
+                                                    }
+                                                    $appUrl = config('app.url');
+                                                    $port = parse_url($appUrl, PHP_URL_PORT) ?: config('app.port', 36400);
+                                                    $plexHost = $record->host;
+                                                    $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'http';
+
+                                                    return "{$scheme}://{$plexHost}:{$port}/{$playlist->uuid}/hdhr";
+                                                })
+                                                ->required(),
+                                            TextInput::make('epg_url')
+                                                ->label('EPG URL')
+                                                ->helperText('XMLTV EPG guide URL. Must also be reachable from Plex.')
+                                                ->default(function ($record) {
+                                                    $playlist = $record->playlist;
+                                                    if (! $playlist) {
+                                                        return '';
+                                                    }
+                                                    $appUrl = config('app.url');
+                                                    $port = parse_url($appUrl, PHP_URL_PORT) ?: config('app.port', 36400);
+                                                    $plexHost = $record->host;
+                                                    $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'http';
+
+                                                    return "{$scheme}://{$plexHost}:{$port}/{$playlist->uuid}/epg.xml";
+                                                })
+                                                ->required(),
+                                        ])
+                                        ->action(function ($record, array $data) {
                                             if (! $record->playlist_id) {
-                                                Notification::make()->danger()->title('No Playlist')->body('Sync the media server first to create a playlist.')->send();
+                                                Notification::make()->danger()->title('No Playlist')->body('Sync the media server first to create a playlist.')->persistent()->send();
 
                                                 return;
                                             }
-                                            $playlist = $record->playlist;
-                                            if (! $playlist) {
-                                                Notification::make()->danger()->title('Playlist Not Found')->body('The associated playlist was not found.')->send();
-
-                                                return;
-                                            }
-                                            $hdhrUrl = url($playlist->uuid.'/hdhr');
-                                            $epgUrl = url($playlist->uuid.'/epg.xml');
                                             $service = PlexManagementService::make($record);
-                                            $result = $service->addDvrDevice($hdhrUrl, $epgUrl);
+                                            $result = $service->addDvrDevice($data['hdhr_base_url'], $data['epg_url']);
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('DVR Registered')->body($result['message'])->send();
+                                                Notification::make()->success()->title('DVR Registered')->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Registration Failed')->body($result['message'])->send();
+                                                Notification::make()->danger()->title('Registration Failed')->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && ! $record->plex_dvr_id),
@@ -672,9 +698,9 @@ class MediaServerIntegrationResource extends Resource
                                             $service = PlexManagementService::make($record);
                                             $result = $service->removeDvr($record->plex_dvr_id);
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('DVR Removed')->body($result['message'])->send();
+                                                Notification::make()->success()->title('DVR Removed')->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Removal Failed')->body($result['message'])->send();
+                                                Notification::make()->danger()->title('Removal Failed')->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
@@ -684,7 +710,7 @@ class MediaServerIntegrationResource extends Resource
                                         ->icon('heroicon-o-arrow-path')
                                         ->action(function ($record) {
                                             if (! $record->plex_dvr_id || ! $record->playlist_id) {
-                                                Notification::make()->warning()->title('Not Configured')->body('Register a DVR tuner first.')->send();
+                                                Notification::make()->warning()->title('Not Configured')->body('Register a DVR tuner first.')->persistent()->send();
 
                                                 return;
                                             }
@@ -693,9 +719,9 @@ class MediaServerIntegrationResource extends Resource
                                             $service = PlexManagementService::make($record);
                                             $result = $service->configureGuide($record->plex_dvr_id, $epgUrl);
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Guide Refreshed')->body($result['message'])->send();
+                                                Notification::make()->success()->title('Guide Refreshed')->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Refresh Failed')->body($result['message'])->send();
+                                                Notification::make()->danger()->title('Refresh Failed')->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
@@ -764,9 +790,9 @@ class MediaServerIntegrationResource extends Resource
                                             $service = PlexManagementService::make($record);
                                             $result = $service->scanAllLibraries();
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Scan Started')->body($result['message'])->send();
+                                                Notification::make()->success()->title('Scan Started')->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Scan Failed')->body($result['message'])->send();
+                                                Notification::make()->danger()->title('Scan Failed')->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex()),
