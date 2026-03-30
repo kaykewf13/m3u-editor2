@@ -396,6 +396,32 @@ class Playlist extends Model
     }
 
     /**
+     * Promote a specific URL to primary, demoting the current primary to fallbacks.
+     * Use this when you know which URL actually works (e.g. after a successful failover).
+     */
+    public function promoteXtreamUrl(string $workingUrl): void
+    {
+        $allUrls = $this->getOrderedXtreamUrls();
+        $normalizedWorking = rtrim($workingUrl, '/');
+
+        if (! in_array($normalizedWorking, $allUrls)) {
+            return;
+        }
+
+        $newFallbacks = array_values(array_filter(
+            $allUrls,
+            fn (string $u) => $u !== $normalizedWorking
+        ));
+
+        $config = $this->xtream_config;
+        $config['url'] = $normalizedWorking;
+        $this->update([
+            'xtream_config' => $config,
+            'xtream_fallback_urls' => $newFallbacks,
+        ]);
+    }
+
+    /**
      * Rotate the primary Xtream URL to the next working URL.
      * Moves the failed URL into fallbacks and promotes the new URL to primary.
      *

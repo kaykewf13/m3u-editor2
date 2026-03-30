@@ -151,6 +151,50 @@ describe('Playlist::rotateXtreamUrl', function () {
     });
 });
 
+// ── Playlist Model: promoteXtreamUrl ─────────────────────────────────────────
+
+describe('Playlist::promoteXtreamUrl', function () {
+    it('promotes the specified URL to primary regardless of its position', function () {
+        $playlist = Playlist::factory()->for(User::factory())->create([
+            'xtream' => true,
+            'xtream_config' => [
+                'url' => 'http://primary.example.com:8080',
+                'username' => 'user',
+                'password' => 'pass',
+            ],
+            'xtream_fallback_urls' => [
+                'http://fallback1.example.com:8080',
+                'http://fallback2.example.com:8080',
+            ],
+        ]);
+
+        $playlist->promoteXtreamUrl('http://fallback2.example.com:8080');
+        $playlist->refresh();
+
+        expect($playlist->xtream_config['url'])->toBe('http://fallback2.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->toContain('http://primary.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->toContain('http://fallback1.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->not->toContain('http://fallback2.example.com:8080');
+    });
+
+    it('does nothing when the URL is not in the list', function () {
+        $playlist = Playlist::factory()->for(User::factory())->create([
+            'xtream' => true,
+            'xtream_config' => [
+                'url' => 'http://primary.example.com:8080',
+                'username' => 'user',
+                'password' => 'pass',
+            ],
+            'xtream_fallback_urls' => ['http://fallback1.example.com:8080'],
+        ]);
+
+        $playlist->promoteXtreamUrl('http://unknown.example.com:8080');
+        $playlist->refresh();
+
+        expect($playlist->xtream_config['url'])->toBe('http://primary.example.com:8080');
+    });
+});
+
 // ── XtreamHealthService ──────────────────────────────────────────────────────
 
 describe('XtreamHealthService::checkUrl', function () {
@@ -198,6 +242,16 @@ describe('XtreamHealthService::checkUrl', function () {
 
         expect($result['reachable'])->toBeFalse()
             ->and($result['error'])->toContain('Connection refused');
+    });
+
+    it('respects the verify parameter', function () {
+        Http::fake([
+            '*/player_api.php*' => Http::response(['user_info' => []], 200),
+        ]);
+
+        XtreamHealthService::checkUrl('http://test.example.com:8080', 'user', 'pass', verify: false);
+
+        Http::assertSent(fn ($request) => true); // just confirming no exception was thrown
     });
 });
 
@@ -331,6 +385,38 @@ describe('XtreamService failover', function () {
 
         expect($result['user_info']['status'])->toBe('Active')
             ->and($playlist->xtream_config['url'])->toBe('http://fallback1.example.com:8080');
+    });
+
+    it('promotes the working fallback when multiple fallbacks exist and the first also fails', function () {
+        Http::fake([
+            'primary.example.com:8080/*' => Http::response('Error', 500),
+            'fallback1.example.com:8080/*' => Http::response('Error', 500),
+            'fallback2.example.com:8080/*' => Http::response(['user_info' => ['status' => 'Active']], 200),
+        ]);
+
+        $playlist = Playlist::factory()->for(User::factory())->create([
+            'xtream' => true,
+            'xtream_config' => [
+                'url' => 'http://primary.example.com:8080',
+                'username' => 'testuser',
+                'password' => 'testpass',
+            ],
+            'xtream_fallback_urls' => [
+                'http://fallback1.example.com:8080',
+                'http://fallback2.example.com:8080',
+            ],
+        ]);
+
+        $service = XtreamService::make(playlist: $playlist, retryLimit: 1);
+
+        $result = $service->userInfo();
+        $playlist->refresh();
+
+        expect($result['user_info']['status'])->toBe('Active')
+            ->and($playlist->xtream_config['url'])->toBe('http://fallback2.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->toContain('http://primary.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->toContain('http://fallback1.example.com:8080')
+            ->and($playlist->xtream_fallback_urls)->not->toContain('http://fallback2.example.com:8080');
     });
 
     it('throws when all URLs fail', function () {

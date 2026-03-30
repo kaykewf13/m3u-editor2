@@ -12,6 +12,7 @@ use App\Models\MediaServerIntegration;
 use App\Models\Playlist;
 use App\Models\SourceCategory;
 use App\Models\SourceGroup;
+use App\Services\XtreamHealthService;
 use App\Traits\ProviderRequestDelay;
 use Carbon\Carbon;
 use Exception;
@@ -284,66 +285,28 @@ class ProcessM3uImport implements ShouldQueue
     /**
      * Resolve a working Xtream base URL, trying fallbacks if the primary is unreachable.
      */
-    private function resolveWorkingXtreamUrl(Playlist $playlist, string $user, string $password, string $userAgent, bool $verify): string
+    private function resolveWorkingXtreamUrl(Playlist $playlist): string
     {
         $primaryUrl = str($playlist->xtream_config['url'])->replace(' ', '%20')->toString();
 
-        // If no fallback URLs, return primary directly
         if (empty($playlist->xtream_fallback_urls)) {
             return $primaryUrl;
         }
 
-        // Quick health check on primary URL
-        try {
-            $response = Http::withUserAgent($userAgent)
-                ->withOptions(['verify' => $verify])
-                ->timeout(10)
-                ->get("{$primaryUrl}/player_api.php?username={$user}&password={$password}");
+        $workingUrl = XtreamHealthService::findWorkingUrl($playlist);
 
-            if ($response->ok()) {
-                return $primaryUrl;
-            }
-        } catch (Exception $e) {
-            Log::warning('Xtream sync: primary URL unreachable, trying fallbacks', [
-                'playlist_id' => $playlist->id,
-                'url' => $primaryUrl,
-                'error' => $e->getMessage(),
-            ]);
+        if (! $workingUrl) {
+            Log::error('Xtream sync: all URLs unreachable', ['playlist_id' => $playlist->id]);
+
+            return $primaryUrl;
         }
 
-        // Primary failed — try fallback URLs
-        foreach ($playlist->xtream_fallback_urls as $fallbackUrl) {
-            $fallbackUrl = str($fallbackUrl)->replace(' ', '%20')->toString();
+        if ($workingUrl !== rtrim($primaryUrl, '/')) {
+            $playlist->promoteXtreamUrl($workingUrl);
+            Log::info("Xtream sync: failover to {$workingUrl}", ['playlist_id' => $playlist->id]);
 
-            try {
-                $response = Http::withUserAgent($userAgent)
-                    ->withOptions(['verify' => $verify])
-                    ->timeout(10)
-                    ->get("{$fallbackUrl}/player_api.php?username={$user}&password={$password}");
-
-                if ($response->ok()) {
-                    Log::info("Xtream sync: failover to {$fallbackUrl}", [
-                        'playlist_id' => $playlist->id,
-                    ]);
-
-                    // Rotate the primary URL
-                    $playlist->rotateXtreamUrl($playlist->xtream_config['url']);
-
-                    return $fallbackUrl;
-                }
-            } catch (Exception $e) {
-                Log::warning('Xtream sync: fallback URL unreachable', [
-                    'playlist_id' => $playlist->id,
-                    'url' => $fallbackUrl,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            return str($workingUrl)->replace(' ', '%20')->toString();
         }
-
-        // No fallback worked — return primary and let it fail naturally
-        Log::error('Xtream sync: all URLs unreachable', [
-            'playlist_id' => $playlist->id,
-        ]);
 
         return $primaryUrl;
     }
@@ -378,7 +341,7 @@ class ProcessM3uImport implements ShouldQueue
             $userAgent = empty($playlist->user_agent) ? $this->userAgent : $playlist->user_agent;
 
             // Resolve the working base URL (with fallback support)
-            $baseUrl = $this->resolveWorkingXtreamUrl($playlist, $user, $password, $userAgent, $verify);
+            $baseUrl = $this->resolveWorkingXtreamUrl($playlist);
 
             // Setup the category and stream URLs
             $userInfo = "$baseUrl/player_api.php?username=$user&password=$password";

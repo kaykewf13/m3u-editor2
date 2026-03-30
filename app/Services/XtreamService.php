@@ -133,7 +133,7 @@ class XtreamService
                     // Failover succeeded — update the primary URL
                     $this->server = $fallbackUrl;
                     if ($this->playlist) {
-                        $this->playlist->rotateXtreamUrl($originalServer);
+                        $this->playlist->promoteXtreamUrl($fallbackUrl);
                         Log::info("Xtream failover: rotated primary URL to {$fallbackUrl}", [
                             'playlist_id' => $this->playlist->id,
                         ]);
