@@ -12,6 +12,7 @@ use App\Models\MediaServerIntegration;
 use App\Models\Playlist;
 use App\Models\SourceCategory;
 use App\Models\SourceGroup;
+use App\Services\XtreamHealthService;
 use App\Traits\ProviderRequestDelay;
 use Carbon\Carbon;
 use Exception;
@@ -282,6 +283,35 @@ class ProcessM3uImport implements ShouldQueue
     }
 
     /**
+     * Resolve a working Xtream base URL, trying fallbacks if the primary is unreachable.
+     */
+    private function resolveWorkingXtreamUrl(Playlist $playlist): string
+    {
+        $primaryUrl = str($playlist->xtream_config['url'])->replace(' ', '%20')->toString();
+
+        if (empty($playlist->xtream_fallback_urls)) {
+            return $primaryUrl;
+        }
+
+        $workingUrl = XtreamHealthService::findWorkingUrl($playlist);
+
+        if (! $workingUrl) {
+            Log::error('Xtream sync: all URLs unreachable', ['playlist_id' => $playlist->id]);
+
+            return $primaryUrl;
+        }
+
+        if ($workingUrl !== rtrim($primaryUrl, '/')) {
+            $playlist->promoteXtreamUrl($workingUrl);
+            Log::info("Xtream sync: failover to {$workingUrl}", ['playlist_id' => $playlist->id]);
+
+            return str($workingUrl)->replace(' ', '%20')->toString();
+        }
+
+        return $primaryUrl;
+    }
+
+    /**
      * Process the Xtream API
      */
     private function processXtreamApi()
@@ -301,11 +331,17 @@ class ProcessM3uImport implements ShouldQueue
             $batchNo = Str::orderedUuid()->toString();
 
             // Get the Xtream API credentials
-            $baseUrl = str($playlist->xtream_config['url'])->replace(' ', '%20')->toString();
             $user = $playlist->xtream_config['username'];
             $password = $playlist->xtream_config['password'];
             $output = $playlist->xtream_config['output'] ?? 'ts';
             $categoriesToImport = $playlist->xtream_config['import_options'] ?? [];
+
+            // Setup the user agent and SSL verification
+            $verify = ! $playlist->disable_ssl_verification;
+            $userAgent = empty($playlist->user_agent) ? $this->userAgent : $playlist->user_agent;
+
+            // Resolve the working base URL (with fallback support)
+            $baseUrl = $this->resolveWorkingXtreamUrl($playlist);
 
             // Setup the category and stream URLs
             $userInfo = "$baseUrl/player_api.php?username=$user&password=$password";
@@ -328,10 +364,6 @@ class ProcessM3uImport implements ShouldQueue
             $preProcessingVod = $this->preprocess
                 && count($this->selectedVodGroups) === 0
                 && count($this->includedVodGroupPrefixes) === 0;
-
-            // Setup the user agent and SSL verification
-            $verify = ! $playlist->disable_ssl_verification;
-            $userAgent = empty($playlist->user_agent) ? $this->userAgent : $playlist->user_agent;
 
             // Get the user info with provider throttling
             $userInfoResponse = $this->withProviderThrottling(fn () => Http::withUserAgent($userAgent)

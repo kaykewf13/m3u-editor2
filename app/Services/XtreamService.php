@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Playlist;
 use Exception;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -23,6 +24,11 @@ class XtreamService
     protected ?Playlist $playlist;
 
     protected ?array $xtream_config;
+
+    /**
+     * @var string[] Alternative server URLs for failover.
+     */
+    protected array $fallbackUrls = [];
 
     /**
      * Factory method to create an instance of XtreamService.
@@ -76,6 +82,17 @@ class XtreamService
 
         $this->retryLimit = $retryLimit;
 
+        // Load fallback URLs from playlist if available
+        if ($playlist) {
+            $allUrls = $playlist->getOrderedXtreamUrls();
+            // Remove the primary URL (already set as $this->server)
+            $primary = rtrim($this->server, '/');
+            $this->fallbackUrls = array_values(array_filter(
+                $allUrls,
+                fn (string $u) => rtrim($u, '/') !== $primary
+            ));
+        }
+
         return $this;
     }
 
@@ -84,24 +101,93 @@ class XtreamService
         if (! ($this->playlist || $this->xtream_config)) {
             throw new Exception('Config not initialized. Call init() first with Playlist or Xtream config array.');
         }
-        $attempts = 0;
-        do {
-            $user_agent = $this->playlist?->user_agent ?? 'VLC/3.0.21 LibVLC/3.0.21';
-            $verify = ! ($this->playlist?->disable_ssl_verification ?? false);
-            $response = Http::timeout($timeout) // defaults to 15 minutes
-                ->withOptions(['verify' => $verify])
-                ->withHeaders(['User-Agent' => $user_agent])
-                ->get($url);
 
-            if ($response->ok()) {
-                return $response->json();
+        $user_agent = $this->playlist?->user_agent ?? 'VLC/3.0.21 LibVLC/3.0.21';
+        $verify = ! ($this->playlist?->disable_ssl_verification ?? false);
+
+        // Try the primary URL first
+        $result = $this->attemptCall($url, $timeout, $user_agent, $verify);
+        if ($result !== null) {
+            return $result;
+        }
+
+        // Primary failed — try fallback URLs
+        if (! empty($this->fallbackUrls)) {
+            $originalServer = $this->server;
+
+            foreach ($this->fallbackUrls as $fallbackUrl) {
+                // Rebuild the URL with the fallback server
+                $fallbackCallUrl = str_replace(
+                    rtrim($originalServer, '/'),
+                    rtrim($fallbackUrl, '/'),
+                    $url
+                );
+
+                Log::info("Xtream failover: trying fallback URL {$fallbackUrl}", [
+                    'playlist_id' => $this->playlist?->id,
+                    'original_server' => $originalServer,
+                ]);
+
+                $result = $this->attemptCall($fallbackCallUrl, $timeout, $user_agent, $verify);
+                if ($result !== null) {
+                    // Failover succeeded — update the primary URL
+                    $this->server = $fallbackUrl;
+                    if ($this->playlist) {
+                        $this->playlist->promoteXtreamUrl($fallbackUrl);
+                        Log::info("Xtream failover: rotated primary URL to {$fallbackUrl}", [
+                            'playlist_id' => $this->playlist->id,
+                        ]);
+                    }
+
+                    // Rebuild fallback list without the new primary
+                    $this->fallbackUrls = array_values(array_filter(
+                        $this->fallbackUrls,
+                        fn (string $u) => rtrim($u, '/') !== rtrim($fallbackUrl, '/')
+                    ));
+                    if ($originalServer) {
+                        $this->fallbackUrls[] = $originalServer;
+                    }
+
+                    return $result;
+                }
+            }
+        }
+
+        // All URLs exhausted — throw
+        throw new Exception('All Xtream API URLs failed (primary + '.count($this->fallbackUrls).' fallbacks)');
+    }
+
+    /**
+     * Attempt to call a URL with retries.
+     *
+     * @return array|null Response JSON on success, null on failure.
+     */
+    protected function attemptCall(string $url, int $timeout, string $userAgent, bool $verify): ?array
+    {
+        $attempts = 0;
+        $response = null;
+
+        do {
+            try {
+                $response = Http::timeout($timeout)
+                    ->withOptions(['verify' => $verify])
+                    ->withHeaders(['User-Agent' => $userAgent])
+                    ->get($url);
+
+                if ($response->ok()) {
+                    return $response->json();
+                }
+            } catch (Exception $e) {
+                // Connection error — continue retrying
             }
 
             $attempts++;
-            sleep(1);
+            if ($attempts < $this->retryLimit) {
+                sleep(1);
+            }
         } while ($attempts < $this->retryLimit);
 
-        $response->throw(); // if we exhausted retries, let it bubble up
+        return null;
     }
 
     protected function makeUrl(string $action, array $extra = []): string
