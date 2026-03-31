@@ -25,11 +25,11 @@
                         <div class="flex items-center gap-x-1">
                             <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-danger" />
                             <p class="font-bold text-sm text-gray-700 dark:text-gray-200">
-                                A new version is available
+                                {{ __('A new version is available') }}
                             </p>
                         </div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            Latest version: v{{ $versionData['latestVersion'] }}
+                            {{ __('Latest version: :version', ['version' => 'v' . $versionData['latestVersion']]) }}
                         </p>
                     </div>
                 @else
@@ -37,11 +37,11 @@
                         <div class="flex items-center gap-x-1">
                             <x-heroicon-o-check-circle class="w-4 h-4 text-success" />
                             <p class="font-bold text-sm text-gray-700 dark:text-gray-200">
-                                Up to date
+                                {{ __('Up to date') }}
                             </p>
                         </div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            You are using the latest version
+                            {{ __('You are using the latest version') }}
                         </p>
                     </div>
                 @endif
@@ -53,12 +53,12 @@
                     icon="heroicon-m-arrow-top-right-on-square"
                     icon-alias="panels::widgets.filament-info.open-documentation-button" rel="noopener noreferrer"
                     target="_blank">
-                    Releases
+                    {{ __('Releases') }}
                 </x-filament::button>
                 @if (auth()->user()->canViewReleaseLogs())
                     <x-filament::button class="mt-2" color="gray" icon="heroicon-o-list-bullet" tag="a"
                         href="{{ \App\Filament\Pages\ReleaseLogs::getUrl() }}">
-                        Release logs
+                        {{ __('Release logs') }}
                     </x-filament::button>
                 @endif
             </div>

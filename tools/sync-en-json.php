@@ -6,7 +6,20 @@
  */
 $base = dirname(__DIR__);
 $dirs = [$base.'/app/Filament', $base.'/app/Enums'];
+$bladeDirs = [$base.'/resources/views/filament'];
 $newKeys = [];
+
+$scanFile = function (string $path) use (&$newKeys) {
+    $content = file_get_contents($path);
+    // Match __( 'literal' ) - single-quoted only, plain string literals
+    preg_match_all("/__\(\s*'((?:[^'\\\\]|\\\\.)*)'\s*[,)]/", $content, $m);
+    foreach ($m[1] as $s) {
+        $s = stripslashes($s);
+        if (strlen($s) > 1 && ! is_numeric($s) && ! str_starts_with($s, 'filament-')) {
+            $newKeys[$s] = $s;
+        }
+    }
+};
 
 foreach ($dirs as $dir) {
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
@@ -14,15 +27,18 @@ foreach ($dirs as $dir) {
         if ($file->getExtension() !== 'php') {
             continue;
         }
-        $content = file_get_contents($file->getPathname());
-        // Match __( 'literal' ) - single-quoted only, plain string literals
-        preg_match_all("/__\(\s*'((?:[^'\\\\]|\\\\.)*)'\s*[,)]/", $content, $m);
-        foreach ($m[1] as $s) {
-            $s = stripslashes($s);
-            if (strlen($s) > 1 && ! is_numeric($s) && ! str_starts_with($s, 'filament-')) {
-                $newKeys[$s] = $s;
-            }
+        $scanFile($file->getPathname());
+    }
+}
+
+// Also scan Blade files for {{ __('...') }} calls
+foreach ($bladeDirs as $dir) {
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+    foreach ($it as $file) {
+        if (! str_ends_with($file->getFilename(), '.blade.php')) {
+            continue;
         }
+        $scanFile($file->getPathname());
     }
 }
 

@@ -36,11 +36,11 @@
 
             <div class="flex-1">
                 <h2 class="grid flex-1 text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                    Donate via Ko-fi
+                    {{ __('Donate via Ko-fi') }}
                 </h2>
 
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Help support this project by donating! Any amount is appreciated.
+                    {{ __('Help support this project by donating! Any amount is appreciated.') }}
                 </p>
             </div>
 
@@ -49,7 +49,7 @@
                     icon="heroicon-m-arrow-top-right-on-square"
                     icon-alias="panels::widgets.filament-info.open-documentation-button" rel="noopener noreferrer"
                     target="_blank">
-                    🙏 Donate now ❤️
+                    🙏 {{ __('Donate now') }} ❤️
                 </x-filament::button>
             </div>
         </div>
