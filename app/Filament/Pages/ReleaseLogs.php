@@ -20,7 +20,7 @@ class ReleaseLogs extends Page
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.tools');
+        return __('Tools');
     }
 
     protected static ?int $navigationSort = 6;

@@ -52,7 +52,7 @@ class MergedEpgResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.epg');
+        return __('EPG');
     }
     public static function getModelLabel(): string
     {

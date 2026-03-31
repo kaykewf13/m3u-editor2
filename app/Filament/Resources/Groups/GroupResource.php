@@ -59,7 +59,7 @@ class GroupResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.live_channels');
+        return __('Live Channels');
     }
     public static function getModelLabel(): string
     {

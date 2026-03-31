@@ -81,7 +81,7 @@ class SeriesResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.series');
+        return __('Series');
     }
     public static function getModelLabel(): string
     {

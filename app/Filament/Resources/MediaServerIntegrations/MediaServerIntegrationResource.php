@@ -81,7 +81,7 @@ class MediaServerIntegrationResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.integrations');
+        return __('Integrations');
     }
 
     protected static ?int $navigationSort = 100;

@@ -53,7 +53,7 @@ class MergedPlaylistResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.playlist');
+        return __('Playlist');
     }
     public static function getModelLabel(): string
     {

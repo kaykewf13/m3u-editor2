@@ -20,7 +20,7 @@ class StreamProfileResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.proxy');
+        return __('Proxy');
     }
     public static function getModelLabel(): string
     {

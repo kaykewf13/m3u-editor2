@@ -43,7 +43,7 @@ class M3uProxyStreamMonitor extends Page
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.proxy');
+        return __('Proxy');
     }
 
     protected static ?int $navigationSort = 6;

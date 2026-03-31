@@ -60,7 +60,7 @@ class VodGroupResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('navigation.groups.vod_channels');
+        return __('VOD Channels');
     }
     public static function getModelLabel(): string
     {

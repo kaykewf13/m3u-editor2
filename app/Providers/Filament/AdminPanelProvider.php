@@ -95,36 +95,36 @@ class AdminPanelProvider extends PanelProvider
                 CustomDashboard::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make(fn () => __('navigation.groups.playlist'))
+                NavigationGroup::make(fn () => __('Playlist'))
                     ->icon('heroicon-m-play-pause'),
-                NavigationGroup::make(fn () => __('navigation.groups.integrations'))
+                NavigationGroup::make(fn () => __('Integrations'))
                     ->icon('heroicon-m-server-stack'),
-                NavigationGroup::make(fn () => __('navigation.groups.live_channels'))
+                NavigationGroup::make(fn () => __('Live Channels'))
                     ->icon('heroicon-m-tv'),
-                NavigationGroup::make(fn () => __('navigation.groups.vod_channels'))
+                NavigationGroup::make(fn () => __('VOD Channels'))
                     ->icon('heroicon-m-film'),
-                NavigationGroup::make(fn () => __('navigation.groups.series'))
+                NavigationGroup::make(fn () => __('Series'))
                     ->icon('heroicon-m-play'),
-                NavigationGroup::make(fn () => __('navigation.groups.epg'))
+                NavigationGroup::make(fn () => __('EPG'))
                     ->icon('heroicon-m-calendar-days'),
-                NavigationGroup::make(fn () => __('navigation.groups.proxy'))
+                NavigationGroup::make(fn () => __('Proxy'))
                     ->icon('heroicon-m-arrows-right-left'),
-                NavigationGroup::make(fn () => __('navigation.groups.tools'))
+                NavigationGroup::make(fn () => __('Tools'))
                     ->collapsed()
                     ->icon('heroicon-m-wrench-screwdriver'),
             ])
             ->navigationItems([
                 NavigationItem::make('API Docs')
-                    ->label(fn () => __('navigation.labels.api_docs').' ↗')
+                    ->label(fn () => __('API Docs').' ↗')
                     ->url('/docs/api', shouldOpenInNewTab: true)
-                    ->group(fn () => __('navigation.groups.tools'))
+                    ->group(fn () => __('Tools'))
                     ->sort(sort: 9)
                     ->icon(null)
                     ->visible(fn (): bool => auth()->user()->isAdmin()),
                 NavigationItem::make('Queue Manager')
-                    ->label(fn () => __('navigation.labels.queue_manager').' ↗')
+                    ->label(fn () => __('Queue Manager').' ↗')
                     ->url('/horizon', shouldOpenInNewTab: true)
-                    ->group(fn () => __('navigation.groups.tools'))
+                    ->group(fn () => __('Tools'))
                     ->sort(10)
                     ->icon(null)
                     ->visible(fn (): bool => auth()->user()->isAdmin()),
