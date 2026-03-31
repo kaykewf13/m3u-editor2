@@ -30,7 +30,7 @@ class PluginInstallActions
                 Notification::make()
                     ->success()
                     ->title(__('Plugin discovery completed'))
-                    ->body('Found and loaded '.count($plugins).' plugin(s).')
+                    ->body(__('Found and loaded :count plugin(s).', ['count' => count($plugins)]))
                     ->send();
             });
     }
@@ -68,7 +68,7 @@ class PluginInstallActions
                         Toggle::make('dev_source')
                             ->label(__('This is a development/testing plugin'))
                             ->default(false)
-                            ->helperText(__('Only check this for plugins you\\\'re actively developing locally. Don\\\'t use for production installs.')),
+                            ->helperText(__('Only check this for plugins you\'re actively developing locally. Don\'t use for production installs.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -77,8 +77,8 @@ class PluginInstallActions
                                 auth()->id(),
                                 (bool) ($data['dev_source'] ?? false),
                             ),
-                            successTitle: 'Plugin install staged',
-                            failureTitle: 'Plugin staging failed',
+                            successTitle: __('Plugin install staged'),
+                            failureTitle: __('Plugin staging failed'),
                         );
                     }),
                 Action::make('upload_archive')
@@ -108,8 +108,8 @@ class PluginInstallActions
                             ])
                             ->maxSize((int) ceil(((int) config('plugins.archive_limits.max_archive_bytes', 50 * 1024 * 1024)) / 1024))
                             ->helperText(config('plugins.clamav.driver', 'fake') === 'fake'
-                                ? 'Upload a plugin zip, tar, or tar.gz archive. The server will stage and validate it through plugin installs.'
-                                : 'Upload a plugin zip, tar, or tar.gz archive. The server will stage, validate, and scan it through plugin installs.'),
+                                ? __('Upload a plugin zip, tar, or tar.gz archive. The server will stage and validate it through plugin installs.')
+                                : __('Upload a plugin zip, tar, or tar.gz archive. The server will stage, validate, and scan it through plugin installs.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -117,8 +117,8 @@ class PluginInstallActions
                                 (string) $data['archive_upload'],
                                 auth()->id(),
                             ),
-                            successTitle: 'Uploaded plugin archive staged',
-                            failureTitle: 'Plugin upload failed',
+                            successTitle: __('Uploaded plugin archive staged'),
+                            failureTitle: __('Plugin upload failed'),
                         );
                     }),
                 Action::make('stage_archive')
@@ -137,8 +137,8 @@ class PluginInstallActions
                                 (string) $data['archive'],
                                 auth()->id(),
                             ),
-                            successTitle: 'Plugin archive staged',
-                            failureTitle: 'Plugin archive staging failed',
+                            successTitle: __('Plugin archive staged'),
+                            failureTitle: __('Plugin archive staging failed'),
                         );
                     }),
                 Action::make('stage_github_release')
@@ -153,7 +153,7 @@ class PluginInstallActions
                         TextInput::make('sha256')
                             ->label(__('Security Hash (SHA-256)'))
                             ->required()
-                            ->helperText(__('Copy the file hash from the GitHub release page to verify the download hasn\\\'t been tampered with.')),
+                            ->helperText(__('Copy the file hash from the GitHub release page to verify the download hasn\'t been tampered with.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -162,8 +162,8 @@ class PluginInstallActions
                                 (string) $data['sha256'],
                                 auth()->id(),
                             ),
-                            successTitle: 'GitHub release staged',
-                            failureTitle: 'GitHub release staging failed',
+                            successTitle: __('GitHub release staged'),
+                            failureTitle: __('GitHub release staging failed'),
                         );
                     }),
             ])->label(__('Actions'))->button(),
@@ -184,8 +184,8 @@ class PluginInstallActions
                 ->success()
                 ->title($successTitle)
                 ->body(config('plugins.clamav.driver', 'fake') === 'fake'
-                    ? "Review #{$review->id} is queued for approval."
-                    : "Review #{$review->id} is queued for security scan and approval.")
+                    ? __('Review #:id is queued for approval.', ['id' => $review->id])
+                    : __('Review #:id is queued for security scan and approval.', ['id' => $review->id]))
                 ->send();
         } catch (Throwable $exception) {
             Notification::make()

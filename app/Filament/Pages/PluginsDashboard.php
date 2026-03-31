@@ -16,8 +16,6 @@ use Illuminate\Support\Collection;
 
 class PluginsDashboard extends Page
 {
-    protected static string|\UnitEnum|null $navigationGroup = 'Plugins';
-
     public static function getNavigationLabel(): string
     {
         return __('Overview');
