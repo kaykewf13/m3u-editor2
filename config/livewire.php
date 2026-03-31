@@ -157,4 +157,18 @@ return [
     */
 
     'pagination_theme' => 'tailwind',
+
+    /*
+    |---------------------------------------------------------------------------
+    | Payload Max Components
+    |---------------------------------------------------------------------------
+    |
+    | The maximum number of Livewire components allowed in a single request.
+    | Filament panels with many form fields/actions can exceed the default of 20.
+    |
+    */
+
+    'payload' => [
+        'max_components' => 50,
+    ],
 ];

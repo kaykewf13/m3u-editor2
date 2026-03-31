@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Enums\ChannelLogoType;
 use App\Enums\PlaylistSourceType;
 use App\Jobs\FetchTmdbIds;
+use App\Observers\ChannelObserver;
 use App\Services\PlaylistService;
 use App\Services\XtreamService;
 use App\Settings\GeneralSettings;
 use Exception;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +25,7 @@ use Illuminate\Support\Str;
 use Spatie\Tags\HasTags;
 use Symfony\Component\Process\Process as SymfonyProcess;
 
+#[ObservedBy(ChannelObserver::class)]
 class Channel extends Model
 {
     use HasFactory;

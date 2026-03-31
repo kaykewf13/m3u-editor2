@@ -10,6 +10,7 @@ use App\Jobs\ProcessChannelScrubber;
 use App\Jobs\RunPlaylistFindReplaceRules;
 use App\Jobs\RunPlaylistSortAlpha;
 use App\Jobs\RunPostProcess;
+use App\Jobs\SyncPlexDvrJob;
 use App\Models\Epg;
 use App\Models\Playlist;
 use Illuminate\Support\Facades\Bus;
@@ -32,6 +33,9 @@ class SyncListener
 
                 // Handle channel merge & scrubbers if enabled
                 $this->dispatchChannelScanJobs($playlist);
+
+                // Sync Plex DVR channel maps (lineup may have changed)
+                dispatch(new SyncPlexDvrJob(trigger: 'playlist_sync'));
             }
 
             // Handle Playlist post-processes
@@ -44,6 +48,9 @@ class SyncListener
             // Generate EPG cache if sync was successful
             if ($event->model->status === Status::Completed) {
                 $this->postProcessEpg($event->model);
+
+                // Sync Plex DVR (EPG data changed, guide needs refresh)
+                dispatch(new SyncPlexDvrJob(trigger: 'epg_sync'));
             }
         }
     }

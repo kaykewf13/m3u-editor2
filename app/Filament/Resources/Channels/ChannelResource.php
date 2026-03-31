@@ -12,6 +12,7 @@ use App\Filament\Resources\EpgMaps\EpgMapResource;
 use App\Jobs\ChannelFindAndReplace;
 use App\Jobs\ChannelFindAndReplaceReset;
 use App\Jobs\MapPlaylistChannelsToEpg;
+use App\Jobs\SyncPlexDvrJob;
 use App\Models\Channel;
 use App\Models\ChannelFailover;
 use App\Models\CustomPlaylist;
@@ -195,7 +196,10 @@ class ChannelResource extends Resource
                 ->toggleable(),
             ToggleColumn::make('enabled')
                 ->toggleable()
-                ->sortable(),
+                ->sortable()
+                ->afterStateUpdated(function (): void {
+                    dispatch(new SyncPlexDvrJob(trigger: 'channel_toggle'));
+                }),
             ToggleColumn::make('can_merge')
                 ->label('Merge Enabled')
                 ->toggleable()
@@ -1005,6 +1009,7 @@ class ChannelResource extends Resource
                                 ->title('Selected channels enabled')
                                 ->body('The selected channels have been enabled.')
                                 ->send();
+                            dispatch(new SyncPlexDvrJob(trigger: 'channel_bulk_enable'));
                         })
                         ->color('success')
                         ->deselectRecordsAfterCompletion()
@@ -1025,6 +1030,7 @@ class ChannelResource extends Resource
                                 ->title('Selected channels disabled')
                                 ->body('The selected channels have been disabled.')
                                 ->send();
+                            dispatch(new SyncPlexDvrJob(trigger: 'channel_bulk_disable'));
                         })
                         ->color('danger')
                         ->deselectRecordsAfterCompletion()

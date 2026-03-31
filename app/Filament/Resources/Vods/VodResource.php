@@ -14,6 +14,7 @@ use App\Jobs\ChannelFindAndReplace;
 use App\Jobs\ChannelFindAndReplaceReset;
 use App\Jobs\FetchTmdbIds;
 use App\Jobs\ProcessVodChannels;
+use App\Jobs\SyncPlexDvrJob;
 use App\Jobs\SyncVodStrmFiles;
 use App\Models\Channel;
 use App\Models\ChannelFailover;
@@ -1211,6 +1212,7 @@ class VodResource extends Resource
                                 Channel::whereIn('id', $chunk->pluck('id'))->update(['enabled' => true]);
                             }
                         })->after(function () {
+                            dispatch(new SyncPlexDvrJob(trigger: 'vod_bulk_enable'));
                             Notification::make()
                                 ->success()
                                 ->title('Selected channels enabled')
@@ -1231,6 +1233,7 @@ class VodResource extends Resource
                                 Channel::whereIn('id', $chunk->pluck('id'))->update(['enabled' => false]);
                             }
                         })->after(function () {
+                            dispatch(new SyncPlexDvrJob(trigger: 'vod_bulk_disable'));
                             Notification::make()
                                 ->success()
                                 ->title('Selected channels disabled')

@@ -56,7 +56,12 @@ npm_output.log
 *.log
 docker-compose.ci-test.yml
 docker-compose.local.yml
+compose.dev.yaml
+compose.services.yaml
+dev-setup.sh
+mediaserver.env
 fast-build.sh
 .opencode/
 .tmp/
 
+.env.testing
