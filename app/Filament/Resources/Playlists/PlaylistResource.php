@@ -1263,7 +1263,7 @@ class PlaylistResource extends Resource
 
             // Provider Profiles Section (Xtream only)
             Section::make(__('Provider Profiles'))
-                ->description('Pool multiple Xtream accounts from this provider to increase concurrent stream capacity.')
+                ->description(__('Pool multiple Xtream accounts from this provider to increase concurrent stream capacity.'))
                 ->icon('heroicon-o-user-group')
                 ->iconSize('md')
                 ->collapsible()
@@ -1710,7 +1710,7 @@ class PlaylistResource extends Resource
 
         $processingFields = [
             Section::make(__('Playlist Processing'))
-                ->description('Processing settings for the playlist')
+                ->description(__('Processing settings for the playlist'))
                 ->columnSpanFull()
                 ->columns(columns: 2)
                 ->schema([
@@ -2013,7 +2013,7 @@ class PlaylistResource extends Resource
                 ]),
 
             Section::make(__('Auto-Enable Settings'))
-                ->description('Settings for automatically enabling new content')
+                ->description(__('Settings for automatically enabling new content'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2074,7 +2074,7 @@ class PlaylistResource extends Resource
                 ]),
 
             Section::make(__('Series Processing'))
-                ->description('Processing options for playlist series')
+                ->description(__('Processing options for playlist series'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2110,7 +2110,7 @@ class PlaylistResource extends Resource
                 ])->hidden(fn (Get $get): bool => ! $get('xtream')),
 
             Section::make(__('VOD Processing'))
-                ->description('Processing options for playlist VOD')
+                ->description(__('Processing options for playlist VOD'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2146,7 +2146,7 @@ class PlaylistResource extends Resource
                 ])->hidden(fn (Get $get): bool => ! $get('xtream')),
 
             Section::make(__('Auto-Merge Processing'))
-                ->description('Automatically merge channels with the same stream ID into failover relationships after sync')
+                ->description(__('Automatically merge channels with the same stream ID into failover relationships after sync'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2358,7 +2358,7 @@ class PlaylistResource extends Resource
                         ]),
                 ]),
             Section::make(__('Find & Replace Rules'))
-                ->description('Define find & replace rules that automatically run after each playlist sync. Rules execute in order.')
+                ->description(__('Define find & replace rules that automatically run after each playlist sync. Rules execute in order.'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2454,7 +2454,7 @@ class PlaylistResource extends Resource
                         ),
                 ]),
             Section::make(__('Sort Alpha Configs'))
-                ->description('Define sort configurations that automatically run after each playlist sync. Configurations execute in order.')
+                ->description(__('Define sort configurations that automatically run after each playlist sync. Configurations execute in order.'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2540,7 +2540,7 @@ class PlaylistResource extends Resource
 
         $outputFields = [
             Section::make(__('Playlist Output'))
-                ->description('Determines how the playlist is output')
+                ->description(__('Determines how the playlist is output'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2587,7 +2587,7 @@ class PlaylistResource extends Resource
                         ->required(),
                 ]),
             Section::make(__('Streaming Output'))
-                ->description('Output processing options')
+                ->description(__('Output processing options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2750,7 +2750,7 @@ class PlaylistResource extends Resource
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
                 ]),
             Section::make(__('EPG Output'))
-                ->description('EPG output options')
+                ->description(__('EPG output options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -2949,7 +2949,7 @@ class PlaylistResource extends Resource
                 $wizard[] = Step::make(__('Auth'))
                     ->schema([
                         Section::make(__('Auth'))
-                            ->description('Add or create additional authentication methods for this playlist.')
+                            ->description(__('Add or create additional authentication methods for this playlist.'))
                             ->schema([
                                 ToggleButtons::make('auth_option')
                                     ->label(__('Authentication Option'))

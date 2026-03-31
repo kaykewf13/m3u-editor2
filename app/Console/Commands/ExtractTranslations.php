@@ -38,7 +38,7 @@ class ExtractTranslations extends Command
      * ->methodName('literal') → ->methodName(__('literal'))
      */
     private const LABEL_METHODS = [
-        'label', 'heading', 'subheading', 'placeholder',
+        'label', 'heading', 'subheading', 'description', 'placeholder',
         'hint', 'helperText', 'tooltip',
         'modalHeading', 'modalDescription', 'modalSubmitActionLabel', 'modalCancelActionLabel',
         'emptyStateHeading', 'emptyStateDescription',

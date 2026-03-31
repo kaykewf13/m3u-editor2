@@ -328,7 +328,7 @@ class Preferences extends SettingsPage
 
                                     ]),
                                 Section::make(__('Allowed Playlist Domains'))
-                                    ->description('Restrict playlist URLs to specific domains. Leave empty to allow all domains.')
+                                    ->description(__('Restrict playlist URLs to specific domains. Leave empty to allow all domains.'))
                                     ->schema([
                                         TagsInput::make('allowed_urls')
                                             ->label(__('Allowed domains'))
@@ -376,7 +376,7 @@ class Preferences extends SettingsPage
                         Tab::make(__('Proxy'))
                             ->schema([
                                 Section::make(__('URL & Connection'))
-                                    ->description('Configure how the proxy is accessed and how stream URLs are resolved.')
+                                    ->description(__('Configure how the proxy is accessed and how stream URLs are resolved.'))
                                     ->columnSpanFull()
                                     ->headerActions([
                                         Action::make('test_connection')
@@ -541,7 +541,7 @@ class Preferences extends SettingsPage
                                     ]),
 
                                 Section::make(__('Failover & Recovery'))
-                                    ->description('Configure how the proxy handles stream failures, including advanced resolver logic and fail conditions.')
+                                    ->description(__('Configure how the proxy handles stream failures, including advanced resolver logic and fail conditions.'))
                                     ->columnSpanFull()
                                     ->headerActions([
                                         Action::make('test_failover_connection')
@@ -758,7 +758,7 @@ class Preferences extends SettingsPage
                                     ]),
 
                                 Section::make(__('In-App Player Transcoding'))
-                                    ->description('Select the default transcoding profiles used when playing streams in the in-app player.')
+                                    ->description(__('Select the default transcoding profiles used when playing streams in the in-app player.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->collapsible()
@@ -798,7 +798,7 @@ class Preferences extends SettingsPage
                                             ->helperText(__('The default transcoding profile used for the in-app player for VOD/Series content. Leave empty to disable transcoding (some streams may not be playable in the player).')),
                                     ]),
                                 Section::make(__('MediaFlow Proxy'))
-                                    ->description('If you have MediaFlow Proxy installed, you can use it to proxy your m3u editor playlist streams. When enabled, the app will auto-generate URLs for you to use via MediaFlow Proxy.')
+                                    ->description(__('If you have MediaFlow Proxy installed, you can use it to proxy your m3u editor playlist streams. When enabled, the app will auto-generate URLs for you to use via MediaFlow Proxy.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible()
@@ -847,7 +847,7 @@ class Preferences extends SettingsPage
                         Tab::make(__('Sync Options'))
                             ->schema([
                                 Section::make(__('Provider Request Delay'))
-                                    ->description('Add a delay between requests to providers to avoid rate limiting.')
+                                    ->description(__('Add a delay between requests to providers to avoid rate limiting.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible(false)
@@ -886,7 +886,7 @@ class Preferences extends SettingsPage
                                             ->helperText(__('Maximum number of simultaneous requests to the provider.')),
                                     ]),
                                 Section::make(__('Sync Invalidation'))
-                                    ->description('Prevent sync from proceeding if conditions are met.')
+                                    ->description(__('Prevent sync from proceeding if conditions are met.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible(false)
@@ -922,7 +922,7 @@ class Preferences extends SettingsPage
                                             ->helperText(__('If sync will remove more than this number of channels, the sync will be canceled.')),
                                     ]),
                                 Section::make(__('Series stream file settings'))
-                                    ->description('Select a Stream File Setting for series .strm file generation.')
+                                    ->description(__('Select a Stream File Setting for series .strm file generation.'))
                                     ->columnSpan('full')
                                     ->columns(1)
                                     ->collapsible(false)
@@ -951,7 +951,7 @@ class Preferences extends SettingsPage
                                             ->helperText(__('Leave empty to disable .strm file generation for series. Priority: Series > Category > Global.')),
                                     ]),
                                 Section::make(__('VOD stream file settings'))
-                                    ->description('Select a Stream File Setting for VOD .strm file generation. ')
+                                    ->description(__('Select a Stream File Setting for VOD .strm file generation. '))
                                     ->columnSpan('full')
                                     ->columns(1)
                                     ->collapsible(false)
@@ -984,7 +984,7 @@ class Preferences extends SettingsPage
                         Tab::make(__('Assets'))
                             ->schema([
                                 Section::make(__('Logo Cache'))
-                                    ->description('Manage logo cache behavior and storage used by logo proxy URLs.')
+                                    ->description(__('Manage logo cache behavior and storage used by logo proxy URLs.'))
                                     ->columns(1)
                                     ->headerActions([
                                         Action::make('manage_assets')
@@ -1013,7 +1013,7 @@ class Preferences extends SettingsPage
 
                                     ]),
                                 Section::make(__('Placeholder Images'))
-                                    ->description('Override app-wide placeholder images for logos, episode previews, and VOD/Series poster fallbacks.')
+                                    ->description(__('Override app-wide placeholder images for logos, episode previews, and VOD/Series poster fallbacks.'))
                                     ->columns(3)
                                     ->schema([
                                         FileUpload::make('logo_placeholder_url')
@@ -1100,7 +1100,7 @@ class Preferences extends SettingsPage
                             ->columns(2)
                             ->schema([
                                 Section::make(__('SMTP Settings'))
-                                    ->description('Configure SMTP settings to send emails from the application.')
+                                    ->description(__('Configure SMTP settings to send emails from the application.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->headerActions([
@@ -1207,7 +1207,7 @@ class Preferences extends SettingsPage
                             ->columns(2)
                             ->schema([
                                 Section::make(__('TMDB Integration'))
-                                    ->description('Configure The Movie Database (TMDB) integration to automatically lookup and populate metadata IDs (TMDB, TVDB, IMDB) for your VOD content and Series.')
+                                    ->description(__('Configure The Movie Database (TMDB) integration to automatically lookup and populate metadata IDs (TMDB, TVDB, IMDB) for your VOD content and Series.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->headerActions([

@@ -36,6 +36,26 @@ class GenerateTranslations extends Command
     /** Default locales to generate when --locale is omitted */
     private const DEFAULT_LOCALES = ['de', 'fr', 'es'];
 
+    /**
+     * Brand names / proper nouns that must never be translated.
+     * When the entire source value exactly matches one of these (case-insensitively),
+     * the EN value is kept as-is without sending it to Google Translate.
+     */
+    private const PROTECTED_EXACT = [
+        // Media server / app brand names
+        'Jellyfin', 'Plex', 'Emby', 'Kodi', 'Infuse', 'VLC',
+        // Database / metadata brands
+        'TMDB', 'TVDB', 'IMDB',
+        // *arr ecosystem
+        'Sonarr', 'Radarr', 'Prowlarr', 'Bazarr', 'Readarr', 'Lidarr', 'Whisparr',
+        // Communication / community
+        'Discord', 'Ko-fi',
+        // Protocols / formats
+        'WebDAV', 'M3U', 'XMLTV', 'EPG', 'VOD', 'Xtream',
+        // Other proper nouns
+        'Trakt', 'GitHub',
+    ];
+
     public function handle(): int
     {
         $locales = $this->resolveLocales();
@@ -125,15 +145,19 @@ class GenerateTranslations extends Command
         foreach ($toTranslate as $dotKey => $value) {
             $bar->setMessage(Str::limit($dotKey, 40));
 
-            try {
-                $translated[$dotKey] = $translator->translate((string) $value) ?? $value;
-            } catch (Throwable $e) {
+            if ($this->shouldSkipTranslation((string) $value)) {
                 $translated[$dotKey] = $value;
-                $errors++;
+            } else {
+                try {
+                    $translated[$dotKey] = $translator->translate((string) $value) ?? $value;
+                } catch (Throwable $e) {
+                    $translated[$dotKey] = $value;
+                    $errors++;
+                }
+                usleep(self::SLEEP_US);
             }
 
             $bar->advance();
-            usleep(self::SLEEP_US);
         }
 
         $bar->finish();
@@ -173,15 +197,19 @@ class GenerateTranslations extends Command
         foreach ($toTranslate as $en => $value) {
             $bar->setMessage(Str::limit($en, 40));
 
-            try {
-                $translated[$en] = $translator->translate((string) $value) ?? $value;
-            } catch (Throwable $e) {
+            if ($this->shouldSkipTranslation((string) $value)) {
                 $translated[$en] = $value;
-                $errors++;
+            } else {
+                try {
+                    $translated[$en] = $translator->translate((string) $value) ?? $value;
+                } catch (Throwable $e) {
+                    $translated[$en] = $value;
+                    $errors++;
+                }
+                usleep(self::SLEEP_US);
             }
 
             $bar->advance();
-            usleep(self::SLEEP_US);
         }
 
         $bar->finish();
@@ -322,6 +350,24 @@ class GenerateTranslations extends Command
         }
 
         return self::DEFAULT_LOCALES;
+    }
+
+    /**
+     * Returns true when the value is a protected brand name / proper noun
+     * that should never be sent to Google Translate.
+     * Comparison is case-insensitive on the trimmed value.
+     */
+    private function shouldSkipTranslation(string $value): bool
+    {
+        $trimmed = trim($value);
+
+        foreach (self::PROTECTED_EXACT as $brand) {
+            if (strcasecmp($trimmed, $brand) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -338,7 +338,7 @@ class SeriesResource extends Resource
                     ])
                     ->schema([
                         Section::make(__('Current IDs'))
-                            ->description('Currently stored external IDs for this series')
+                            ->description(__('Currently stored external IDs for this series'))
                             ->schema([
                                 Grid::make(3)
                                     ->schema([
@@ -359,7 +359,7 @@ class SeriesResource extends Resource
                             ->collapsible()
                             ->collapsed(),
                         Section::make(__('Search TMDB'))
-                            ->description('Search The Movie Database for this series')
+                            ->description(__('Search The Movie Database for this series'))
                             ->schema([
                                 Grid::make(3)
                                     ->schema([
@@ -407,7 +407,7 @@ class SeriesResource extends Resource
                                 ])->fullWidth(),
                             ]),
                         Section::make(__('Search Results'))
-                            ->description('Click on a result to apply the TMDB IDs')
+                            ->description(__('Click on a result to apply the TMDB IDs'))
                             ->schema([
                                 Forms\Components\Hidden::make('series_id'),
                                 TmdbSearchResults::make('search_results')
@@ -874,7 +874,7 @@ class SeriesResource extends Resource
                     Section::make(__('Series Details'))
                         ->columnSpan(2)
                         ->icon('heroicon-o-pencil')
-                        ->description('Edit or add the series details')
+                        ->description(__('Edit or add the series details'))
                         ->collapsible()
                         ->collapsed()
                         ->schema([
@@ -945,7 +945,7 @@ class SeriesResource extends Resource
                     Section::make(__('Stream file settings'))
                         ->columnSpan(2)
                         ->icon('heroicon-o-cog')
-                        ->description('Override global .strm file generation settings for this series.')
+                        ->description(__('Override global .strm file generation settings for this series.'))
                         ->collapsible()
                         ->collapsed()
                         ->schema([

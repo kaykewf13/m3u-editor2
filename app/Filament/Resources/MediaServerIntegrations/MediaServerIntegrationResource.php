@@ -309,7 +309,7 @@ class MediaServerIntegrationResource extends Resource
             ],
             'Import' => [
                 Section::make(__('Import Settings'))
-                    ->description('Control what content is synced from the media server')
+                    ->description(__('Control what content is synced from the media server'))
                     ->schema([
                         Toggle::make('enabled')
                             ->label(__('Enabled'))
@@ -423,7 +423,7 @@ class MediaServerIntegrationResource extends Resource
                     ])->visible(fn (callable $get) => in_array($get('type'), ['local', 'webdav'])),
 
                 Section::make(__('Library Selection'))
-                    ->description('Select which libraries to import from your media server')
+                    ->description(__('Select which libraries to import from your media server'))
                     ->headerActions(self::getServerActions())
                     ->schema([
                         Hidden::make('available_libraries')
@@ -520,7 +520,7 @@ class MediaServerIntegrationResource extends Resource
             ],
             'Schedule' => [
                 Section::make(__('Sync Schedule'))
-                    ->description('Configure automatic sync schedule')
+                    ->description(__('Configure automatic sync schedule'))
                     ->schema([
                         Grid::make(2)->schema([
                             Toggle::make('auto_sync')
@@ -548,7 +548,7 @@ class MediaServerIntegrationResource extends Resource
             ],
             'Status' => [
                 Section::make(__('Sync Status'))
-                    ->description('Information about the last sync operation')
+                    ->description(__('Information about the last sync operation'))
                     ->schema([
                         Grid::make(2)->schema([
                             TextInput::make('last_synced_at')
@@ -589,7 +589,7 @@ class MediaServerIntegrationResource extends Resource
             ],
             'Plex Management' => [
                 Section::make(__('Plex Server Management'))
-                    ->description('Manage your Plex server directly from m3u-editor — register DVR tuners, monitor sessions, and control libraries.')
+                    ->description(__('Manage your Plex server directly from m3u-editor — register DVR tuners, monitor sessions, and control libraries.'))
                     ->schema([
                         Toggle::make('plex_management_enabled')
                             ->label(__('Enable Plex Management'))
@@ -652,7 +652,7 @@ class MediaServerIntegrationResource extends Resource
                         ])->visible(fn (callable $get) => $get('plex_management_enabled')),
 
                         Section::make(__('DVR / Live TV Tuner'))
-                            ->description('Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.')
+                            ->description(__('Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.'))
                             ->collapsible()
                             ->schema([
                                 Placeholder::make('plex_dvr_status')
@@ -916,7 +916,7 @@ class MediaServerIntegrationResource extends Resource
                             ->visible(fn (callable $get) => $get('plex_management_enabled')),
 
                         Section::make(__('Libraries & Scanning'))
-                            ->description('Manage Plex libraries and trigger scans.')
+                            ->description(__('Manage Plex libraries and trigger scans.'))
                             ->collapsible()
                             ->collapsed()
                             ->schema([
@@ -965,7 +965,7 @@ class MediaServerIntegrationResource extends Resource
                             ->visible(fn (callable $get) => $get('plex_management_enabled')),
 
                         Section::make(__('Recordings / DVR Subscriptions'))
-                            ->description('View and manage Plex DVR recording subscriptions.')
+                            ->description(__('View and manage Plex DVR recording subscriptions.'))
                             ->collapsible()
                             ->collapsed()
                             ->schema([
@@ -998,7 +998,7 @@ class MediaServerIntegrationResource extends Resource
             ],
             'Networks' => [
                 Section::make(__('Networks (Pseudo-Live Channels)'))
-                    ->description('Create live TV channels from your media server content')
+                    ->description(__('Create live TV channels from your media server content'))
                     ->schema([
                         TextInput::make('networks_playlist_url')
                             ->label(__('Networks Playlist URL'))

@@ -236,7 +236,7 @@ class MergedPlaylistResource extends Resource
         ];
         $outputScheme = [
             Section::make(__('Playlist Output'))
-                ->description('Determines how the playlist is output')
+                ->description(__('Determines how the playlist is output'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -258,7 +258,7 @@ class MergedPlaylistResource extends Resource
                         ->required(),
                 ]),
             Section::make(__('EPG Output'))
-                ->description('EPG output options')
+                ->description(__('EPG output options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -294,7 +294,7 @@ class MergedPlaylistResource extends Resource
                         ->required(),
                 ]),
             Section::make(__('Streaming Output'))
-                ->description('Output processing options')
+                ->description(__('Output processing options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -487,7 +487,7 @@ class MergedPlaylistResource extends Resource
                                 ->schema([
                                     Section::make(__('Auth'))
                                         ->compact()
-                                        ->description('Add and manage authentication.')
+                                        ->description(__('Add and manage authentication.'))
                                         ->icon('heroicon-m-key')
                                         ->columnSpan(2)
                                         ->schema([
@@ -568,7 +568,7 @@ class MergedPlaylistResource extends Resource
                                 ->schema([
                                     Section::make(__('Links'))
                                         ->compact()
-                                        ->description('Manage playlist links and URL options.')
+                                        ->description(__('Manage playlist links and URL options.'))
                                         ->icon('heroicon-m-link')
                                         ->columnSpan(2)
                                         ->columns(2)
@@ -580,7 +580,7 @@ class MergedPlaylistResource extends Resource
                                 ->schema([
                                     Section::make(__('Xtream API'))
                                         ->compact()
-                                        ->description('Xtream API connection details.')
+                                        ->description(__('Xtream API connection details.'))
                                         ->icon('heroicon-m-bolt')
                                         ->columnSpan(2)
                                         ->schema([

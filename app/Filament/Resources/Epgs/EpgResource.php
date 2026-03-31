@@ -388,7 +388,7 @@ class EpgResource extends Resource
 
             // SchedulesDirect Configuration
             Section::make(__('SchedulesDirect Configuration'))
-                ->description('Configure your SchedulesDirect account settings')
+                ->description(__('Configure your SchedulesDirect account settings'))
                 ->headerActions([
                     Action::make('SchedulesDirect')
                         ->label(__('SchedulesDirect'))
@@ -692,7 +692,7 @@ class EpgResource extends Resource
 
             // URL/File Configuration
             Section::make(__('XMLTV File, URL or Path'))
-                ->description('You can either upload an XMLTV file or provide a URL to an XMLTV file. File should conform to the XMLTV format.')
+                ->description(__('You can either upload an XMLTV file or provide a URL to an XMLTV file. File should conform to the XMLTV format.'))
                 ->headerActions([
                     Action::make('XMLTV Format')
                         ->label(__('XMLTV Format'))
@@ -741,7 +741,7 @@ class EpgResource extends Resource
                 ]),
 
             Section::make(__('Scheduling'))
-                ->description('Auto sync and scheduling options')
+                ->description(__('Auto sync and scheduling options'))
                 ->columns(2)
                 ->schema([
                     Toggle::make('auto_sync')
@@ -776,7 +776,7 @@ class EpgResource extends Resource
                 ]),
 
             Section::make(__('Mapping'))
-                ->description('Settings used when mapping EPG to a Playlist.')
+                ->description(__('Settings used when mapping EPG to a Playlist.'))
                 ->schema([
                     TextInput::make('preferred_local')
                         ->label(__('Preferred Locale'))

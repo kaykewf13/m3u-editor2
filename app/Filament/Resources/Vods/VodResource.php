@@ -522,7 +522,7 @@ class VodResource extends Resource
                     ])
                     ->schema([
                         Section::make(__('Current IDs'))
-                            ->description('Currently stored external IDs for this VOD')
+                            ->description(__('Currently stored external IDs for this VOD'))
                             ->schema([
                                 Grid::make(2)
                                     ->schema([
@@ -539,7 +539,7 @@ class VodResource extends Resource
                             ->collapsible()
                             ->collapsed(),
                         Section::make(__('Search TMDB'))
-                            ->description('Search The Movie Database for this movie')
+                            ->description(__('Search The Movie Database for this movie'))
                             ->schema([
                                 Grid::make(3)
                                     ->schema([
@@ -587,7 +587,7 @@ class VodResource extends Resource
                                 ])->fullWidth(),
                             ]),
                         Section::make(__('Search Results'))
-                            ->description('Click on a result to apply the TMDB IDs')
+                            ->description(__('Click on a result to apply the TMDB IDs'))
                             ->schema([
                                 Hidden::make('vod_id'),
                                 TmdbSearchResults::make('search_results')

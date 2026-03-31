@@ -272,7 +272,7 @@ class CustomPlaylistResource extends Resource
         ];
         $outputScheme = [
             Section::make(__('Playlist Output'))
-                ->description('Determines how the playlist is output')
+                ->description(__('Determines how the playlist is output'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -294,7 +294,7 @@ class CustomPlaylistResource extends Resource
                         ->required(),
                 ]),
             Section::make(__('EPG Output'))
-                ->description('EPG output options')
+                ->description(__('EPG output options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -330,7 +330,7 @@ class CustomPlaylistResource extends Resource
                         ->required(),
                 ]),
             Section::make(__('Streaming Output'))
-                ->description('Output processing options')
+                ->description(__('Output processing options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -527,7 +527,7 @@ class CustomPlaylistResource extends Resource
                                 ->schema([
                                     Section::make(__('Auth'))
                                         ->compact()
-                                        ->description('Add and manage authentication.')
+                                        ->description(__('Add and manage authentication.'))
                                         ->icon('heroicon-m-key')
                                         ->columnSpan(2)
                                         ->schema([

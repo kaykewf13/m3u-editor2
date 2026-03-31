@@ -337,7 +337,7 @@ class MergedEpgResource extends Resource
                 ->helperText(__('Drag to re-order the assigned EPG sources. The first will be given the highest priority.')),
 
             Section::make(__('Scheduling'))
-                ->description('Auto sync and scheduling options')
+                ->description(__('Auto sync and scheduling options'))
                 ->columns(2)
                 ->schema([
                     Toggle::make('auto_sync')

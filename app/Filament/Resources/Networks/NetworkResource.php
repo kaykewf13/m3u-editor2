@@ -305,11 +305,11 @@ class NetworkResource extends Resource
     {
         return [
             Step::make(__('Media Server'))
-                ->description('Select content source')
+                ->description(__('Select content source'))
                 ->icon('heroicon-o-server')
                 ->schema([
                     Section::make('')
-                        ->description('Networks pull their content from a media server integration. Select which media server to use.')
+                        ->description(__('Networks pull their content from a media server integration. Select which media server to use.'))
                         ->schema([
                             Select::make('media_server_integration_id')
                                 ->label(__('Media Server'))
@@ -323,11 +323,11 @@ class NetworkResource extends Resource
                 ]),
 
             Step::make(__('Network Info'))
-                ->description('Name and branding')
+                ->description(__('Name and branding'))
                 ->icon('heroicon-o-tv')
                 ->schema([
                     Section::make('')
-                        ->description('Give your network a name and optional branding.')
+                        ->description(__('Give your network a name and optional branding.'))
                         ->schema([
                             Grid::make(2)->schema([
                                 TextInput::make('name')
@@ -369,11 +369,11 @@ class NetworkResource extends Resource
                 ]),
 
             Step::make(__('Schedule'))
-                ->description('Playback settings')
+                ->description(__('Playback settings'))
                 ->icon('heroicon-o-calendar')
                 ->schema([
                     Section::make('')
-                        ->description('Configure how content is scheduled and where the network is published.')
+                        ->description(__('Configure how content is scheduled and where the network is published.'))
                         ->schema([
                             Grid::make(2)->schema([
                                 Select::make('schedule_type')
@@ -451,11 +451,11 @@ class NetworkResource extends Resource
                 ]),
 
             Step::make(__('Broadcast'))
-                ->description('Live streaming (optional)')
+                ->description(__('Live streaming (optional)'))
                 ->icon('heroicon-o-signal')
                 ->schema([
                     Section::make('')
-                        ->description('Enable live broadcasting to stream content like a real TV channel. This is optional - you can enable it later.')
+                        ->description(__('Enable live broadcasting to stream content like a real TV channel. This is optional - you can enable it later.'))
                         ->schema([
                             Toggle::make('broadcast_enabled')
                                 ->label(__('Enable Broadcasting'))
@@ -706,7 +706,7 @@ class NetworkResource extends Resource
 
                             Section::make(__('Transcoding'))
                                 ->compact()
-                                ->description('Control how media is transcoded')
+                                ->description(__('Control how media is transcoded'))
                                 ->schema([
                                     ToggleButtons::make('transcode_mode')
                                         ->label(__('Transcode Mode'))

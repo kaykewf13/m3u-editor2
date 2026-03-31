@@ -48,7 +48,7 @@ class EditProfile extends \Filament\Auth\Pages\EditProfile
         return $schema
             ->components([
                 Section::make()
-                    ->description('Update your profile information')
+                    ->description(__('Update your profile information'))
                     ->schema($fields),
             ]);
     }
