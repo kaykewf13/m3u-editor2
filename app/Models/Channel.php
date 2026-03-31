@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Enums\ChannelLogoType;
 use App\Enums\PlaylistSourceType;
 use App\Jobs\FetchTmdbIds;
+use App\Observers\ChannelObserver;
 use App\Services\PlaylistService;
 use App\Services\XtreamService;
 use App\Settings\GeneralSettings;
 use Exception;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +25,7 @@ use Illuminate\Support\Str;
 use Spatie\Tags\HasTags;
 use Symfony\Component\Process\Process as SymfonyProcess;
 
+#[ObservedBy(ChannelObserver::class)]
 class Channel extends Model
 {
     use HasFactory;
@@ -155,12 +158,13 @@ class Channel extends Model
         $profile = $profileId ? StreamProfile::find($profileId) : null;
 
         // Always proxy the internal player so we can attempt to transcode the stream for better compatibility
-        // This also prevents CORS and mixed-content issues
+        // Use internal (relative) URLs to prevent CORS and mixed-content issues
         [$url, $format] = $this->getProxyUrl(
             withFormat: true,
             profileFormat: $profile->format ?? null,
             username: $username,
-            password: $password
+            password: $password,
+            internal: true
         );
 
         return [
@@ -189,10 +193,10 @@ class Channel extends Model
      *
      * @var string|array
      */
-    public function getProxyUrl(?bool $withFormat = false, ?string $profileFormat = null, ?string $username = null, ?string $password = null)
+    public function getProxyUrl(?bool $withFormat = false, ?string $profileFormat = null, ?string $username = null, ?string $password = null, bool $internal = false)
     {
         // Load the effective playlist to determine proxy settings and get UUID for authentication
-        $playlist = $this->getEffectivePlaylist();
+        $playlist = Playlist::find($this->playlist_id ?: $this->custom_playlist_id);
         $user = $this->user;
         $originalUrl = $this->url_custom ?? $this->url;
 
@@ -226,15 +230,20 @@ class Channel extends Model
         if ($username && $password) {
             $username = urlencode($username);
             $password = urlencode($password);
-
         } else {
             $username = urlencode($user->name ?? 'admin');
             $password = urlencode($playlist->uuid);
         }
 
-        // Always proxy the internal proxy so we can attempt to transcode the stream for better compatibility
-        // This also prevents CORS and mixed-content issues
-        $url = rtrim(PlaylistService::getBaseUrl("/{$urlPath}/{$username}/{$password}/".$this->id.'.'.$channelFormat), '.');
+        // Build the proxy URL path
+        $path = "/{$urlPath}/{$username}/{$password}/".$this->id.'.'.$channelFormat;
+
+        // Use relative URL for internal (in-app) players to prevent CORS and mixed-content issues
+        if ($internal) {
+            $url = rtrim($path, '.');
+        } else {
+            $url = rtrim(PlaylistService::getBaseUrl($path), '.');
+        }
 
         // Append query parameter so our Xtream Stream controller knows to proxy the stream regardless of playlist settings
         $url .= '?'.http_build_query([

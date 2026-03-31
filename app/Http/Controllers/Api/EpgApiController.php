@@ -341,7 +341,8 @@ class EpgApiController extends Controller
                 }
 
                 // Get the channel URL and format from the computed attribute, which handles proxy logic
-                [$url, $channelFormat] = $channel->getProxyUrl(withFormat: true, username: $username, password: $password);
+                // Use internal (relative) URLs for the in-app player to prevent CORS issues
+                [$url, $channelFormat] = $channel->getProxyUrl(withFormat: true, username: $username, password: $password, internal: true);
 
                 // Get the icon
                 $icon = '';

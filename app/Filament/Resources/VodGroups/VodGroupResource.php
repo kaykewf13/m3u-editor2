@@ -355,7 +355,8 @@ class VodGroupResource extends Resource
                         ->modalSubmitActionLabel('Yes, disable now'),
 
                     DeleteAction::make()
-                        ->hidden(fn ($record) => ! $record->custom),
+                        ->hidden(fn ($record) => ! $record->custom)
+                        ->using(fn ($record) => $record->forceDelete()),
                 ])->button()->hiddenLabel()->size('sm'),
                 EditAction::make()
                     ->button()->hiddenLabel()->size('sm'),

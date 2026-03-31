@@ -3,18 +3,15 @@
 return [
     'author' => 'Shaun Parkison',
     'version' => '0.10.23',
-    'dev_version' => '0.10.28-dev',
-    'experimental_version' => '0.10.28-exp',
+    'dev_version' => '0.10.30-dev',
+    'experimental_version' => '0.10.30-exp',
     'repo' => 'm3ue/m3u-editor',
     'docs_url' => 'https://m3ue.sparkison.dev',
     'donate' => 'https://buymeacoffee.com/shparkison',
     'discord_url' => 'https://discord.gg/rS3abJ5dz7',
     'paypal' => 'https://www.paypal.com/donate/?hosted_button_id=ULJRPVWJNBSSG',
     'kofi' => 'https://ko-fi.com/sparkison',
-    'admin_emails' => [
-        // Default admin email
-        'admin@test.com',
-    ],
+    'admin_emails' => ['admin@test.com'],
     'tvgid' => [
         'regex' => env('TVGID_REGEX', '/[^a-zA-Z0-9_\-\.]/'),
     ],
@@ -27,6 +24,7 @@ return [
     'default_epg_days' => env('DEFAULT_EPG_DAYS', 7), // Default number of days to fetch for EPG generation
     'show_wan_details' => env('SHOW_WAN_DETAILS', null), // Show WAN details in admin panel
     'stuck_processing_minutes' => env('STUCK_PROCESSING_MINUTES', 120),
+    'failed_retry_cooldown_minutes' => env('FAILED_RETRY_COOLDOWN_MINUTES', 15),
     'auto_retry_503_enabled' => env('AUTO_RETRY_503_ENABLED', true),
     'auto_retry_503_max' => env('AUTO_RETRY_503_MAX', 3),
     'auto_retry_503_cooldown_minutes' => env('AUTO_RETRY_503_COOLDOWN_MINUTES', 10),

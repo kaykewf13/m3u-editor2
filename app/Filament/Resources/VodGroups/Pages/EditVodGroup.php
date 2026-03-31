@@ -231,7 +231,8 @@ class EditVodGroup extends EditRecord
                     ->modalSubmitActionLabel('Yes, disable now'),
 
                 DeleteAction::make()
-                    ->hidden(fn ($record) => ! $record->custom),
+                    ->hidden(fn ($record) => ! $record->custom)
+                    ->using(fn ($record) => $record->forceDelete()),
             ])->button()->label('Actions'),
         ];
     }

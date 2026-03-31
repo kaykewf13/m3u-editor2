@@ -25,6 +25,7 @@ use App\Livewire\PlaylistEpgUrl;
 use App\Livewire\PlaylistInfo;
 use App\Livewire\PlaylistM3uUrl;
 use App\Livewire\XtreamApiInfo;
+use App\Livewire\XtreamDnsStatus;
 use App\Models\Group;
 use App\Models\MediaServerIntegration;
 use App\Models\Playlist;
@@ -1039,6 +1040,7 @@ class PlaylistResource extends Resource
                                     ->columns(1)
                                     ->schema([
                                         Livewire::make(XtreamApiInfo::class),
+                                        Livewire::make(XtreamDnsStatus::class),
                                     ]),
                             ]),
                     ])->contained(false),
@@ -1127,6 +1129,38 @@ class PlaylistResource extends Resource
                         ->columnSpan(2)
                         ->required()
                         ->hidden(fn (Get $get): bool => ! $get('xtream')),
+                    Section::make('DNS failover URLs')
+                        ->icon('heroicon-s-globe-alt')
+                        ->iconSize('md')
+                        ->compact()
+                        ->live()
+                        ->collapsed()
+                        ->schema([
+                            Repeater::make('xtream_fallback_urls')
+                                ->label('Alternative URLs')
+                                ->hiddenLabel()
+                                ->live()
+                                ->hintIcon(
+                                    'heroicon-s-information-circle',
+                                    tooltip: 'Alternative Xtream API URLs to try if the primary URL fails during a sync operation. Stream URLs will be automatically updated to the resolved URL.',
+                                )
+                                ->helperText('Alternative Xtream API URLs. If the primary URL fails during a sync, these will be tried in order (same credentials are used for all URLs).')
+                                ->simple(
+                                    TextInput::make('url')
+                                        ->label('URL')
+                                        ->prefixIcon('heroicon-m-globe-alt')
+                                        ->rules([new UrlIsAllowed])
+                                        ->maxLength(4000)
+                                        ->url()
+                                        ->required(),
+                                )
+                                ->defaultItems(0)
+                                ->maxItems(10)
+                                ->collapsible()
+                                ->collapsed()
+                                ->reorderable()
+                                ->columnSpan(2),
+                        ])->hidden(fn (Get $get): bool => ! $get('xtream')),
                     Grid::make()
                         ->columnSpanFull()
                         ->schema([
@@ -1219,6 +1253,7 @@ class PlaylistResource extends Resource
             Section::make('Provider Profiles')
                 ->description('Pool multiple Xtream accounts from this provider to increase concurrent stream capacity.')
                 ->icon('heroicon-o-user-group')
+                ->iconSize('md')
                 ->collapsible()
                 ->compact()
                 ->collapsed(fn (?Playlist $record): bool => ! ($record?->profiles_enabled ?? false))

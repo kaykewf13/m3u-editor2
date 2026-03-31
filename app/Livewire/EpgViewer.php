@@ -114,8 +114,9 @@ class EpgViewer extends Component implements HasActions, HasForms
                         $url = $updated->url_custom ?? $updated->url;
 
                         // Get the URL based on proxy settings
+                        // Use internal (relative) URL for the in-app player to prevent CORS issues
                         if ($proxyEnabled) {
-                            $url = $record->getProxyUrl();
+                            $url = $record->getProxyUrl(internal: true);
                         }
 
                         if (Str::endsWith($url, '.m3u8')) {

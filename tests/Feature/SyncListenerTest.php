@@ -20,6 +20,7 @@ use App\Jobs\MergeChannels;
 use App\Jobs\ProcessChannelScrubber;
 use App\Jobs\RunPlaylistFindReplaceRules;
 use App\Jobs\RunPlaylistSortAlpha;
+use App\Jobs\SyncPlexDvrJob;
 use App\Models\ChannelScrubber;
 use App\Models\Epg;
 use App\Models\Playlist;
@@ -30,6 +31,9 @@ use Illuminate\Support\Facades\Notification;
 beforeEach(function () {
     Bus::fake();
     Notification::fake();
+    config(['cache.default' => 'array']);
+    app()->forgetInstance('cache');
+    app()->forgetInstance('cache.store');
 
     $this->user = User::factory()->create();
     $this->playlist = Playlist::factory()->for($this->user)->createQuietly([
@@ -328,4 +332,50 @@ it('resets EPG cache state to prevent stale reads before dispatching GenerateEpg
         ->and($epg->cache_meta)->toBeNull()
         ->and($epg->processing_started_at)->toBeNull()
         ->and($epg->processing_phase)->toBeNull();
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Plex DVR Sync: event-driven dispatch
+// ──────────────────────────────────────────────────────────────────────────────
+
+it('dispatches SyncPlexDvrJob after a successful playlist sync', function () {
+    event(new SyncCompleted($this->playlist));
+
+    Bus::assertDispatched(
+        SyncPlexDvrJob::class,
+        fn (SyncPlexDvrJob $job): bool => $job->trigger === 'playlist_sync'
+    );
+});
+
+it('does not dispatch SyncPlexDvrJob when playlist sync failed', function () {
+    $this->playlist->update(['status' => Status::Failed]);
+
+    event(new SyncCompleted($this->playlist));
+
+    Bus::assertNotDispatched(SyncPlexDvrJob::class);
+});
+
+it('dispatches SyncPlexDvrJob after a successful EPG sync', function () {
+    $epg = Epg::factory()->for($this->user)->createQuietly([
+        'uuid' => (string) Str::orderedUuid(),
+        'status' => Status::Completed,
+    ]);
+
+    event(new SyncCompleted($epg));
+
+    Bus::assertDispatched(
+        SyncPlexDvrJob::class,
+        fn (SyncPlexDvrJob $job): bool => $job->trigger === 'epg_sync'
+    );
+});
+
+it('does not dispatch SyncPlexDvrJob when EPG sync failed', function () {
+    $epg = Epg::factory()->for($this->user)->createQuietly([
+        'uuid' => (string) Str::orderedUuid(),
+        'status' => Status::Failed,
+    ]);
+
+    event(new SyncCompleted($epg));
+
+    Bus::assertNotDispatched(SyncPlexDvrJob::class);
 });

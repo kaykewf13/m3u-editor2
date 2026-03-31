@@ -66,11 +66,19 @@ class RefreshEpg extends Command
             }
 
             $count = 0;
-            $epgs->get()->each(function (Epg $epg) use (&$count) {
+            $failedRetryCooldown = (int) config('dev.failed_retry_cooldown_minutes', 30);
+            $epgs->get()->each(function (Epg $epg) use (&$count, $failedRetryCooldown) {
                 $cronExpression = new CronExpression($epg->sync_interval);
 
-                // Check if sync is due based on last synced time and cron expression
-                $force = $epg->status === Status::Failed; // Force refresh if currently in failed state
+                // Gate failed retries behind a cooldown to prevent CPU runaway
+                $isFailed = $epg->status === Status::Failed;
+                $cooldownPassed = $epg->updated_at->diffInMinutes(now()) >= $failedRetryCooldown;
+
+                if ($isFailed && ! $cooldownPassed) {
+                    return;
+                }
+
+                $force = $isFailed;
                 $lastRun = $force ? now()->subYears(1) : ($epg->synced ?? now()->subYears(1));
                 $nextDue = $cronExpression->getNextRunDate($lastRun->toDateTimeImmutable());
 

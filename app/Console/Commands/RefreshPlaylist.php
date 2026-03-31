@@ -73,11 +73,19 @@ class RefreshPlaylist extends Command
             }
 
             $count = 0;
-            $playlists->get()->each(function (Playlist $playlist) use (&$count) {
+            $failedRetryCooldown = (int) config('dev.failed_retry_cooldown_minutes', 30);
+            $playlists->get()->each(function (Playlist $playlist) use (&$count, $failedRetryCooldown) {
                 $cronExpression = new CronExpression($playlist->sync_interval);
 
-                // Check if sync is due based on last synced time and cron expression
-                $force = $playlist->status === Status::Failed; // Force refresh if currently in failed state
+                // Gate failed retries behind a cooldown to prevent CPU runaway
+                $isFailed = $playlist->status === Status::Failed;
+                $cooldownPassed = $playlist->updated_at->diffInMinutes(now()) >= $failedRetryCooldown;
+
+                if ($isFailed && ! $cooldownPassed) {
+                    return;
+                }
+
+                $force = $isFailed;
                 $lastRun = $force ? now()->subYears(1) : ($playlist->synced ?? now()->subYears(1));
                 $nextDue = $cronExpression->getNextRunDate($lastRun->toDateTimeImmutable());
 

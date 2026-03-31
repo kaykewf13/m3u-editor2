@@ -35,6 +35,10 @@ class MapEpgToChannels implements ShouldQueue
         $chunkSize = 10;
         $map = EpgMap::where('uuid', $this->batchNo)->first();
 
+        if (! $map) {
+            return;
+        }
+
         // Process the jobs
         foreach (Job::whereIn('id', $this->jobs)->cursor() as $index => $job) {
             $bulk = [];

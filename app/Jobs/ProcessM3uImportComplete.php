@@ -178,7 +178,7 @@ class ProcessM3uImportComplete implements ShouldQueue
                         ]);
 
                         // Cleanup the any new groups/channels
-                        $newGroups->delete();
+                        $newGroups->forceDelete();
                         $newChannels->delete();
 
                         // Clear out the jobs
@@ -232,6 +232,12 @@ class ProcessM3uImportComplete implements ShouldQueue
             ->where('is_custom', false)
             ->whereNull('group_id')
             ->delete();
+
+        // Clean up groups that have been soft-deleted for over 30 days
+        Group::onlyTrashed()
+            ->where('playlist_id', $playlist->id)
+            ->where('deleted_at', '<', now()->subDays(30))
+            ->forceDelete();
 
         // Clear out the jobs
         Job::where('batch_no', $this->batchNo)->delete();

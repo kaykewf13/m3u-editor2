@@ -82,7 +82,7 @@ class ViewVod extends ViewRecord
                     'content_type' => 'vod',
                     'playlist_id' => $this->record->playlist_id,
                     'title' => $this->record->title_custom ?? $this->record->title ?? $this->record->name,
-                    'url' => $this->record->getProxyUrl(),
+                    'url' => $this->record->getProxyUrl(internal: true),
                     'format' => $this->record->container_extension ?? 'ts',
                     'type' => 'channel',
                 ]]),
