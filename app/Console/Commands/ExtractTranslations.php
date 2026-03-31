@@ -171,7 +171,8 @@ class ExtractTranslations extends Command
                 }
 
                 $value = trim($raw, '\'"');
-                $escaped = addslashes($value);
+                // Single-quoted PHP strings only need \\ and \' escaped — not \" (addslashes would produce literal backslashes)
+                $escaped = str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
 
                 $this->strings[$value] = $value;
 
@@ -243,7 +244,8 @@ class ExtractTranslations extends Command
         }
 
         $this->strings[$value] = $value;
-        $escaped = addslashes($value);
+        // Single-quoted PHP strings only need \\ and \' escaped — not \" (addslashes would produce literal backslashes)
+        $escaped = str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
 
         return str_replace($literal, "__('{$escaped}')", $fullMatch);
     }

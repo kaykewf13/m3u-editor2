@@ -357,15 +357,15 @@ class Preferences extends SettingsPage
                                                     ->label(__('HTTP Port'))
                                                     ->numeric()
                                                     ->placeholder(fn () => config('app.port', '80'))
-                                                    ->helperText(__('Returned as \"server_info.http_port\" in \"player_api.php\" responses. Leave empty to use APP_PORT (default).')),
+                                                    ->helperText(__('Returned as "server_info.http_port" in "player_api.php" responses. Leave empty to use APP_PORT (default).')),
                                                 TextInput::make('xtream_api_details.https_port')
                                                     ->label(__('HTTPS Port'))
                                                     ->numeric()
                                                     ->placeholder(__('443'))
-                                                    ->helperText(__('Returned as \"server_info.https_port\" in \"player_api.php\" responses. Leave empty to use 443 (default).')),
+                                                    ->helperText(__('Returned as "server_info.https_port" in "player_api.php" responses. Leave empty to use 443 (default).')),
                                                 Textarea::make('xtream_api_message')
                                                     ->label(__('Xtream API panel message'))
-                                                    ->helperText(__('Returned as \"user_info.message\" in \"player_api.php\" responses.'))
+                                                    ->helperText(__('Returned as "user_info.message" in "player_api.php" responses.'))
                                                     ->rows(3)
                                                     ->columnSpanFull()
                                                     ->default(''),
@@ -1200,7 +1200,7 @@ class Preferences extends SettingsPage
                                             ->label(__('SMTP From Address'))
                                             ->placeholder(__('Enter SMTP From Address'))
                                             ->email()
-                                            ->helperText(__('The \"From\" email address for outgoing emails. Defaults to no-reply@m3u-editor.dev.')),
+                                            ->helperText(__('The "From" email address for outgoing emails. Defaults to no-reply@m3u-editor.dev.')),
                                     ]),
                             ]),
                         Tab::make(__('TMDB'))
@@ -1344,7 +1344,7 @@ class Preferences extends SettingsPage
                                     ])->schema([
                                         Toggle::make('show_api_docs')
                                             ->label(__('Allow access to API docs'))
-                                            ->helperText(__('When enabled you can access the API documentation using the \"API Docs\" button. When disabled, the docs endpoint will return a 403 (Unauthorized). NOTE: The API will respond regardless of this setting. You do not need to enable it to use the API.')),
+                                            ->helperText(__('When enabled you can access the API documentation using the "API Docs" button. When disabled, the docs endpoint will return a 403 (Unauthorized). NOTE: The API will respond regardless of this setting. You do not need to enable it to use the API.')),
                                     ]),
                             ]),
                         Tab::make(__('Debugging'))
@@ -1397,7 +1397,7 @@ class Preferences extends SettingsPage
                                         //     ->helperText(__('When enabled, there will be an additional navigation item (Logs) to view the log file content.')),
                                         Toggle::make('show_queue_manager')
                                             ->label(__('Allow queue manager access'))
-                                            ->helperText(__('When enabled you can access the queue manager using the \"Queue Manager\" button. When disabled, the queue manager endpoint will return a 403 (Unauthorized).')),
+                                            ->helperText(__('When enabled you can access the queue manager using the "Queue Manager" button. When disabled, the queue manager endpoint will return a 403 (Unauthorized).')),
                                     ]),
                             ]),
                     ])->contained(false),
