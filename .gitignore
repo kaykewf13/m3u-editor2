@@ -66,4 +66,9 @@ fast-build.sh
 .tmp/
 # Local plugins are generated artifacts, not source code
 /plugins/
+
+dev-setup.sh
+compose.dev.yaml
+compose.services.yaml
+mediaserver.env
 .env.testing

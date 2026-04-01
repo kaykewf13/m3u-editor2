@@ -1702,6 +1702,30 @@ class PlaylistResource extends Resource
                 ->columnSpanFull()
                 ->columns(columns: 2)
                 ->schema([
+                    Toggle::make('import_prefs.import_via_category')
+                        ->label('Fetch by category')
+                        ->live()
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            tooltip: 'This may slow down the import process but can help with larger playlists that time out when fetching all items at once.'
+                        )
+                        ->hidden(fn (Get $get): bool => ! $get('xtream'))
+                        ->inline(true)
+                        ->default(false)
+                        ->helperText('When enabled, the playlist will fetch items by category.')
+                        ->columnSpanFull(),
+
+                    Toggle::make('auto_probe_streams')
+                        ->label('Probe streams after sync')
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            tooltip: 'Required for fast channel switching when using the emby-xtream plugin.'
+                        )
+                        ->helperText('When enabled, channels will be probed with ffprobe after sync to collect stream metadata (codec, resolution, bitrate) and store it to the database for fast retrieval.')
+                        ->inline(true)
+                        ->columnSpanFull()
+                        ->default(false),
+
                     Toggle::make('import_prefs.preprocess')
                         ->label('Preprocess playlist')
                         ->live()
@@ -1709,17 +1733,8 @@ class PlaylistResource extends Resource
                         ->default(false)
                         ->helperText('When enabled, the playlist will be preprocessed before importing. You can then select which groups you would like to import.'),
 
-                    Toggle::make('import_prefs.import_via_category')
-                        ->label('Fetch by category')
-                        ->live()
-                        ->hidden(fn (Get $get): bool => ! $get('xtream'))
-                        ->inline(true)
-                        ->default(false)
-                        ->helperText('When enabled, the playlist will fetch items by category. This may slow down the import process but can help with larger playlists that time out when fetching all items at once.'),
-
                     Toggle::make('import_prefs.use_regex')
                         ->label('Use regex for filtering')
-                        ->columnSpan(2)
                         ->inline(true)
                         ->live()
                         ->default(false)
@@ -2028,6 +2043,11 @@ class PlaylistResource extends Resource
                                 ->inline(true)
                                 ->default(true)
                                 ->helperText('When enabled, newly added channels will have merging enabled by default on sync.'),
+                            Toggle::make('import_prefs.channel_default_probe_enabled')
+                                ->label('Enable stream probing by default')
+                                ->inline(true)
+                                ->default(true)
+                                ->helperText('When enabled, newly added channels will be included in automatic stream probing after sync.'),
                         ])
                         ->hidden(fn (Get $get): bool => ! $get('enable_channels')),
 

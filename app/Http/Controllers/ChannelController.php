@@ -288,10 +288,10 @@ class ChannelController extends Controller
             ], 403);
         }
 
-        // Get stream stats
+        // Perform live stream probe
         $streamStats = [];
         try {
-            $streamStats = $channel->stream_stats;
+            $streamStats = $channel->probeStreamStats();
         } catch (\Exception $e) {
             $streamStats = [
                 'error' => 'Unable to retrieve stream statistics',
@@ -386,11 +386,11 @@ class ChannelController extends Controller
             })
             ->get();
 
-        // Get stream stats for each channel
+        // Perform live stream probe for each channel
         $results = $channels->map(function ($channel) {
             $stats = [];
             try {
-                $stats = $channel->stream_stats;
+                $stats = $channel->probeStreamStats();
             } catch (\Exception $e) {
                 $stats = [
                     'error' => 'Unable to retrieve stream statistics',
