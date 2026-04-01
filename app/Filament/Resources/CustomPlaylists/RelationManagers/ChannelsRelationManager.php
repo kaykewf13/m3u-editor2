@@ -36,7 +36,10 @@ class ChannelsRelationManager extends RelationManager
 
     protected static ?string $title = 'Live Channels';
 
-    protected static ?string $navigationLabel = 'Live Channels';
+    public static function getNavigationLabel(): string
+    {
+        return __('Live Channels');
+    }
 
     public function isReadOnly(): bool
     {
@@ -45,7 +48,7 @@ class ChannelsRelationManager extends RelationManager
 
     public static function getTabComponent(Model $ownerRecord, string $pageClass): Tab
     {
-        return Tab::make('Live Channels')
+        return Tab::make(__('Live Channels'))
             ->badge($ownerRecord->channels()->where('is_vod', false)->count())
             ->icon('heroicon-m-film');
     }
@@ -66,7 +69,7 @@ class ChannelsRelationManager extends RelationManager
         $ownerRecord = $this->ownerRecord;
 
         $groupColumn = SpatieTagsColumn::make('tags')
-            ->label('Playlist Group')
+            ->label(__('Playlist Group'))
             ->type($ownerRecord->uuid)
             ->toggleable()->searchable(query: function (Builder $query, string $search) use ($ownerRecord): Builder {
                 return $query->whereHas('tags', function (Builder $query) use ($search, $ownerRecord) {
@@ -127,7 +130,7 @@ class ChannelsRelationManager extends RelationManager
         foreach ($defaultColumns as $i => $column) {
             if (method_exists($column, 'getName') && $column->getName() === 'channel') {
                 $defaultColumns[$i] = Tables\Columns\TextInputColumn::make('custom_channel_number')
-                    ->label('Channel')
+                    ->label(__('Channel'))
                     ->type('number')
                     ->rules(['nullable', 'numeric', 'min:0'])
                     ->placeholder(fn ($record) => (string) $record->channel)
@@ -156,10 +159,10 @@ class ChannelsRelationManager extends RelationManager
             ->persistSortInSession()
             ->recordTitleAttribute('title')
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->modifyQueryUsing(function (Builder $query) use ($ownerRecord) {
                 $query->with(['tags' => function ($tagQuery) use ($ownerRecord) {
@@ -176,7 +179,7 @@ class ChannelsRelationManager extends RelationManager
             ->filters([
                 ...ChannelResource::getTableFilters(showPlaylist: true),
                 SelectFilter::make('playlist_group')
-                    ->label('Custom Group')
+                    ->label(__('Custom Group'))
                     ->options(function () use ($ownerRecord) {
                         return $ownerRecord->tags()
                             ->where('type', $ownerRecord->uuid)
@@ -203,10 +206,10 @@ class ChannelsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->label('Create Custom Channel')
+                    ->label(__('Create Custom Channel'))
                     ->schema(ChannelResource::getForm(customPlaylist: $ownerRecord))
-                    ->modalHeading('New Custom Channel')
-                    ->modalDescription('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.')
+                    ->modalHeading(__('New Custom Channel'))
+                    ->modalDescription(__('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.'))
                     ->using(fn (array $data, string $model): Model => ChannelResource::createCustomChannel(
                         data: $data,
                         model: $model,
@@ -257,8 +260,8 @@ class ChannelsRelationManager extends RelationManager
                             $ownerRecord->update(['enable_proxy' => true]);
 
                             Notification::make()
-                                ->title('Proxy Enabled')
-                                ->body('Proxy mode was automatically enabled because this playlist now contains channels from source playlists with Provider Profiles enabled.')
+                                ->title(__('Proxy Enabled'))
+                                ->body(__('Proxy mode was automatically enabled because this playlist now contains channels from source playlists with Provider Profiles enabled.'))
                                 ->info()
                                 ->persistent()
                                 ->send();
@@ -269,7 +272,7 @@ class ChannelsRelationManager extends RelationManager
                 // Tables\Actions\AttachAction::make()->schema(fn(Tables\Actions\AttachAction $action): array => [
                 //     $action->getRecordSelect(),
                 //     Forms\Components\TextInput::make('title')
-                //         ->label('Title')
+                //         ->label(__('Title'))
                 //         ->required(),
                 // ]),
             ])
@@ -289,11 +292,11 @@ class ChannelsRelationManager extends RelationManager
             ->toolbarActions([
                 ...ChannelResource::getTableBulkActions(addToCustom: false, includeRecount: false),
                 BulkAction::make('recount_custom')
-                    ->label('Recount Channels')
+                    ->label(__('Recount Channels'))
                     ->icon('heroicon-o-hashtag')
                     ->schema([
                         Forms\Components\TextInput::make('start')
-                            ->label('Start Number')
+                            ->label(__('Start Number'))
                             ->numeric()
                             ->default(1)
                             ->required(),
@@ -305,16 +308,16 @@ class ChannelsRelationManager extends RelationManager
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Custom Playlist Channels Recounted')
-                            ->body('The selected channels were recounted for this custom playlist only.')
+                            ->title(__('Custom Playlist Channels Recounted'))
+                            ->body(__('The selected channels were recounted for this custom playlist only.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-o-hashtag')
-                    ->modalDescription('Recount the selected channels only inside this custom playlist. The original channel numbers will not change.')
-                    ->modalSubmitActionLabel('Recount now'),
+                    ->modalDescription(__('Recount the selected channels only inside this custom playlist. The original channel numbers will not change.'))
+                    ->modalSubmitActionLabel(__('Recount now')),
                 BulkAction::make('detach')
-                    ->label('Detach Selected')
+                    ->label(__('Detach Selected'))
                     ->action(function (Collection $records) use ($ownerRecord): void {
                         $tags = $ownerRecord->groupTags()->get();
                         foreach ($records as $record) {
@@ -324,8 +327,8 @@ class ChannelsRelationManager extends RelationManager
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Detached from playlist')
-                            ->body('The selected channels have been detached from the custom playlist.')
+                            ->title(__('Detached from playlist'))
+                            ->body(__('The selected channels have been detached from the custom playlist.'))
                             ->send();
                     })
                     ->color('danger')
@@ -333,13 +336,13 @@ class ChannelsRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->icon('heroicon-o-x-mark')
                     ->modalIcon('heroicon-o-x-mark')
-                    ->modalDescription('Detach selected channels from custom playlist')
-                    ->modalSubmitActionLabel('Detach Selected'),
+                    ->modalDescription(__('Detach selected channels from custom playlist'))
+                    ->modalSubmitActionLabel(__('Detach Selected')),
                 BulkAction::make('add_to_group')
-                    ->label('Add to custom group')
+                    ->label(__('Add to custom group'))
                     ->schema([
                         Select::make('group')
-                            ->label('Select group')
+                            ->label(__('Select group'))
                             ->native(false)
                             ->options(
                                 $ownerRecord->groupTags()->get()
@@ -360,16 +363,16 @@ class ChannelsRelationManager extends RelationManager
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Added to group')
-                            ->body('The selected channels have been added to the custom group.')
+                            ->title(__('Added to group'))
+                            ->body(__('The selected channels have been added to the custom group.'))
                             ->send();
                     })
                     ->deselectRecordsAfterCompletion()
                     ->requiresConfirmation()
                     ->icon('heroicon-o-squares-plus')
                     ->modalIcon('heroicon-o-squares-plus')
-                    ->modalDescription('Add to group')
-                    ->modalSubmitActionLabel('Yes, add to group'),
+                    ->modalDescription(__('Add to group'))
+                    ->modalSubmitActionLabel(__('Yes, add to group')),
             ]);
     }
 
@@ -390,13 +393,13 @@ class ChannelsRelationManager extends RelationManager
         // Add an "All" tab to show all channels
         array_unshift(
             $tabs,
-            Tab::make('All')
+            Tab::make(__('All'))
                 ->modifyQueryUsing(fn ($query) => $query->where('is_vod', false))
                 ->badge($ownerRecord->channels()->where('is_vod', false)->count())
         );
         array_push(
             $tabs,
-            Tab::make('Uncategorized')
+            Tab::make(__('Uncategorized'))
                 ->modifyQueryUsing(fn ($query) => $query->where('is_vod', false)->whereDoesntHave('tags', function ($tagQuery) use ($ownerRecord) {
                     $tagQuery->where('type', $ownerRecord->uuid);
                 }))

@@ -11,12 +11,16 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 
 class ListUsers extends ListRecords
 {
     protected static string $resource = UserResource::class;
 
-    protected ?string $subheading = 'Manage users that can access and use the application. Each user will have their own playlists, channels, series, and other resources. Some features may be restricted based on user roles (such as global settings).';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Manage users that can access and use the application. Each user will have their own playlists, channels, series, and other resources. Some features may be restricted based on user roles (such as global settings).');
+    }
 
     protected function getHeaderActions(): array
     {
@@ -24,20 +28,20 @@ class ListUsers extends ListRecords
             Actions\CreateAction::make()
                 ->icon('heroicon-o-user-plus'),
             Actions\Action::make('notify')
-                ->label('Notify All Users')
+                ->label(__('Notify All Users'))
                 ->icon('heroicon-o-bell-alert')
                 ->modalIcon('heroicon-o-bell-alert')
                 ->schema([
                     TextInput::make('subject')
-                        ->label('Notification Subject')
+                        ->label(__('Notification Subject'))
                         ->required()
                         ->maxLength(255),
                     Textarea::make('message')
-                        ->label('Notification Message')
+                        ->label(__('Notification Message'))
                         ->required()
                         ->maxLength(255),
                     Select::make('type')
-                        ->label('Notification Type')
+                        ->label(__('Notification Type'))
                         ->options([
                             'info' => 'Info',
                             'success' => 'Success',
@@ -48,8 +52,8 @@ class ListUsers extends ListRecords
                         ->default('info')
                         ->required(),
                     Toggle::make('notify_self')
-                        ->label('Notify Myself')
-                        ->helperText('Send the notification to yourself as well (for testing purposes)'),
+                        ->label(__('Notify Myself'))
+                        ->helperText(__('Send the notification to yourself as well (for testing purposes)')),
                 ])
                 ->action(function (array $data) {
                     // Send notification to all users
@@ -68,7 +72,7 @@ class ListUsers extends ListRecords
                     $usersCount = User::count();
                     Notification::make()
                         ->success()
-                        ->title('Notifications Sent')
+                        ->title(__('Notifications Sent'))
                         ->body("Sent notification to {$usersCount} users.")
                         ->send();
                 }),

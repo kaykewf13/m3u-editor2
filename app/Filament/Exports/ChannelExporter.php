@@ -19,12 +19,12 @@ class ChannelExporter extends Exporter
         return [
             Select::make('playlist')
                 ->required()
-                ->label('Playlist')
-                ->helperText('Select the playlist you would like to export channels for.')
+                ->label(__('Playlist'))
+                ->helperText(__('Select the playlist you would like to export channels for.'))
                 ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                 ->searchable(),
             // Forms\Components\Toggle::make('enabled')
-            //     ->label('Only export enabled channels?')
+            //     ->label(__('Only export enabled channels?'))
             //     ->default(true),
         ];
     }

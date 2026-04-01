@@ -54,12 +54,12 @@ class ViewVod extends ViewRecord
     {
         return [
             Actions\Action::make('back')
-                ->label('Back to VOD')
+                ->label(__('Back to VOD'))
                 ->url(VodResource::getUrl('index'))
                 ->icon('heroicon-s-arrow-left')
                 ->color('gray'),
             Actions\EditAction::make()
-                ->label('Edit VOD')
+                ->label(__('Edit VOD'))
                 ->slideOver()
                 ->color('gray')
                 ->icon('heroicon-s-pencil'),
@@ -73,7 +73,7 @@ class ViewVod extends ViewRecord
                 })
                 ->requiresConfirmation(),
             Actions\Action::make('play')
-                ->label('Play')
+                ->label(__('Play'))
                 ->icon('heroicon-s-play')
                 ->color('primary')
                 ->dispatch('openFloatingStream', fn () => [$this->record->getFloatingPlayerAttributes()]),

@@ -6,6 +6,7 @@ use App\Filament\Resources\PlaylistAuths\PlaylistAuthResource;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,7 +14,10 @@ class ListPlaylistAuths extends ListRecords
 {
     protected static string $resource = PlaylistAuthResource::class;
 
-    protected ?string $subheading = 'Create credentials and assign them to your Playlist for simple authentication. They can also be used to access the Xtream API for the assigned Playlists.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Create credentials and assign them to your Playlist for simple authentication. They can also be used to access the Xtream API for the assigned Playlists.');
+    }
 
     protected function getHeaderActions(): array
     {
@@ -27,8 +31,8 @@ class ListPlaylistAuths extends ListRecords
                 ->successNotification(
                     Notification::make()
                         ->success()
-                        ->title('Playlist Auth created')
-                        ->body('You can now assign Playlists to this Auth.'),
+                        ->title(__('Playlist Auth created'))
+                        ->body(__('You can now assign Playlists to this Auth.')),
                 ),
         ];
     }

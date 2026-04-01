@@ -13,6 +13,7 @@ use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,7 +21,10 @@ class ListVodGroups extends ListRecords
 {
     protected static string $resource = VodGroupResource::class;
 
-    protected ?string $subheading = 'Manage VOD groups.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Manage VOD groups.');
+    }
 
     protected function getHeaderActions(): array
     {
@@ -36,12 +40,12 @@ class ListVodGroups extends ListRecords
                 ->successNotification(
                     Notification::make()
                         ->success()
-                        ->title('Group created')
-                        ->body('You can now assign channels to this group from the Channels section.'),
+                        ->title(__('Group created'))
+                        ->body(__('You can now assign channels to this group from the Channels section.')),
                 )->slideOver(),
             ActionGroup::make([
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema(fn () => FindReplaceService::getHeaderActionSchema('vod_groups'))
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -56,18 +60,18 @@ class ListVodGroups extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your VOD group names.')
-                    ->modalSubmitActionLabel('Replace now'),
+                    ->modalDescription(__('Select what you would like to find and replace in your VOD group names.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
                 Action::make('find-replace-reset')
-                    ->label('Undo Find & Replace')
+                    ->label(__('Undo Find & Replace'))
                     ->schema(fn () => FindReplaceService::getHeaderResetSchema())
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -79,17 +83,17 @@ class ListVodGroups extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace reset started')
-                            ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace reset started'))
+                            ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Reset VOD group names back to their original imported values. This will undo any find & replace changes for the selected playlist.')
-                    ->modalSubmitActionLabel('Reset now'),
-            ])->button()->label('Actions'),
+                    ->modalDescription(__('Reset VOD group names back to their original imported values. This will undo any find & replace changes for the selected playlist.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
+            ])->button()->label(__('Actions')),
         ];
     }
 

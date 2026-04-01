@@ -24,14 +24,14 @@ class EditMergedPlaylist extends EditRecord
         $cleared = EpgCacheService::clearPlaylistEpgCacheFile($this->record);
         if ($cleared) {
             Notification::make()
-                ->title('EPG File Cache Cleared')
-                ->body('The EPG file cache has been successfully cleared.')
+                ->title(__('EPG File Cache Cleared'))
+                ->body(__('The EPG file cache has been successfully cleared.'))
                 ->success()
                 ->send();
         } else {
             Notification::make()
-                ->title('EPG File Cache Not Found')
-                ->body('No EPG cache files found.')
+                ->title(__('EPG File Cache Not Found'))
+                ->body(__('No EPG cache files found.'))
                 ->warning()
                 ->send();
         }

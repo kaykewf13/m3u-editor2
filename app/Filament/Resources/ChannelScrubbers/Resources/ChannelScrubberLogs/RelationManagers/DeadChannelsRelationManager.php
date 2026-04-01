@@ -29,11 +29,11 @@ class DeadChannelsRelationManager extends RelationManager
             ->defaultSort('id', 'asc')
             ->columns([
                 TextColumn::make('title')
-                    ->label('Channel')
+                    ->label(__('Channel'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('url')
-                    ->label('URL')
+                    ->label(__('URL'))
                     ->searchable(),
             ])
             ->filters([]);

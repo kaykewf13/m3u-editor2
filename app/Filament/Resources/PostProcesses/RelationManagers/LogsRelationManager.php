@@ -29,11 +29,11 @@ class LogsRelationManager extends RelationManager
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('Item Name')
+                    ->label(__('Item Name'))
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('status')
-                    ->label('Process Status')
+                    ->label(__('Process Status'))
                     ->sortable()
                     ->badge()
                     ->toggleable()
@@ -46,15 +46,15 @@ class LogsRelationManager extends RelationManager
                         };
                     }),
                 TextColumn::make('type')
-                    ->label('Process Event')
+                    ->label(__('Process Event'))
                     ->badge()
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('message')
-                    ->label('Process Message')
+                    ->label(__('Process Message'))
                     ->wrap(),
                 TextColumn::make('created_at')
-                    ->label('Ran at')
+                    ->label(__('Ran at'))
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
                     ->sortable()
                     ->toggleable(),

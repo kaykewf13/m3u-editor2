@@ -104,7 +104,7 @@ class SeriesResource extends Resource
                     ->getStateUsing(fn ($record) => LogoFacade::getSeriesLogoUrl($record))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Info')
+                    ->label(__('Info'))
                     ->description((fn ($record) => Str::limit($record->plot, 200)))
                     ->wrap()
                     ->extraAttributes(['style' => 'min-width: 350px;'])
@@ -113,13 +113,13 @@ class SeriesResource extends Resource
                         return $query->orWhereRaw('LOWER(series.name) LIKE ?', ['%'.strtolower($search).'%']);
                     }),
                 Tables\Columns\TextColumn::make('seasons_count')
-                    ->label('Seasons')
+                    ->label(__('Seasons'))
                     ->counts('seasons')
                     ->badge()
                     ->toggleable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('episodes_count')
-                    ->label('Episodes')
+                    ->label(__('Episodes'))
                     ->counts('episodes')
                     ->badge()
                     ->toggleable()
@@ -130,8 +130,8 @@ class SeriesResource extends Resource
                 Tables\Columns\TextColumn::make('genre')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('youtube_trailer')
-                    ->label('YouTube Trailer')
-                    ->placeholder('No trailer ID set.')
+                    ->label(__('YouTube Trailer'))
+                    ->placeholder(__('No trailer ID set.'))
                     ->url(fn ($record): string => 'https://www.youtube.com/watch?v='.$record->youtube_trailer)
                     ->openUrlInNewTab()
                     ->icon('heroicon-s-play'),

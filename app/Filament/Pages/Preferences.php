@@ -49,9 +49,15 @@ class Preferences extends SettingsPage
 
     protected static string $settings = GeneralSettings::class;
 
-    protected static ?string $navigationLabel = 'Settings';
+    public static function getNavigationLabel(): string
+    {
+        return __('Settings');
+    }
 
-    protected static ?string $title = 'Settings';
+    public function getTitle(): string
+    {
+        return __('Settings');
+    }
 
     /**
      * Check if the user can access this page.
@@ -67,13 +73,13 @@ class Preferences extends SettingsPage
         return [
             ActionGroup::make([
                 Action::make('Clear Expired Logo Cache')
-                    ->label('Clear Expired Logo Cache')
+                    ->label(__('Clear Expired Logo Cache'))
                     ->action(fn () => Artisan::call('app:logo-cleanup --force'))
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Expired logo cache cleared')
-                            ->body('Expired logo cache files were removed successfully.')
+                            ->title(__('Expired logo cache cleared'))
+                            ->body(__('Expired logo cache files were removed successfully.'))
                             ->duration(10000)
                             ->send();
                     })
@@ -81,16 +87,16 @@ class Preferences extends SettingsPage
                     ->requiresConfirmation()
                     ->icon('heroicon-o-trash')
                     ->modalIcon('heroicon-o-trash')
-                    ->modalDescription('Only expired logo cache entries (those older than 30 days). If permanent cache is enabled, nothing will be removed.')
-                    ->modalSubmitActionLabel('Clear expired cache'),
+                    ->modalDescription(__('Only expired logo cache entries (those older than 30 days). If permanent cache is enabled, nothing will be removed.'))
+                    ->modalSubmitActionLabel(__('Clear expired cache')),
                 Action::make('Clear Logo Cache')
-                    ->label('Clear All Logo Cache')
+                    ->label(__('Clear All Logo Cache'))
                     ->action(fn () => Artisan::call('app:logo-cleanup --force --all'))
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Logo cache cleared')
-                            ->body('The logo cache has been cleared. Logos will be fetched again on next request wherever logo proxy is enabled.')
+                            ->title(__('Logo cache cleared'))
+                            ->body(__('The logo cache has been cleared. Logos will be fetched again on next request wherever logo proxy is enabled.'))
                             ->duration(10000)
                             ->send();
                     })
@@ -98,10 +104,10 @@ class Preferences extends SettingsPage
                     ->requiresConfirmation()
                     ->icon('heroicon-o-exclamation-triangle')
                     ->modalIcon('heroicon-o-exclamation-triangle')
-                    ->modalDescription('Clearing the logo cache will remove all cached logo images. If permanent cache is enabled, it will be ignored. This action cannot be undone.')
-                    ->modalSubmitActionLabel('I understand, clear now'),
+                    ->modalDescription(__('Clearing the logo cache will remove all cached logo images. If permanent cache is enabled, it will be ignored. This action cannot be undone.'))
+                    ->modalSubmitActionLabel(__('I understand, clear now')),
                 Action::make('Reset Queue')
-                    ->label('Reset Queue')
+                    ->label(__('Reset Queue'))
                     ->action(function () {
                         app('Illuminate\Contracts\Bus\Dispatcher')
                             ->dispatch(new RestartQueue);
@@ -109,8 +115,8 @@ class Preferences extends SettingsPage
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Queue reset')
-                            ->body('The queue workers have been restarted and any pending jobs flushed. You may need to manually sync any Playlists or EPGs that were in progress.')
+                            ->title(__('Queue reset'))
+                            ->body(__('The queue workers have been restarted and any pending jobs flushed. You may need to manually sync any Playlists or EPGs that were in progress.'))
                             ->duration(10000)
                             ->send();
                     })
@@ -118,9 +124,9 @@ class Preferences extends SettingsPage
                     ->requiresConfirmation()
                     ->icon('heroicon-o-exclamation-triangle')
                     ->modalIcon('heroicon-o-exclamation-triangle')
-                    ->modalDescription('Resetting the queue will restart the queue workers and flush any pending jobs. Any syncs or background processes will be stopped and removed. Only perform this action if you are having sync issues.')
-                    ->modalSubmitActionLabel('I understand, reset now'),
-            ])->button()->color('gray')->label('Actions'),
+                    ->modalDescription(__('Resetting the queue will restart the queue workers and flush any pending jobs. Any syncs or background processes will be stopped and removed. Only perform this action if you are having sync issues.'))
+                    ->modalSubmitActionLabel(__('I understand, reset now')),
+            ])->button()->color('gray')->label(__('Actions')),
         ];
     }
 
@@ -199,20 +205,20 @@ class Preferences extends SettingsPage
                     ->persistTabInQueryString()
                     ->columnSpanFull()
                     ->tabs([
-                        Tab::make('General')
+                        Tab::make(__('General'))
                             ->schema([
-                                Section::make('Layout & Display Options')
+                                Section::make(__('Layout & Display Options'))
                                     ->schema([
                                         Grid::make()
                                             ->columnSpanFull()
                                             ->columns(2)
                                             ->schema([
                                                 Toggle::make('show_breadcrumbs')
-                                                    ->label('Show breadcrumbs')
-                                                    ->helperText('Show breadcrumbs under the page titles'),
+                                                    ->label(__('Show breadcrumbs'))
+                                                    ->helperText(__('Show breadcrumbs under the page titles')),
                                                 Toggle::make('output_wan_address')
-                                                    ->label('Output WAN address in menu')
-                                                    ->helperText('When enabled, the application will output the WAN address of the server m3u-editor is currently running on.')
+                                                    ->label(__('Output WAN address in menu'))
+                                                    ->helperText(__('When enabled, the application will output the WAN address of the server m3u-editor is currently running on.'))
                                                     ->default(function () {
                                                         return config('dev.show_wan_details') !== null
                                                             ? (bool) config('dev.show_wan_details')
@@ -231,14 +237,14 @@ class Preferences extends SettingsPage
                                             ->columns(2)
                                             ->schema([
                                                 Select::make('navigation_position')
-                                                    ->label('Navigation position')
-                                                    ->helperText('Choose the position of primary navigation')
+                                                    ->label(__('Navigation position'))
+                                                    ->helperText(__('Choose the position of primary navigation'))
                                                     ->options([
                                                         'left' => 'Left',
                                                         'top' => 'Top',
                                                     ]),
                                                 Select::make('content_width')
-                                                    ->label('Max width of the page content')
+                                                    ->label(__('Max width of the page content'))
                                                     ->options([
                                                         Width::ScreenMedium->value => 'Medium',
                                                         Width::ScreenLarge->value => 'Large',
@@ -252,9 +258,9 @@ class Preferences extends SettingsPage
                                             ->columns(2)
                                             ->schema([
                                                 TextInput::make('app_timezone')
-                                                    ->label('Application Timezone')
-                                                    ->placeholder('UTC')
-                                                    ->helperText('Override the application timezone. Leave empty to use the server default (UTC). Takes effect for all date/time output throughout the app.')
+                                                    ->label(__('Application Timezone'))
+                                                    ->placeholder(__('UTC'))
+                                                    ->helperText(__('Override the application timezone. Leave empty to use the server default (UTC). Takes effect for all date/time output throughout the app.'))
                                                     ->disabled(fn () => ! empty(config('dev.timezone')))
                                                     ->hint(fn () => ! empty(config('dev.timezone')) ? 'Already set by environment variable!' : null)
                                                     ->dehydrated(fn () => empty(config('dev.timezone')))
@@ -265,7 +271,7 @@ class Preferences extends SettingsPage
                                                     })
                                                     ->hintAction(
                                                         Action::make('view_timezones')
-                                                            ->label('Accepted Values')
+                                                            ->label(__('Accepted Values'))
                                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                                             ->iconPosition('after')
                                                             ->size('sm')
@@ -273,7 +279,7 @@ class Preferences extends SettingsPage
                                                             ->openUrlInNewTab(true)
                                                     ),
                                                 Select::make('date_format_preset')
-                                                    ->label('Date Format')
+                                                    ->label(__('Date Format'))
                                                     ->options([
                                                         'Y-m-d H:i:s' => 'Default — '.date('Y-m-d H:i:s', mktime(14, 30, 0, 1, 15, 2024)),
                                                         'd/m/Y H:i' => 'Short — '.date('d/m/Y H:i', mktime(14, 30, 0, 1, 15, 2024)),
@@ -284,15 +290,15 @@ class Preferences extends SettingsPage
                                                     ])
                                                     ->default('Y-m-d H:i:s')
                                                     ->live()
-                                                    ->helperText('Format applied to dates throughout the application (e.g. next sync, last synced).'),
+                                                    ->helperText(__('Format applied to dates throughout the application (e.g. next sync, last synced).')),
                                             ]),
                                         Grid::make()
                                             ->columnSpanFull()
                                             ->columns(2)
                                             ->schema([
                                                 TextInput::make('date_format_custom')
-                                                    ->label('Custom Date Format String')
-                                                    ->placeholder('e.g. d/m/Y H:i:s')
+                                                    ->label(__('Custom Date Format String'))
+                                                    ->placeholder(__('e.g. d/m/Y H:i:s'))
                                                     ->live(debounce: 500)
                                                     ->rules([new ValidDateFormat])
                                                     ->helperText(function (Get $get): string {
@@ -310,7 +316,7 @@ class Preferences extends SettingsPage
                                                     })
                                                     ->hintAction(
                                                         Action::make('view_date_formats')
-                                                            ->label('PHP Date Formats')
+                                                            ->label(__('PHP Date Formats'))
                                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                                             ->iconPosition('after')
                                                             ->size('sm')
@@ -321,14 +327,14 @@ class Preferences extends SettingsPage
                                             ]),
 
                                     ]),
-                                Section::make('Allowed Playlist Domains')
-                                    ->description('Restrict playlist URLs to specific domains. Leave empty to allow all domains.')
+                                Section::make(__('Allowed Playlist Domains'))
+                                    ->description(__('Restrict playlist URLs to specific domains. Leave empty to allow all domains.'))
                                     ->schema([
                                         TagsInput::make('allowed_urls')
-                                            ->label('Allowed domains')
+                                            ->label(__('Allowed domains'))
                                             ->columnSpanFull()
                                             ->placeholder(fn () => config('dev.allowed_playlist_domains') ? null : '*.example.com*')
-                                            ->helperText('List of allowed domains (supports wildcards, e.g. *.example.com*). Press [tab] or [return] to add item. When set, playlist URLs must match one of these patterns.')
+                                            ->helperText(__('List of allowed domains (supports wildcards, e.g. *.example.com*). Press [tab] or [return] to add item. When set, playlist URLs must match one of these patterns.'))
                                             ->disabled(fn () => ! empty(config('dev.allowed_playlist_domains')))
                                             ->hint(fn () => ! empty(config('dev.allowed_playlist_domains')) ? 'Already set by environment variable!' : null)
                                             ->default(fn () => ! empty(config('dev.allowed_playlist_domains'))
@@ -341,25 +347,25 @@ class Preferences extends SettingsPage
                                             })
                                             ->dehydrated(fn () => empty(config('dev.allowed_playlist_domains'))),
                                     ]),
-                                Section::make('Xtream API Panel Settings')
+                                Section::make(__('Xtream API Panel Settings'))
                                     ->schema([
                                         Grid::make()
                                             ->columnSpanFull()
                                             ->columns(2)
                                             ->schema([
                                                 TextInput::make('xtream_api_details.http_port')
-                                                    ->label('HTTP Port')
+                                                    ->label(__('HTTP Port'))
                                                     ->numeric()
                                                     ->placeholder(fn () => config('app.port', '80'))
-                                                    ->helperText('Returned as "server_info.http_port" in "player_api.php" responses. Leave empty to use APP_PORT (default).'),
+                                                    ->helperText(__('Returned as "server_info.http_port" in "player_api.php" responses. Leave empty to use APP_PORT (default).')),
                                                 TextInput::make('xtream_api_details.https_port')
-                                                    ->label('HTTPS Port')
+                                                    ->label(__('HTTPS Port'))
                                                     ->numeric()
-                                                    ->placeholder('443')
-                                                    ->helperText('Returned as "server_info.https_port" in "player_api.php" responses. Leave empty to use 443 (default).'),
+                                                    ->placeholder(__('443'))
+                                                    ->helperText(__('Returned as "server_info.https_port" in "player_api.php" responses. Leave empty to use 443 (default).')),
                                                 Textarea::make('xtream_api_message')
-                                                    ->label('Xtream API panel message')
-                                                    ->helperText('Returned as "user_info.message" in "player_api.php" responses.')
+                                                    ->label(__('Xtream API panel message'))
+                                                    ->helperText(__('Returned as "user_info.message" in "player_api.php" responses.'))
                                                     ->rows(3)
                                                     ->columnSpanFull()
                                                     ->default(''),
@@ -367,14 +373,14 @@ class Preferences extends SettingsPage
                                             ]),
                                     ]),
                             ]),
-                        Tab::make('Proxy')
+                        Tab::make(__('Proxy'))
                             ->schema([
-                                Section::make('URL & Connection')
-                                    ->description('Configure how the proxy is accessed and how stream URLs are resolved.')
+                                Section::make(__('URL & Connection'))
+                                    ->description(__('Configure how the proxy is accessed and how stream URLs are resolved.'))
                                     ->columnSpanFull()
                                     ->headerActions([
                                         Action::make('test_connection')
-                                            ->label('Test connection')
+                                            ->label(__('Test connection'))
                                             ->icon('heroicon-m-signal')
                                             ->action(function () use ($service, $mode) {
                                                 try {
@@ -428,44 +434,44 @@ class Preferences extends SettingsPage
                                                         // $details .= "- " . implode(', ', array_keys($info['transcoding']['profiles']));
 
                                                         Notification::make()
-                                                            ->title('Connection Successful')
+                                                            ->title(__('Connection Successful'))
                                                             ->body(Str::markdown($details))
                                                             ->success()
                                                             ->persistent()
                                                             ->send();
                                                     } else {
                                                         Notification::make()
-                                                            ->title('Connection Failed')
+                                                            ->title(__('Connection Failed'))
                                                             ->body($result['error'] ?? 'Could not connect to the m3u proxy instance. Please check the URL and ensure the service is running.')
                                                             ->danger()
                                                             ->send();
                                                     }
                                                 } catch (Exception $e) {
                                                     Notification::make()
-                                                        ->title('Connection Failed')
+                                                        ->title(__('Connection Failed'))
                                                         ->body('Could not connect to the m3u proxy instance. '.$e->getMessage())
                                                         ->danger()
                                                         ->send();
                                                 }
                                             }),
                                         Action::make('get_api_key')
-                                            ->label('API key')
+                                            ->label(__('API key'))
                                             ->icon('heroicon-m-key')
                                             ->action(function () use ($m3uToken) {
                                                 Notification::make()
-                                                    ->title('Your m3u proxy API key')
+                                                    ->title(__('Your m3u proxy API key'))
                                                     ->body($m3uToken)
                                                     ->info()
                                                     ->send();
                                             })->hidden(! $m3uToken),
                                         Action::make('m3u_proxy_info')
-                                            ->label('API docs')
+                                            ->label(__('API docs'))
                                             ->color('gray')
                                             ->url($m3uProxyDocs)
                                             ->openUrlInNewTab(true)
                                             ->icon('heroicon-m-arrow-top-right-on-square'),
                                         Action::make('github')
-                                            ->label('GitHub')
+                                            ->label(__('GitHub'))
                                             ->color('gray')
                                             ->url('https://github.com/sparkison/m3u-proxy')
                                             ->openUrlInNewTab(true)
@@ -473,7 +479,7 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         TextInput::make('url_override')
-                                            ->label('Override URL')
+                                            ->label(__('Override URL'))
                                             ->columnSpanFull()
                                             ->url()
                                             ->live()
@@ -491,31 +497,31 @@ class Preferences extends SettingsPage
                                                 }
                                             })
                                             ->dehydrated(fn () => empty(config('proxy.url_override')))
-                                            ->placeholder('http://192.168.0.123:36400')
+                                            ->placeholder(__('http://192.168.0.123:36400'))
                                             ->helperText(fn () => 'Leave empty to use the configured app url (default).'),
 
                                         Toggle::make('m3u_proxy_public_url_auto_resolve')
-                                            ->label('Resolve proxy public URL dynamically at request time')
+                                            ->label(__('Resolve proxy public URL dynamically at request time'))
                                             ->columnSpanFull()
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
                                                 tooltip: 'When enabled, the application will resolve the public-facing proxy URL using the incoming request host/scheme instead of the APP_URL or the configured Override URL (if set).'
                                             )
-                                            ->helperText('Useful for multi-host access (VPN/Tailscale/etc.)')
+                                            ->helperText(__('Useful for multi-host access (VPN/Tailscale/etc.)'))
                                             ->default(false),
 
                                         Toggle::make('proxy_stop_oldest_on_limit')
-                                            ->label('Stop oldest stream when limit reached')
+                                            ->label(__('Stop oldest stream when limit reached'))
                                             ->columnSpanFull()
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
                                                 tooltip: 'When a playlist has a connection limit and it\'s reached, enabling this will automatically stop the oldest active stream to make room for the new request. This is useful for single-connection providers where you want instant channel switching. Note: This may cause issues if multiple clients share the same playlist - the newest request always wins.'
                                             )
                                             ->default(false)
-                                            ->helperText('Enable to allow new stream requests to automatically stop the oldest stream when a playlist reaches its connection limit. Disabled by default.'),
+                                            ->helperText(__('Enable to allow new stream requests to automatically stop the oldest stream when a playlist reaches its connection limit. Disabled by default.')),
 
                                         Toggle::make('url_override_include_logos')
-                                            ->label('Include logos in proxy URL override')
+                                            ->label(__('Include logos in proxy URL override'))
                                             ->columnSpanFull()
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
@@ -531,15 +537,15 @@ class Preferences extends SettingsPage
                                             })
                                             ->hidden(fn ($get) => empty(config('proxy.url_override')) && empty($get('url_override')))
                                             ->dehydrated(fn () => empty(config('proxy.url_override_include_logos')))
-                                            ->helperText('Whether or not to use the URL override for logos and images too (default is enabled).'),
+                                            ->helperText(__('Whether or not to use the URL override for logos and images too (default is enabled).')),
                                     ]),
 
-                                Section::make('Failover & Recovery')
-                                    ->description('Configure how the proxy handles stream failures, including advanced resolver logic and fail conditions.')
+                                Section::make(__('Failover & Recovery'))
+                                    ->description(__('Configure how the proxy handles stream failures, including advanced resolver logic and fail conditions.'))
                                     ->columnSpanFull()
                                     ->headerActions([
                                         Action::make('test_failover_connection')
-                                            ->label('Test resolver connection')
+                                            ->label(__('Test resolver connection'))
                                             ->icon('heroicon-m-signal')
                                             ->disabled(fn ($get) => empty($get('failover_resolver_url')))
                                             ->action(function ($get) use ($service) {
@@ -551,7 +557,7 @@ class Preferences extends SettingsPage
                                                 if ($result['success']) {
                                                     Notification::make()
                                                         ->success()
-                                                        ->title('Connection Successful')
+                                                        ->title(__('Connection Successful'))
                                                         ->body(Str::markdown(
                                                             "**Proxy can reach the editor!**\n\n".
                                                                 "URL tested: `{$result['url_tested']}`\n\n"
@@ -561,7 +567,7 @@ class Preferences extends SettingsPage
                                                 } else {
                                                     Notification::make()
                                                         ->danger()
-                                                        ->title('Connection Failed')
+                                                        ->title(__('Connection Failed'))
                                                         ->body(Str::markdown(
                                                             "**The proxy cannot reach the editor**\n\n".
                                                                 $result['message']."\n\n".
@@ -574,7 +580,7 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         TextInput::make('failover_resolver_url')
-                                            ->label('Resolver URL')
+                                            ->label(__('Resolver URL'))
                                             ->columnSpanFull()
                                             ->url()
                                             ->live()
@@ -599,11 +605,11 @@ class Preferences extends SettingsPage
                                                 : 'Domain the proxy can use to access the editor for failover resolution and webhook registration, e.g.: "http://m3u-editor:36400", "http://192.168.0.101:36400", "http://your-domain.dev", etc.'),
 
                                         Toggle::make('enable_failover_resolver')
-                                            ->label('Enable advanced failover logic')
+                                            ->label(__('Enable advanced failover logic'))
                                             ->columnSpanFull()
                                             ->hintAction(
                                                 Action::make('learn_more_strict_live_ts')
-                                                    ->label('Learn More')
+                                                    ->label(__('Learn More'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
@@ -624,47 +630,47 @@ class Preferences extends SettingsPage
                                                 }
                                             })
                                             ->dehydrated(fn () => empty(config('proxy.m3u_resolver_url')))
-                                            ->helperText('Use to enable advanced failover checking and resolution (Resolver URL is required).'),
+                                            ->helperText(__('Use to enable advanced failover checking and resolution (Resolver URL is required).')),
 
-                                        Fieldset::make('Playlist fail conditions')
+                                        Fieldset::make(__('Playlist fail conditions'))
                                             ->hidden(fn ($get) => ! (bool) $get('enable_failover_resolver'))
                                             ->schema([
                                                 Toggle::make('failover_fail_conditions_enabled')
-                                                    ->label('Enable playlist fail conditions')
+                                                    ->label(__('Enable playlist fail conditions'))
                                                     ->columnSpanFull()
                                                     ->live()
                                                     ->hintIcon(
                                                         'heroicon-m-question-mark-circle',
                                                         tooltip: 'When enabled, playlists returning specific HTTP status codes will be temporarily marked as invalid during failover resolution. This enables account-level failover by skipping all channels from a failing playlist/account.'
                                                     )
-                                                    ->helperText('Mark playlists as temporarily unavailable when specific HTTP errors are encountered during failover.'),
+                                                    ->helperText(__('Mark playlists as temporarily unavailable when specific HTTP errors are encountered during failover.')),
 
                                                 TagsInput::make('failover_fail_conditions')
-                                                    ->label('HTTP status codes')
+                                                    ->label(__('HTTP status codes'))
                                                     ->columnSpanFull()
                                                     ->hidden(fn ($get) => ! (bool) $get('failover_fail_conditions_enabled'))
-                                                    ->placeholder('e.g. 403, 404, 502, 503')
-                                                    ->helperText('HTTP response codes that should mark a playlist as temporarily unavailable. All channels from the affected playlist will be skipped during failover resolution.'),
+                                                    ->placeholder(__('e.g. 403, 404, 502, 503'))
+                                                    ->helperText(__('HTTP response codes that should mark a playlist as temporarily unavailable. All channels from the affected playlist will be skipped during failover resolution.')),
 
                                                 TextInput::make('failover_fail_conditions_timeout')
-                                                    ->label('Invalid timeout (minutes)')
+                                                    ->label(__('Invalid timeout (minutes)'))
                                                     ->columnSpanFull()
                                                     ->hidden(fn ($get) => ! (bool) $get('failover_fail_conditions_enabled'))
                                                     ->numeric()
                                                     ->minValue(1)
                                                     ->default(5)
                                                     ->suffixIcon('heroicon-m-clock')
-                                                    ->helperText('How long (in minutes) a playlist remains marked as invalid before being retried.'),
+                                                    ->helperText(__('How long (in minutes) a playlist remains marked as invalid before being retried.')),
 
                                                 Action::make('clear_failed_playlists')
-                                                    ->label('Clear failed playlists')
+                                                    ->label(__('Clear failed playlists'))
                                                     ->icon('heroicon-o-arrow-path')
                                                     ->color('warning')
                                                     ->hidden(fn ($get) => ! (bool) $get('failover_fail_conditions_enabled'))
                                                     ->requiresConfirmation()
                                                     ->modalIcon('heroicon-o-arrow-path')
-                                                    ->modalDescription('This will clear all playlists currently marked as invalid, allowing them to be used for failover again immediately.')
-                                                    ->modalSubmitActionLabel('Clear all')
+                                                    ->modalDescription(__('This will clear all playlists currently marked as invalid, allowing them to be used for failover again immediately.'))
+                                                    ->modalSubmitActionLabel(__('Clear all'))
                                                     ->action(function () {
                                                         $count = Redis::hlen('playlist_invalid');
                                                         if ($count > 0) {
@@ -673,7 +679,7 @@ class Preferences extends SettingsPage
 
                                                         Notification::make()
                                                             ->success()
-                                                            ->title('Failed playlists cleared')
+                                                            ->title(__('Failed playlists cleared'))
                                                             ->body($count > 0
                                                                 ? "Cleared {$count} invalid playlist(s). They are now eligible for failover again."
                                                                 : 'No invalid playlists found.')
@@ -683,12 +689,12 @@ class Preferences extends SettingsPage
                                             ]),
 
                                         Toggle::make('enable_silence_detection')
-                                            ->label('Enable silence detection')
+                                            ->label(__('Enable silence detection'))
                                             ->columnSpanFull()
                                             ->live()
                                             ->hintAction(
                                                 Action::make('learn_more_strict_live_ts')
-                                                    ->label('Learn More')
+                                                    ->label(__('Learn More'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
@@ -699,13 +705,13 @@ class Preferences extends SettingsPage
                                                 'heroicon-m-question-mark-circle',
                                                 tooltip: 'When enabled, the proxy will monitor live streams for silent audio. If silence is detected for the configured number of consecutive checks, a failover is triggered.'
                                             )
-                                            ->helperText('Automatically trigger failover when a stream\'s audio goes silent. Disabled by default.'),
+                                            ->helperText(__('Automatically trigger failover when a stream\\\'s audio goes silent. Disabled by default.')),
 
-                                        Fieldset::make('Silence Detection Settings')
+                                        Fieldset::make(__('Silence Detection Settings'))
                                             ->hidden(fn (Get $get) => ! (bool) $get('enable_silence_detection'))
                                             ->schema([
                                                 TextInput::make('silence_threshold_db')
-                                                    ->label('Silence threshold (dB)')
+                                                    ->label(__('Silence threshold (dB)'))
                                                     ->numeric()
                                                     ->default(-50.0)
                                                     ->step(0.1)
@@ -714,92 +720,92 @@ class Preferences extends SettingsPage
                                                         'heroicon-m-question-mark-circle',
                                                         tooltip: 'Audio level below which audio is considered silent. -50 dB is a good default; raise to -40 dB for stricter detection.'
                                                     )
-                                                    ->helperText('Audio level (in dB) below which audio is considered silent. Default: -50 dB.'),
+                                                    ->helperText(__('Audio level (in dB) below which audio is considered silent. Default: -50 dB.')),
 
                                                 TextInput::make('silence_duration')
-                                                    ->label('Silence duration (seconds)')
+                                                    ->label(__('Silence duration (seconds)'))
                                                     ->numeric()
                                                     ->default(3.0)
                                                     ->step(0.5)
                                                     ->suffix('s')
-                                                    ->helperText('Minimum continuous silence within a check window to count as a silent check. Default: 3 seconds.'),
+                                                    ->helperText(__('Minimum continuous silence within a check window to count as a silent check. Default: 3 seconds.')),
 
                                                 TextInput::make('silence_check_interval')
-                                                    ->label('Check interval (seconds)')
+                                                    ->label(__('Check interval (seconds)'))
                                                     ->numeric()
                                                     ->default(10.0)
                                                     ->step(1)
                                                     ->suffix('s')
-                                                    ->helperText('How often to run silence analysis. Each window buffers stream data and analyses it with ffmpeg. Default: 10 seconds.'),
+                                                    ->helperText(__('How often to run silence analysis. Each window buffers stream data and analyses it with ffmpeg. Default: 10 seconds.')),
 
                                                 TextInput::make('silence_failover_threshold')
-                                                    ->label('Consecutive silent checks before failover')
+                                                    ->label(__('Consecutive silent checks before failover'))
                                                     ->numeric()
                                                     ->integer()
                                                     ->default(3)
                                                     ->step(1)
                                                     ->minValue(1)
-                                                    ->helperText('Number of consecutive silent checks required before triggering failover. Prevents failover on brief silent moments. Default: 3.'),
+                                                    ->helperText(__('Number of consecutive silent checks required before triggering failover. Prevents failover on brief silent moments. Default: 3.')),
 
                                                 TextInput::make('silence_monitoring_grace_period')
-                                                    ->label('Monitoring grace period (seconds)')
+                                                    ->label(__('Monitoring grace period (seconds)'))
                                                     ->numeric()
                                                     ->default(15.0)
                                                     ->step(1)
                                                     ->suffix('s')
-                                                    ->helperText('Delay after stream start before silence monitoring begins. Allows for initial buffering and audio decoder startup. Default: 15 seconds.'),
+                                                    ->helperText(__('Delay after stream start before silence monitoring begins. Allows for initial buffering and audio decoder startup. Default: 15 seconds.')),
                                             ])->hidden(fn (Get $get) => ! (bool) $get('enable_silence_detection')),
                                     ]),
 
-                                Section::make('In-App Player Transcoding')
-                                    ->description('Select the default transcoding profiles used when playing streams in the in-app player.')
+                                Section::make(__('In-App Player Transcoding'))
+                                    ->description(__('Select the default transcoding profiles used when playing streams in the in-app player.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->collapsible()
                                     ->collapsed()
                                     ->schema([
                                         Select::make('default_stream_profile_id')
-                                            ->label('Default Live Transcoding Profile')
+                                            ->label(__('Default Live Transcoding Profile'))
                                             ->searchable()
                                             ->options(function () {
                                                 return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
                                             })
                                             ->hintAction(
                                                 Action::make('manage_profiles')
-                                                    ->label('Manage Profiles')
+                                                    ->label(__('Manage Profiles'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
                                                     ->url('/stream-profiles')
                                                     ->openUrlInNewTab(false)
                                             )
-                                            ->helperText('The default transcoding profile used for the in-app player for Live content. Leave empty to disable transcoding (some streams may not be playable in the player).'),
+                                            ->helperText(__('The default transcoding profile used for the in-app player for Live content. Leave empty to disable transcoding (some streams may not be playable in the player).')),
                                         Select::make('default_vod_stream_profile_id')
-                                            ->label('VOD and Series Transcoding Profile')
+                                            ->label(__('VOD and Series Transcoding Profile'))
                                             ->searchable()
                                             ->options(function () {
                                                 return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
                                             })
                                             ->hintAction(
                                                 Action::make('manage_profiles')
-                                                    ->label('Manage Profiles')
+                                                    ->label(__('Manage Profiles'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
                                                     ->url('/stream-profiles')
                                                     ->openUrlInNewTab(false)
                                             )
-                                            ->helperText('The default transcoding profile used for the in-app player for VOD/Series content. Leave empty to disable transcoding (some streams may not be playable in the player).'),
+                                            ->helperText(__('The default transcoding profile used for the in-app player for VOD/Series content. Leave empty to disable transcoding (some streams may not be playable in the player).')),
                                     ]),
-                                Section::make('MediaFlow Proxy')
-                                    ->description('If you have MediaFlow Proxy installed, you can use it to proxy your m3u editor playlist streams. When enabled, the app will auto-generate URLs for you to use via MediaFlow Proxy.')
+                                Section::make(__('MediaFlow Proxy'))
+                                    ->description(__('If you have MediaFlow Proxy installed, you can use it to proxy your m3u editor playlist streams. When enabled, the app will auto-generate URLs for you to use via MediaFlow Proxy.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible()
                                     ->collapsed(true)
                                     ->headerActions([
                                         Action::make('mfproxy_git')
-                                            ->label('GitHub')
+                                            ->label(__('GitHub'))
                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                             ->iconPosition('after')
                                             ->color('gray')
@@ -809,49 +815,49 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         TextInput::make('mediaflow_proxy_url')
-                                            ->label('Proxy URL')
+                                            ->label(__('Proxy URL'))
                                             ->columnSpan(1)
-                                            ->placeholder('socks5://user:pass@host:port or http://user:pass@host:port'),
+                                            ->placeholder(__('socks5://user:pass@host:port or http://user:pass@host:port')),
                                         TextInput::make('mediaflow_proxy_port')
-                                            ->label('Proxy Port (Alternative)')
+                                            ->label(__('Proxy Port (Alternative)'))
                                             ->numeric()
                                             ->columnSpan(1)
-                                            ->helperText('Alternative port if not specified in URL. Not commonly used.'),
+                                            ->helperText(__('Alternative port if not specified in URL. Not commonly used.')),
 
                                         TextInput::make('mediaflow_proxy_password')
-                                            ->label('Proxy Password (Alternative)')
+                                            ->label(__('Proxy Password (Alternative)'))
                                             ->columnSpan(1)
                                             ->password()
                                             ->revealable()
-                                            ->helperText('Alternative password if not specified in URL. Not commonly used.'),
+                                            ->helperText(__('Alternative password if not specified in URL. Not commonly used.')),
                                         Toggle::make('mediaflow_proxy_playlist_user_agent')
-                                            ->label('Use playlist user agent')
+                                            ->label(__('Use playlist user agent'))
                                             ->inline(false)
                                             ->live()
-                                            ->label('Use Proxy User Agent for Playlists (M3U8/MPD)')
-                                            ->helperText('If enabled, the User Agent will also be used for fetching playlist files. Otherwise, the default FFmpeg User Agent is used for playlists.'),
+                                            ->label(__('Use Proxy User Agent for Playlists (M3U8/MPD)'))
+                                            ->helperText(__('If enabled, the User Agent will also be used for fetching playlist files. Otherwise, the default FFmpeg User Agent is used for playlists.')),
                                         TextInput::make('mediaflow_proxy_user_agent')
-                                            ->label('Proxy User Agent for Media Streams')
-                                            ->placeholder('VLC/3.0.21 LibVLC/3.0.21')
+                                            ->label(__('Proxy User Agent for Media Streams'))
+                                            ->placeholder(__('VLC/3.0.21 LibVLC/3.0.21'))
                                             ->columnSpan(2),
                                     ]),
 
                             ]),
 
-                        Tab::make('Sync Options')
+                        Tab::make(__('Sync Options'))
                             ->schema([
-                                Section::make('Provider Request Delay')
-                                    ->description('Add a delay between requests to providers to avoid rate limiting.')
+                                Section::make(__('Provider Request Delay'))
+                                    ->description(__('Add a delay between requests to providers to avoid rate limiting.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible(false)
                                     ->schema([
                                         Toggle::make('enable_provider_request_delay')
-                                            ->label('Enable request delay')
+                                            ->label(__('Enable request delay'))
                                             ->live()
-                                            ->helperText('When enabled, a delay will be added between requests to the provider during playlist and EPG syncs.'),
+                                            ->helperText(__('When enabled, a delay will be added between requests to the provider during playlist and EPG syncs.')),
                                         TextInput::make('provider_request_delay_ms')
-                                            ->label('Request delay (milliseconds)')
+                                            ->label(__('Request delay (milliseconds)'))
                                             ->integer()
                                             ->required()
                                             ->hintIcon(
@@ -864,9 +870,9 @@ class Preferences extends SettingsPage
                                             ->default(500)
                                             ->suffix('ms')
                                             ->hidden(fn ($get) => ! $get('enable_provider_request_delay'))
-                                            ->helperText('Delay in milliseconds between requests.'),
+                                            ->helperText(__('Delay in milliseconds between requests.')),
                                         TextInput::make('provider_max_concurrent_requests')
-                                            ->label('Max concurrent requests')
+                                            ->label(__('Max concurrent requests'))
                                             ->integer()
                                             ->required()
                                             ->hintIcon(
@@ -877,16 +883,16 @@ class Preferences extends SettingsPage
                                             ->maxValue(10)
                                             ->default(2)
                                             ->hidden(fn ($get) => ! $get('enable_provider_request_delay'))
-                                            ->helperText('Maximum number of simultaneous requests to the provider.'),
+                                            ->helperText(__('Maximum number of simultaneous requests to the provider.')),
                                     ]),
-                                Section::make('Sync Invalidation')
-                                    ->description('Prevent sync from proceeding if conditions are met.')
+                                Section::make(__('Sync Invalidation'))
+                                    ->description(__('Prevent sync from proceeding if conditions are met.'))
                                     ->columnSpan('full')
                                     ->columns(3)
                                     ->collapsible(false)
                                     ->schema([
                                         Toggle::make('invalidate_import')
-                                            ->label('Enable sync invalidation')
+                                            ->label(__('Enable sync invalidation'))
                                             ->disabled(fn () => ! empty(config('dev.invalidate_import')))
                                             ->live()
                                             ->hint(fn () => ! empty(config('dev.invalidate_import')) ? 'Already set by environment variable!' : null)
@@ -900,7 +906,7 @@ class Preferences extends SettingsPage
                                             })
                                             ->dehydrated(fn () => empty(config('dev.invalidate_import'))),
                                         TextInput::make('invalidate_import_threshold')
-                                            ->label('Sync invalidation threshold')
+                                            ->label(__('Sync invalidation threshold'))
                                             ->columnSpan(2)
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
@@ -913,16 +919,16 @@ class Preferences extends SettingsPage
                                             ->placeholder(fn () => empty(config('dev.invalidate_import_threshold')) ? 100 : config('dev.invalidate_import_threshold'))
                                             ->hidden(fn ($get) => ! empty(config('dev.invalidate_import')) || ! $get('invalidate_import'))
                                             ->numeric()
-                                            ->helperText('If sync will remove more than this number of channels, the sync will be canceled.'),
+                                            ->helperText(__('If sync will remove more than this number of channels, the sync will be canceled.')),
                                     ]),
-                                Section::make('Series stream file settings')
-                                    ->description('Select a Stream File Setting for series .strm file generation.')
+                                Section::make(__('Series stream file settings'))
+                                    ->description(__('Select a Stream File Setting for series .strm file generation.'))
                                     ->columnSpan('full')
                                     ->columns(1)
                                     ->collapsible(false)
                                     ->schema([
                                         Select::make('default_series_stream_file_setting_id')
-                                            ->label('Default Series Stream File Setting')
+                                            ->label(__('Default Series Stream File Setting'))
                                             ->searchable()
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
@@ -935,23 +941,23 @@ class Preferences extends SettingsPage
                                             })
                                             ->hintAction(
                                                 Action::make('manage_series_settings')
-                                                    ->label('Manage Stream File Settings')
+                                                    ->label(__('Manage Stream File Settings'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
                                                     ->url('/stream-file-settings')
                                                     ->openUrlInNewTab(false)
                                             )
-                                            ->helperText('Leave empty to disable .strm file generation for series. Priority: Series > Category > Global.'),
+                                            ->helperText(__('Leave empty to disable .strm file generation for series. Priority: Series > Category > Global.')),
                                     ]),
-                                Section::make('VOD stream file settings')
-                                    ->description('Select a Stream File Setting for VOD .strm file generation. ')
+                                Section::make(__('VOD stream file settings'))
+                                    ->description(__('Select a Stream File Setting for VOD .strm file generation. '))
                                     ->columnSpan('full')
                                     ->columns(1)
                                     ->collapsible(false)
                                     ->schema([
                                         Select::make('default_vod_stream_file_setting_id')
-                                            ->label('Default VOD Stream File Setting')
+                                            ->label(__('Default VOD Stream File Setting'))
                                             ->searchable()
                                             ->hintIcon(
                                                 'heroicon-m-question-mark-circle',
@@ -964,31 +970,31 @@ class Preferences extends SettingsPage
                                             })
                                             ->hintAction(
                                                 Action::make('manage_vod_settings')
-                                                    ->label('Manage Stream File Settings')
+                                                    ->label(__('Manage Stream File Settings'))
                                                     ->icon('heroicon-o-arrow-top-right-on-square')
                                                     ->iconPosition('after')
                                                     ->size('sm')
                                                     ->url('/stream-file-settings')
                                                     ->openUrlInNewTab(false)
                                             )
-                                            ->helperText('Leave empty to disable .strm file generation for VOD. Priority: VOD > Group > Global.'),
+                                            ->helperText(__('Leave empty to disable .strm file generation for VOD. Priority: VOD > Group > Global.')),
                                     ]),
                             ]),
 
-                        Tab::make('Assets')
+                        Tab::make(__('Assets'))
                             ->schema([
-                                Section::make('Logo Cache')
-                                    ->description('Manage logo cache behavior and storage used by logo proxy URLs.')
+                                Section::make(__('Logo Cache'))
+                                    ->description(__('Manage logo cache behavior and storage used by logo proxy URLs.'))
                                     ->columns(1)
                                     ->headerActions([
                                         Action::make('manage_assets')
-                                            ->label('Manage Assets')
+                                            ->label(__('Manage Assets'))
                                             ->color('gray')
                                             ->iconPosition('after')
                                             ->size('sm')
                                             ->url(AssetResource::getUrl('index')),
                                         Action::make('view_repo')
-                                            ->label('View Logo Repository')
+                                            ->label(__('View Logo Repository'))
                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                             ->iconPosition('after')
                                             ->size('sm')
@@ -998,20 +1004,20 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         Toggle::make('logo_cache_permanent')
-                                            ->label('Keep cache permanently (disable expiry cleanup)')
-                                            ->helperText('When enabled, expired cache cleanup will skip deletion. You can still refresh/clear cache manually.'),
+                                            ->label(__('Keep cache permanently (disable expiry cleanup)'))
+                                            ->helperText(__('When enabled, expired cache cleanup will skip deletion. You can still refresh/clear cache manually.')),
                                         Toggle::make('logo_repository_enabled')
-                                            ->label('Enable Logo Repository endpoint')
+                                            ->label(__('Enable Logo Repository endpoint'))
                                             ->live()
-                                            ->helperText('When enabled, /logo-repository endpoints are publicly accessible for apps like UHF.'),
+                                            ->helperText(__('When enabled, /logo-repository endpoints are publicly accessible for apps like UHF.')),
 
                                     ]),
-                                Section::make('Placeholder Images')
-                                    ->description('Override app-wide placeholder images for logos, episode previews, and VOD/Series poster fallbacks.')
+                                Section::make(__('Placeholder Images'))
+                                    ->description(__('Override app-wide placeholder images for logos, episode previews, and VOD/Series poster fallbacks.'))
                                     ->columns(3)
                                     ->schema([
                                         FileUpload::make('logo_placeholder_url')
-                                            ->label('Logo placeholder')
+                                            ->label(__('Logo placeholder'))
                                             ->image()
                                             ->disk('public')
                                             ->directory('assets/placeholders')
@@ -1024,7 +1030,7 @@ class Preferences extends SettingsPage
                                             )
                                             ->helperText(new HtmlString('<strong>Recommended size:</strong> 300x300px for best results.<br/>Default image: <img src="'.url('/placeholder.png').'" alt="Default Logo Placeholder" style="width:80px; height:80px; margin-top:5px;">')),
                                         FileUpload::make('episode_placeholder_url')
-                                            ->label('Episode preview placeholder')
+                                            ->label(__('Episode preview placeholder'))
                                             ->image()
                                             ->disk('public')
                                             ->directory('assets/placeholders')
@@ -1037,7 +1043,7 @@ class Preferences extends SettingsPage
                                             )
                                             ->helperText(new HtmlString('<strong>Recommended size:</strong> 600x400px for best results.<br/>Default image: <img src="'.url('/episode-placeholder.png').'" alt="Default Episode Placeholder" style="width:120px; height:80px; margin-top:5px;">')),
                                         FileUpload::make('vod_series_poster_placeholder_url')
-                                            ->label('VOD/Series poster placeholder')
+                                            ->label(__('VOD/Series poster placeholder'))
                                             ->image()
                                             ->disk('public')
                                             ->directory('assets/placeholders')
@@ -1052,26 +1058,26 @@ class Preferences extends SettingsPage
                                     ]),
                             ]),
 
-                        Tab::make('Backups')
+                        Tab::make(__('Backups'))
                             ->schema([
-                                Section::make('Automated backups')
+                                Section::make(__('Automated backups'))
                                     ->schema([
                                         Toggle::make('auto_backup_database')
-                                            ->label('Enable Automatic Database Backups')
+                                            ->label(__('Enable Automatic Database Backups'))
                                             ->live()
-                                            ->helperText('When enabled, automatic database backups will be created based on the specified schedule.'),
+                                            ->helperText(__('When enabled, automatic database backups will be created based on the specified schedule.')),
                                         Group::make()
                                             ->columnSpanFull()
                                             ->columns(2)
                                             ->schema([
                                                 TextInput::make('auto_backup_database_schedule')
-                                                    ->label('Backup Schedule')
+                                                    ->label(__('Backup Schedule'))
                                                     ->suffix(config('app.timezone'))
                                                     ->rules([new Cron])
                                                     ->live()
                                                     ->hintAction(
                                                         Action::make('view_cron_example')
-                                                            ->label('CRON Example')
+                                                            ->label(__('CRON Example'))
                                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                                             ->iconPosition('after')
                                                             ->size('sm')
@@ -1082,24 +1088,24 @@ class Preferences extends SettingsPage
                                                         ? 'Next scheduled backup: '.(new CronExpression($get('auto_backup_database_schedule')))->getNextRunDate()->format(app(DateFormatService::class)->getFormat())
                                                         : 'Specify the CRON schedule for automatic backups, e.g. "0 3 * * *".'),
                                                 TextInput::make('auto_backup_database_max_backups')
-                                                    ->label('Max Backups')
+                                                    ->label(__('Max Backups'))
                                                     ->type('number')
                                                     ->minValue(0)
-                                                    ->helperText('Specify the maximum number of backups to keep. Enter 0 for no limit.'),
+                                                    ->helperText(__('Specify the maximum number of backups to keep. Enter 0 for no limit.')),
                                             ])->hidden(fn ($get) => ! $get('auto_backup_database')),
                                     ]),
                             ]),
 
-                        Tab::make('SMTP')
+                        Tab::make(__('SMTP'))
                             ->columns(2)
                             ->schema([
-                                Section::make('SMTP Settings')
-                                    ->description('Configure SMTP settings to send emails from the application.')
+                                Section::make(__('SMTP Settings'))
+                                    ->description(__('Configure SMTP settings to send emails from the application.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->headerActions([
                                         Action::make('send_test_email')
-                                            ->label('Send Test Email')
+                                            ->label(__('Send Test Email'))
                                             ->icon('heroicon-o-envelope')
                                             ->iconPosition('after')
                                             ->color('gray')
@@ -1107,11 +1113,11 @@ class Preferences extends SettingsPage
                                             ->modalWidth('md')
                                             ->schema([
                                                 TextInput::make('to_email')
-                                                    ->label('To Email Address')
+                                                    ->label(__('To Email Address'))
                                                     ->email()
                                                     ->required()
-                                                    ->placeholder('Enter To Email Address')
-                                                    ->helperText('A test email will be sent to this address using the entered SMTP settings.'),
+                                                    ->placeholder(__('Enter To Email Address'))
+                                                    ->helperText(__('A test email will be sent to this address using the entered SMTP settings.')),
                                             ])
                                             ->action(function (array $data, $get): void {
                                                 try {
@@ -1122,8 +1128,8 @@ class Preferences extends SettingsPage
                                                     if (empty($formState['smtp_host']) || empty($formState['smtp_port']) || empty($formState['smtp_username']) || empty($formState['smtp_password'])) {
                                                         Notification::make()
                                                             ->danger()
-                                                            ->title('Missing SMTP Fields')
-                                                            ->body('Please fill in all required SMTP fields before sending a test email.')
+                                                            ->title(__('Missing SMTP Fields'))
+                                                            ->body(__('Please fill in all required SMTP fields before sending a test email.'))
                                                             ->send();
 
                                                         return;
@@ -1146,13 +1152,13 @@ class Preferences extends SettingsPage
 
                                                     Notification::make()
                                                         ->success()
-                                                        ->title('Test Email Sent')
+                                                        ->title(__('Test Email Sent'))
                                                         ->body('Test email sent successfully to '.$data['to_email'])
                                                         ->send();
                                                 } catch (Exception $e) {
                                                     Notification::make()
                                                         ->danger()
-                                                        ->title('Error Sending Test Email')
+                                                        ->title(__('Error Sending Test Email'))
                                                         ->body($e->getMessage())
                                                         ->send();
                                                 }
@@ -1160,53 +1166,53 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         TextInput::make('smtp_host')
-                                            ->label('SMTP Host')
-                                            ->placeholder('Enter SMTP Host')
+                                            ->label(__('SMTP Host'))
+                                            ->placeholder(__('Enter SMTP Host'))
                                             ->requiredWith('smtp_port')
-                                            ->helperText('Required to send emails.'),
+                                            ->helperText(__('Required to send emails.')),
                                         TextInput::make('smtp_port')
-                                            ->label('SMTP Port')
-                                            ->placeholder('Enter SMTP Port')
+                                            ->label(__('SMTP Port'))
+                                            ->placeholder(__('Enter SMTP Port'))
                                             ->requiredWith('smtp_host')
                                             ->numeric()
-                                            ->helperText('Required to send emails.'),
+                                            ->helperText(__('Required to send emails.')),
                                         TextInput::make('smtp_username')
-                                            ->label('SMTP Username')
-                                            ->placeholder('Enter SMTP Username')
+                                            ->label(__('SMTP Username'))
+                                            ->placeholder(__('Enter SMTP Username'))
                                             ->requiredWith('smtp_password')
-                                            ->helperText('Required to send emails, if your provider requires authentication.'),
+                                            ->helperText(__('Required to send emails, if your provider requires authentication.')),
                                         TextInput::make('smtp_password')
-                                            ->label('SMTP Password')
+                                            ->label(__('SMTP Password'))
                                             ->revealable()
-                                            ->placeholder('Enter SMTP Password')
+                                            ->placeholder(__('Enter SMTP Password'))
                                             ->requiredWith('smtp_username')
                                             ->password()
-                                            ->helperText('Required to send emails, if your provider requires authentication.'),
+                                            ->helperText(__('Required to send emails, if your provider requires authentication.')),
                                         Select::make('smtp_encryption')
-                                            ->label('SMTP Encryption')
+                                            ->label(__('SMTP Encryption'))
                                             ->options([
                                                 'tls' => 'TLS',
                                                 'ssl' => 'SSL',
                                                 null => 'None',
                                             ])
-                                            ->placeholder('Select encryption type (optional)'),
+                                            ->placeholder(__('Select encryption type (optional)')),
                                         TextInput::make('smtp_from_address')
-                                            ->label('SMTP From Address')
-                                            ->placeholder('Enter SMTP From Address')
+                                            ->label(__('SMTP From Address'))
+                                            ->placeholder(__('Enter SMTP From Address'))
                                             ->email()
-                                            ->helperText('The "From" email address for outgoing emails. Defaults to no-reply@m3u-editor.dev.'),
+                                            ->helperText(__('The "From" email address for outgoing emails. Defaults to no-reply@m3u-editor.dev.')),
                                     ]),
                             ]),
-                        Tab::make('TMDB')
+                        Tab::make(__('TMDB'))
                             ->columns(2)
                             ->schema([
-                                Section::make('TMDB Integration')
-                                    ->description('Configure The Movie Database (TMDB) integration to automatically lookup and populate metadata IDs (TMDB, TVDB, IMDB) for your VOD content and Series.')
+                                Section::make(__('TMDB Integration'))
+                                    ->description(__('Configure The Movie Database (TMDB) integration to automatically lookup and populate metadata IDs (TMDB, TVDB, IMDB) for your VOD content and Series.'))
                                     ->columnSpanFull()
                                     ->columns(2)
                                     ->headerActions([
                                         Action::make('test_tmdb_connection')
-                                            ->label('Test Connection')
+                                            ->label(__('Test Connection'))
                                             ->icon('heroicon-o-signal')
                                             ->iconPosition('after')
                                             ->color('gray')
@@ -1216,8 +1222,8 @@ class Preferences extends SettingsPage
                                                 if (empty($apiKey)) {
                                                     Notification::make()
                                                         ->danger()
-                                                        ->title('API Key Required')
-                                                        ->body('Please enter a TMDB API key to test the connection.')
+                                                        ->title(__('API Key Required'))
+                                                        ->body(__('Please enter a TMDB API key to test the connection.'))
                                                         ->send();
 
                                                     return;
@@ -1231,27 +1237,27 @@ class Preferences extends SettingsPage
                                                     if ($response->successful()) {
                                                         Notification::make()
                                                             ->success()
-                                                            ->title('Connection Successful')
-                                                            ->body('Successfully connected to TMDB API!')
+                                                            ->title(__('Connection Successful'))
+                                                            ->body(__('Successfully connected to TMDB API!'))
                                                             ->send();
                                                     } else {
                                                         $error = $response->json('status_message', 'Unknown error');
                                                         Notification::make()
                                                             ->danger()
-                                                            ->title('Connection Failed')
+                                                            ->title(__('Connection Failed'))
                                                             ->body("TMDB API returned an error: {$error}")
                                                             ->send();
                                                     }
                                                 } catch (Exception $e) {
                                                     Notification::make()
                                                         ->danger()
-                                                        ->title('Connection Failed')
+                                                        ->title(__('Connection Failed'))
                                                         ->body('Could not connect to TMDB API: '.$e->getMessage())
                                                         ->send();
                                                 }
                                             }),
                                         Action::make('get_tmdb_api_key')
-                                            ->label('Get API Key')
+                                            ->label(__('Get API Key'))
                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                             ->iconPosition('after')
                                             ->size('sm')
@@ -1260,26 +1266,26 @@ class Preferences extends SettingsPage
                                     ])
                                     ->schema([
                                         TextInput::make('tmdb_api_key')
-                                            ->label('TMDB API Key')
-                                            ->placeholder('Enter your TMDB API Key (v3 auth)')
+                                            ->label(__('TMDB API Key'))
+                                            ->placeholder(__('Enter your TMDB API Key (v3 auth)'))
                                             ->password()
                                             ->revealable()
                                             ->columnSpanFull()
-                                            ->helperText('Your TMDB API key (v3 auth). You can get one for free at themoviedb.org.'),
+                                            ->helperText(__('Your TMDB API key (v3 auth). You can get one for free at themoviedb.org.')),
                                         Toggle::make('tmdb_auto_lookup_on_import')
-                                            ->label('Auto-lookup on metadata fetch')
-                                            ->helperText('Automatically lookup TMDB IDs when fetching metadata for VOD and Series. This may slow down imports and metadata fetching for large playlists. Will only be fetched for enabled items.')
+                                            ->label(__('Auto-lookup on metadata fetch'))
+                                            ->helperText(__('Automatically lookup TMDB IDs when fetching metadata for VOD and Series. This may slow down imports and metadata fetching for large playlists. Will only be fetched for enabled items.'))
                                             ->default(false),
                                         TextInput::make('tmdb_rate_limit')
-                                            ->label('Rate Limit (requests/second)')
-                                            ->placeholder('40')
+                                            ->label(__('Rate Limit (requests/second)'))
+                                            ->placeholder(__('40'))
                                             ->numeric()
                                             ->minValue(1)
                                             ->maxValue(50)
                                             ->default(40)
-                                            ->helperText('Maximum TMDB API requests per second. TMDB allows ~40 req/s for free accounts.'),
+                                            ->helperText(__('Maximum TMDB API requests per second. TMDB allows ~40 req/s for free accounts.')),
                                         Select::make('tmdb_language')
-                                            ->label('Search Language')
+                                            ->label(__('Search Language'))
                                             ->searchable()
                                             ->options([
                                                 'en-US' => 'English (US)',
@@ -1306,30 +1312,30 @@ class Preferences extends SettingsPage
                                                 'no-NO' => 'Norwegian',
                                             ])
                                             ->default('en-US')
-                                            ->helperText('Preferred language for TMDB searches.'),
+                                            ->helperText(__('Preferred language for TMDB searches.')),
                                         TextInput::make('tmdb_confidence_threshold')
-                                            ->label('Match Confidence Threshold (%)')
-                                            ->placeholder('80')
+                                            ->label(__('Match Confidence Threshold (%)'))
+                                            ->placeholder(__('80'))
                                             ->numeric()
                                             ->minValue(50)
                                             ->maxValue(100)
                                             ->default(80)
-                                            ->helperText('Minimum title similarity percentage (50-100) required to accept a match. Higher values = stricter matching.'),
+                                            ->helperText(__('Minimum title similarity percentage (50-100) required to accept a match. Higher values = stricter matching.')),
                                     ]),
                             ]),
-                        Tab::make('API')
+                        Tab::make(__('API'))
                             ->schema([
-                                Section::make('API Settings')
+                                Section::make(__('API Settings'))
                                     ->headerActions([
                                         Action::make('manage_api_keys')
-                                            ->label('Manage API Tokens')
+                                            ->label(__('Manage API Tokens'))
                                             ->color('gray')
                                             ->icon('heroicon-s-key')
                                             ->iconPosition('before')
                                             ->size('sm')
                                             ->url('/personal-access-tokens'),
                                         Action::make('view_api_docs')
-                                            ->label('API Docs')
+                                            ->label(__('API Docs'))
                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                             ->iconPosition('after')
                                             ->size('sm')
@@ -1337,16 +1343,16 @@ class Preferences extends SettingsPage
                                             ->openUrlInNewTab(true),
                                     ])->schema([
                                         Toggle::make('show_api_docs')
-                                            ->label('Allow access to API docs')
-                                            ->helperText('When enabled you can access the API documentation using the "API Docs" button. When disabled, the docs endpoint will return a 403 (Unauthorized). NOTE: The API will respond regardless of this setting. You do not need to enable it to use the API.'),
+                                            ->label(__('Allow access to API docs'))
+                                            ->helperText(__('When enabled you can access the API documentation using the "API Docs" button. When disabled, the docs endpoint will return a 403 (Unauthorized). NOTE: The API will respond regardless of this setting. You do not need to enable it to use the API.')),
                                     ]),
                             ]),
-                        Tab::make('Debugging')
+                        Tab::make(__('Debugging'))
                             ->schema([
-                                Section::make('Debugging')
+                                Section::make(__('Debugging'))
                                     ->headerActions([
                                         Action::make('test_websocket')
-                                            ->label('Test WebSocket')
+                                            ->label(__('Test WebSocket'))
                                             ->icon('heroicon-o-signal')
                                             ->iconPosition('after')
                                             ->color('gray')
@@ -1354,28 +1360,28 @@ class Preferences extends SettingsPage
                                             ->modalWidth('md')
                                             ->schema([
                                                 TextInput::make('message')
-                                                    ->label('Message')
+                                                    ->label(__('Message'))
                                                     ->required()
                                                     ->default('Testing WebSocket connection')
-                                                    ->helperText('This message will be sent to the WebSocket server, and displayed as a pop-up notification. If you do not see a notification shortly after sending, there is likely an issue with your WebSocket configuration.'),
+                                                    ->helperText(__('This message will be sent to the WebSocket server, and displayed as a pop-up notification. If you do not see a notification shortly after sending, there is likely an issue with your WebSocket configuration.')),
                                             ])
                                             ->action(function (array $data): void {
                                                 Notification::make()
                                                     ->success()
-                                                    ->title('WebSocket Connection Test')
+                                                    ->title(__('WebSocket Connection Test'))
                                                     ->body($data['message'])
                                                     ->persistent()
                                                     ->broadcast(auth()->user());
                                             }),
                                         // Action::make('view_logs')
-                                        //     ->label('View Logs')
+                                        //     ->label(__('View Logs'))
                                         //     ->color('gray')
                                         //     ->icon('heroicon-o-document-text')
                                         //     ->iconPosition('after')
                                         //     ->size('sm')
                                         //     ->url('/logs'),
                                         Action::make('view_queue_manager')
-                                            ->label('Queue Manager')
+                                            ->label(__('Queue Manager'))
                                             ->icon('heroicon-o-arrow-top-right-on-square')
                                             ->iconPosition('after')
                                             ->size('sm')
@@ -1383,15 +1389,15 @@ class Preferences extends SettingsPage
                                             ->openUrlInNewTab(true),
                                     ])->schema([
                                         // Toggle::make('show_logs')
-                                        //     ->label('Make log files viewable')
+                                        //     ->label(__('Make log files viewable'))
                                         //     ->hintIcon(
                                         //         'heroicon-m-question-mark-circle',
                                         //         tooltip: 'You may need to refresh the page after applying this setting to view the logs. When disabled you will get a 404.'
                                         //     )
-                                        //     ->helperText('When enabled, there will be an additional navigation item (Logs) to view the log file content.'),
+                                        //     ->helperText(__('When enabled, there will be an additional navigation item (Logs) to view the log file content.')),
                                         Toggle::make('show_queue_manager')
-                                            ->label('Allow queue manager access')
-                                            ->helperText('When enabled you can access the queue manager using the "Queue Manager" button. When disabled, the queue manager endpoint will return a 403 (Unauthorized).'),
+                                            ->label(__('Allow queue manager access'))
+                                            ->helperText(__('When enabled you can access the queue manager using the "Queue Manager" button. When disabled, the queue manager endpoint will return a 403 (Unauthorized).')),
                                     ]),
                             ]),
                     ])->contained(false),
@@ -1402,7 +1408,7 @@ class Preferences extends SettingsPage
     {
         return Notification::make()
             ->success()
-            ->title('Settings saved')
-            ->body('Your preferences have been saved successfully.');
+            ->title(__('Settings saved'))
+            ->body(__('Your preferences have been saved successfully.'));
     }
 }

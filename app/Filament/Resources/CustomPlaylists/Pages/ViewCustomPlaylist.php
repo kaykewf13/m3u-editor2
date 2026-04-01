@@ -27,7 +27,7 @@ class ViewCustomPlaylist extends ViewRecord
     {
         return [
             EditAction::make()
-                ->label('Edit Playlist')
+                ->label(__('Edit Playlist'))
                 ->color('gray')
                 ->icon('heroicon-m-pencil'),
         ];
@@ -47,12 +47,12 @@ class ViewCustomPlaylist extends ViewRecord
                     ->persistTabInQueryString()
                     ->columnSpanFull()
                     ->tabs([
-                        Tab::make('Details')
+                        Tab::make(__('Details'))
                             ->icon('heroicon-o-play')
                             ->schema([
                                 Livewire::make(PlaylistInfo::class),
                             ]),
-                        Tab::make('Links')
+                        Tab::make(__('Links'))
                             ->icon('heroicon-m-link')
                             ->schema([
                                 Section::make()
@@ -71,7 +71,7 @@ class ViewCustomPlaylist extends ViewRecord
                                             ->schema($extraLinks),
                                     ]),
                             ]),
-                        Tab::make('Xtream API')
+                        Tab::make(__('Xtream API'))
                             ->icon('heroicon-m-bolt')
                             ->schema([
                                 Section::make()

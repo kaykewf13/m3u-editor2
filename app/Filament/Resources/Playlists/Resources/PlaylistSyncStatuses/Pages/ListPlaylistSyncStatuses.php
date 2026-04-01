@@ -14,7 +14,7 @@ class ListPlaylistSyncStatuses extends ListRecords
     {
         return [
             Actions\Action::make('back_to_playlist')
-                ->label('Back to Playlist')
+                ->label(__('Back to Playlist'))
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(function (): string {

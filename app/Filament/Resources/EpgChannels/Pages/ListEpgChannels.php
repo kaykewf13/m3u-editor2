@@ -25,27 +25,27 @@ class ListEpgChannels extends ListRecords
         return [
             ActionGroup::make([
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema([
                         Toggle::make('all_epgs')
-                            ->label('All EPGs')
+                            ->label(__('All EPGs'))
                             ->live()
-                            ->helperText('Apply find and replace to all EPGs? If disabled, it will only apply to the selected EPG.')
+                            ->helperText(__('Apply find and replace to all EPGs? If disabled, it will only apply to the selected EPG.'))
                             ->default(true),
                         Select::make('epg')
-                            ->label('EPG')
+                            ->label(__('EPG'))
                             ->required()
-                            ->helperText('Select the EPG you would like to apply changes to.')
+                            ->helperText(__('Select the EPG you would like to apply changes to.'))
                             ->options(Epg::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_epgs') === true)
                             ->searchable(),
                         Toggle::make('use_regex')
-                            ->label('Use Regex')
+                            ->label(__('Use Regex'))
                             ->live()
-                            ->helperText('Use regex patterns to find and replace. If disabled, will use direct string comparison.')
+                            ->helperText(__('Use regex patterns to find and replace. If disabled, will use direct string comparison.'))
                             ->default(true),
                         Select::make('column')
-                            ->label('Column to modify')
+                            ->label(__('Column to modify'))
                             ->options([
                                 'icon' => 'Channel Icon',
                                 'name' => 'Channel Name',
@@ -67,8 +67,8 @@ class ListEpgChannels extends ListRecords
                                     : 'This is the regex pattern you want to find. Make sure to use valid regex syntax.'
                             ),
                         TextInput::make('replace_with')
-                            ->label('Replace with (optional)')
-                            ->placeholder('Leave empty to remove'),
+                            ->label(__('Replace with (optional)'))
+                            ->placeholder(__('Leave empty to remove')),
 
                     ])
                     ->action(function (array $data): void {
@@ -85,34 +85,34 @@ class ListEpgChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your channels list.')
-                    ->modalSubmitActionLabel('Replace now'),
+                    ->modalDescription(__('Select what you would like to find and replace in your channels list.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
 
                 Action::make('find-replace-reset')
-                    ->label('Undo Find & Replace')
+                    ->label(__('Undo Find & Replace'))
                     ->schema([
                         Toggle::make('all_epgs')
-                            ->label('All EPGs')
+                            ->label(__('All EPGs'))
                             ->live()
-                            ->helperText('Apply reset to all EPGs? If disabled, it will only apply to the selected EPG.')
+                            ->helperText(__('Apply reset to all EPGs? If disabled, it will only apply to the selected EPG.'))
                             ->default(false),
                         Select::make('epg')
                             ->required()
-                            ->label('EPG')
-                            ->helperText('Select the EPG you would like to apply the reset to.')
+                            ->label(__('EPG'))
+                            ->helperText(__('Select the EPG you would like to apply the reset to.'))
                             ->options(Epg::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_epgs') === true)
                             ->searchable(),
                         Select::make('column')
-                            ->label('Column to reset')
+                            ->label(__('Column to reset'))
                             ->options([
                                 'icon' => 'Channel Icon',
                                 'name' => 'Channel Name',
@@ -133,17 +133,17 @@ class ListEpgChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace reset started')
-                            ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace reset started'))
+                            ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Reset Find & Replace results back to EPG defaults. This will remove any custom values set in the selected column.')
-                    ->modalSubmitActionLabel('Reset now'),
-            ])->button()->label('Actions'),
+                    ->modalDescription(__('Reset Find & Replace results back to EPG defaults. This will remove any custom values set in the selected column.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
+            ])->button()->label(__('Actions')),
         ];
     }
 

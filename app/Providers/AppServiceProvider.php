@@ -13,6 +13,7 @@ use App\Events\PlaylistDeleted;
 use App\Events\PlaylistUpdated;
 use App\Jobs\ProcessChannelScrubber;
 use App\Jobs\SyncMediaServer;
+use App\Listeners\PersistUserLocale;
 use App\Livewire\BackupDestinationListRecords;
 use App\Livewire\StreamPlayer;
 use App\Livewire\TmdbSearch;
@@ -40,6 +41,7 @@ use App\Services\PlaylistService;
 use App\Services\ProxyService;
 use App\Services\SortService;
 use App\Settings\GeneralSettings;
+use CraftForge\FilamentLanguageSwitcher\Events\LocaleChanged;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -149,6 +151,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Register the OIDC Socialite driver (when enabled)
         $this->registerOidcProvider();
+
+        // Persist user locale preference when changed via the language switcher
+        $this->registerLocaleListener();
 
         // Livewire components
         $this->registerLivewireComponents();
@@ -906,6 +911,14 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             SocialiteWasCalled::class,
             [OIDCExtendSocialite::class, 'handle'],
+        );
+    }
+
+    private function registerLocaleListener(): void
+    {
+        Event::listen(
+            LocaleChanged::class,
+            PersistUserLocale::class,
         );
     }
 

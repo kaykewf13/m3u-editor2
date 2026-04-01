@@ -35,7 +35,7 @@ class SeriesRelationManager extends RelationManager
 
     public static function getTabComponent(Model $ownerRecord, string $pageClass): Tab
     {
-        return Tab::make('Series')
+        return Tab::make(__('Series'))
             ->badge($ownerRecord->series()->count())
             ->icon('heroicon-m-video-camera');
     }
@@ -56,7 +56,7 @@ class SeriesRelationManager extends RelationManager
         $ownerRecord = $this->ownerRecord;
 
         $groupColumn = SpatieTagsColumn::make('tags')
-            ->label('Playlist Category')
+            ->label(__('Playlist Category'))
             ->type($ownerRecord->uuid.'-category')
             ->toggleable()->searchable(query: function (Builder $query, string $search) use ($ownerRecord): Builder {
                 return $query->whereHas('tags', function (Builder $query) use ($search, $ownerRecord) {
@@ -121,10 +121,10 @@ class SeriesRelationManager extends RelationManager
             ->persistSortInSession()
             ->recordTitleAttribute('name')
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(25)
@@ -134,7 +134,7 @@ class SeriesRelationManager extends RelationManager
             ->filters([
                 ...SeriesResource::getTableFilters(showPlaylist: true),
                 SelectFilter::make('playlist_category')
-                    ->label('Custom Category')
+                    ->label(__('Custom Category'))
                     ->options(function () use ($ownerRecord) {
                         return $ownerRecord->tags()
                             ->where('type', $ownerRecord->uuid.'-category')
@@ -201,7 +201,7 @@ class SeriesRelationManager extends RelationManager
                 // Tables\Actions\AttachAction::make()->schema(fn(Tables\Actions\AttachAction $action): array => [
                 //     $action->getRecordSelect(),
                 //     Forms\Components\TextInput::make('title')
-                //         ->label('Title')
+                //         ->label(__('Title'))
                 //         ->required(),
                 // ]),
             ])
@@ -221,7 +221,7 @@ class SeriesRelationManager extends RelationManager
             ->toolbarActions([
                 ...SeriesResource::getTableBulkActions(addToCustom: false),
                 BulkAction::make('detach')
-                    ->label('Detach Selected')
+                    ->label(__('Detach Selected'))
                     ->action(function (Collection $records) use ($ownerRecord): void {
                         $tags = $ownerRecord->categoryTags()->get();
                         foreach ($records as $record) {
@@ -231,8 +231,8 @@ class SeriesRelationManager extends RelationManager
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Detached from playlist')
-                            ->body('The selected series have been detached from the custom playlist.')
+                            ->title(__('Detached from playlist'))
+                            ->body(__('The selected series have been detached from the custom playlist.'))
                             ->send();
                     })
                     ->color('danger')
@@ -240,13 +240,13 @@ class SeriesRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->icon('heroicon-o-x-mark')
                     ->modalIcon('heroicon-o-x-mark')
-                    ->modalDescription('Detach selected series from custom playlist')
-                    ->modalSubmitActionLabel('Detach Selected'),
+                    ->modalDescription(__('Detach selected series from custom playlist'))
+                    ->modalSubmitActionLabel(__('Detach Selected')),
                 BulkAction::make('add_to_category')
-                    ->label('Add to custom category')
+                    ->label(__('Add to custom category'))
                     ->schema([
                         Select::make('category')
-                            ->label('Select category')
+                            ->label(__('Select category'))
                             ->native(false)
                             ->options(
                                 $ownerRecord->categoryTags()->get()
@@ -267,16 +267,16 @@ class SeriesRelationManager extends RelationManager
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Added to category')
-                            ->body('The selected series have been added to the custom category.')
+                            ->title(__('Added to category'))
+                            ->body(__('The selected series have been added to the custom category.'))
                             ->send();
                     })
                     ->deselectRecordsAfterCompletion()
                     ->requiresConfirmation()
                     ->icon('heroicon-o-squares-plus')
                     ->modalIcon('heroicon-o-squares-plus')
-                    ->modalDescription('Add to category')
-                    ->modalSubmitActionLabel('Yes, add to category'),
+                    ->modalDescription(__('Add to category'))
+                    ->modalSubmitActionLabel(__('Yes, add to category')),
             ]);
     }
 
@@ -297,12 +297,12 @@ class SeriesRelationManager extends RelationManager
         // Add an "All" tab to show all channels
         array_unshift(
             $tabs,
-            Tab::make('All')
+            Tab::make(__('All'))
                 ->badge($ownerRecord->series()->count())
         );
         array_push(
             $tabs,
-            Tab::make('Uncategorized')
+            Tab::make(__('Uncategorized'))
                 ->modifyQueryUsing(fn ($query) => $query->whereDoesntHave('tags', function ($tagQuery) use ($ownerRecord) {
                     $tagQuery->where('type', $ownerRecord->uuid);
                 }))

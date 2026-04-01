@@ -64,13 +64,25 @@ class MediaServerIntegrationResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?string $navigationLabel = 'Media Servers';
+    public static function getNavigationLabel(): string
+    {
+        return __('Media Servers');
+    }
 
-    protected static ?string $modelLabel = 'Media Server';
+    public static function getModelLabel(): string
+    {
+        return __('Media Server');
+    }
 
-    protected static ?string $pluralModelLabel = 'Media Servers';
+    public static function getPluralModelLabel(): string
+    {
+        return __('Media Servers');
+    }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Integrations';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Integrations');
+    }
 
     protected static ?int $navigationSort = 100;
 
@@ -184,7 +196,7 @@ class MediaServerIntegrationResource extends Resource
     {
         return [
             'Connection' => [
-                Section::make('Server Configuration')
+                Section::make(__('Server Configuration'))
                     ->description(fn (callable $get) => match ($get('type')) {
                         'local' => 'Configure your local media library paths',
                         'webdav' => 'Configure your WebDAV server connection and media library paths',
@@ -195,7 +207,7 @@ class MediaServerIntegrationResource extends Resource
                     ->schema([
                         Grid::make(2)->schema([
                             TextInput::make('name')
-                                ->label('Display Name')
+                                ->label(__('Display Name'))
                                 ->placeholder(fn (callable $get) => match ($get('type')) {
                                     'local' => 'e.g., My Local Movies',
                                     'webdav' => 'e.g., My NAS Media',
@@ -205,7 +217,7 @@ class MediaServerIntegrationResource extends Resource
                                 ->maxLength(255),
 
                             Select::make('type')
-                                ->label('Server Type')
+                                ->label(__('Server Type'))
                                 ->options([
                                     'emby' => 'Emby',
                                     'jellyfin' => 'Jellyfin',
@@ -230,7 +242,7 @@ class MediaServerIntegrationResource extends Resource
                         // Network server configuration (hidden for local media)
                         Grid::make(3)->schema([
                             TextInput::make('host')
-                                ->label('Host / IP Address')
+                                ->label(__('Host / IP Address'))
                                 ->prefix(fn (callable $get) => $get('ssl') ? 'https://' : 'http://')
                                 ->placeholder(fn (callable $get) => $get('type') === 'webdav'
                                     ? '192.168.1.100 or nas.example.com'
@@ -239,7 +251,7 @@ class MediaServerIntegrationResource extends Resource
                                 ->maxLength(255),
 
                             TextInput::make('port')
-                                ->label('Port')
+                                ->label(__('Port'))
                                 ->numeric()
                                 ->default(fn (callable $get) => match ($get('type')) {
                                     'plex' => 32400,
@@ -257,20 +269,20 @@ class MediaServerIntegrationResource extends Resource
                             Toggle::make('ssl')
                                 ->live()
                                 ->inline(false)
-                                ->label('Use HTTPS')
-                                ->helperText('Enable if your server uses SSL/TLS')
+                                ->label(__('Use HTTPS'))
+                                ->helperText(__('Enable if your server uses SSL/TLS'))
                                 ->default(false),
                         ])->visible(fn (callable $get) => $get('type') !== 'local'),
 
                         // WebDAV authentication (username/password)
                         Grid::make(2)->schema([
                             TextInput::make('webdav_username')
-                                ->label('WebDAV Username')
-                                ->placeholder('username')
-                                ->helperText('Username for WebDAV authentication'),
+                                ->label(__('WebDAV Username'))
+                                ->placeholder(__('username'))
+                                ->helperText(__('Username for WebDAV authentication')),
 
                             TextInput::make('webdav_password')
-                                ->label('WebDAV Password')
+                                ->label(__('WebDAV Password'))
                                 ->password()
                                 ->revealable()
                                 ->dehydrateStateUsing(fn ($state, $record) => filled($state) ? $state : $record?->webdav_password)
@@ -284,7 +296,7 @@ class MediaServerIntegrationResource extends Resource
                         ])->visible(fn (callable $get) => $get('type') === 'webdav'),
 
                         TextInput::make('api_key')
-                            ->label('API Key/Token')
+                            ->label(__('API Key/Token'))
                             ->password()
                             ->revealable()
                             ->required(fn (string $operation, callable $get): bool => $operation === 'create' && ! in_array($get('type'), ['local', 'webdav']))
@@ -307,35 +319,35 @@ class MediaServerIntegrationResource extends Resource
                     ]),
             ],
             'Import' => [
-                Section::make('Import Settings')
-                    ->description('Control what content is synced from the media server')
+                Section::make(__('Import Settings'))
+                    ->description(__('Control what content is synced from the media server'))
                     ->schema([
                         Toggle::make('enabled')
-                            ->label('Enabled')
+                            ->label(__('Enabled'))
                             ->live()
-                            ->helperText('Disable to pause syncing without deleting the integration')
+                            ->helperText(__('Disable to pause syncing without deleting the integration'))
                             ->default(true),
 
                         Grid::make(2)->schema([
                             Toggle::make('import_movies')
-                                ->label('Import Movies')
-                                ->helperText('Sync movies as VOD channels')
+                                ->label(__('Import Movies'))
+                                ->helperText(__('Sync movies as VOD channels'))
                                 ->default(true),
 
                             Toggle::make('import_series')
-                                ->label('Import Series')
-                                ->helperText('Sync TV series with episodes')
+                                ->label(__('Import Series'))
+                                ->helperText(__('Sync TV series with episodes'))
                                 ->default(true),
                         ])->visible(fn (callable $get) => $get('enabled')),
 
                         Select::make('genre_handling')
-                            ->label('Genre Handling')
+                            ->label(__('Genre Handling'))
                             ->options([
                                 'primary' => 'Primary Genre Only (recommended)',
                                 'all' => 'All Genres (creates duplicates)',
                             ])
                             ->default('primary')
-                            ->helperText('How to handle content with multiple genres')
+                            ->helperText(__('How to handle content with multiple genres'))
                             ->native(false)
                             ->visible(fn (callable $get) => $get('enabled')),
                     ]),
@@ -356,11 +368,11 @@ class MediaServerIntegrationResource extends Resource
                     )
                     ->schema([
                         Repeater::make('local_media_paths')
-                            ->label('Media Library Paths')
+                            ->label(__('Media Library Paths'))
                             ->schema([
                                 TextInput::make('name')
-                                    ->label('Library Name')
-                                    ->placeholder('e.g., Movies, TV Shows')
+                                    ->label(__('Library Name'))
+                                    ->placeholder(__('e.g., Movies, TV Shows'))
                                     ->required(),
 
                                 TextInput::make('path')
@@ -372,7 +384,7 @@ class MediaServerIntegrationResource extends Resource
                                         : 'Path inside the Docker container'),
 
                                 Select::make('type')
-                                    ->label('Content Type')
+                                    ->label(__('Content Type'))
                                     ->options([
                                         'movies' => 'Movies',
                                         'tvshows' => 'TV Shows',
@@ -390,39 +402,39 @@ class MediaServerIntegrationResource extends Resource
 
                         Grid::make(2)->schema([
                             Toggle::make('scan_recursive')
-                                ->label('Scan Recursively')
-                                ->helperText('Scan subdirectories for media files')
+                                ->label(__('Scan Recursively'))
+                                ->helperText(__('Scan subdirectories for media files'))
                                 ->default(true),
 
                             Toggle::make('auto_fetch_metadata')
-                                ->label('Auto-Fetch Metadata')
-                                ->helperText('Automatically lookup TMDB metadata after sync completes (Local & WebDAV)')
+                                ->label(__('Auto-Fetch Metadata'))
+                                ->helperText(__('Automatically lookup TMDB metadata after sync completes (Local & WebDAV)'))
                                 ->default(true),
                         ]),
 
                         Grid::make(1)->schema([
                             Select::make('metadata_source')
-                                ->label('Metadata Source')
+                                ->label(__('Metadata Source'))
                                 ->options([
                                     'filename_only' => 'Filename Only (No External Lookup)',
                                     'tmdb' => 'TMDB (The Movie Database)',
                                 ])
                                 ->default('tmdb')
-                                ->helperText('Where to fetch metadata for discovered content (requires TMDB API key in Settings)')
+                                ->helperText(__('Where to fetch metadata for discovered content (requires TMDB API key in Settings)'))
                                 ->native(false),
                         ]),
 
                         TagsInput::make('video_extensions')
-                            ->label('Video File Extensions')
-                            ->placeholder('Add extension...')
+                            ->label(__('Video File Extensions'))
+                            ->placeholder(__('Add extension...'))
                             ->default(['mp4', 'mkv', 'avi', 'mov', 'wmv', 'ts', 'm4v'])
-                            ->helperText('File extensions to scan for (without dots)'),
+                            ->helperText(__('File extensions to scan for (without dots)')),
 
                         Actions::make(self::getLocalActions())->fullWidth(),
                     ])->visible(fn (callable $get) => in_array($get('type'), ['local', 'webdav'])),
 
-                Section::make('Library Selection')
-                    ->description('Select which libraries to import from your media server')
+                Section::make(__('Library Selection'))
+                    ->description(__('Select which libraries to import from your media server'))
                     ->headerActions(self::getServerActions())
                     ->schema([
                         Hidden::make('available_libraries')
@@ -477,7 +489,7 @@ class MediaServerIntegrationResource extends Resource
                             }),
 
                         CheckboxList::make('selected_library_ids')
-                            ->label('Libraries to Import')
+                            ->label(__('Libraries to Import'))
                             ->options(function (callable $get) {
                                 $libraries = $get('available_libraries');
                                 if (empty($libraries)) {
@@ -518,19 +530,19 @@ class MediaServerIntegrationResource extends Resource
                     ])->visible(fn (callable $get) => ! in_array($get('type'), ['local', 'webdav'])),
             ],
             'Schedule' => [
-                Section::make('Sync Schedule')
-                    ->description('Configure automatic sync schedule')
+                Section::make(__('Sync Schedule'))
+                    ->description(__('Configure automatic sync schedule'))
                     ->schema([
                         Grid::make(2)->schema([
                             Toggle::make('auto_sync')
                                 ->inline(false)
                                 ->live()
-                                ->label('Auto Sync')
-                                ->helperText('Automatically sync content on schedule')
+                                ->label(__('Auto Sync'))
+                                ->helperText(__('Automatically sync content on schedule'))
                                 ->default(true),
 
                             Select::make('sync_interval')
-                                ->label('Sync Interval')
+                                ->label(__('Sync Interval'))
                                 ->options([
                                     '0 * * * *' => 'Every hour',
                                     '0 */3 * * *' => 'Every 3 hours',
@@ -546,12 +558,12 @@ class MediaServerIntegrationResource extends Resource
                     ]),
             ],
             'Status' => [
-                Section::make('Sync Status')
-                    ->description('Information about the last sync operation')
+                Section::make(__('Sync Status'))
+                    ->description(__('Information about the last sync operation'))
                     ->schema([
                         Grid::make(2)->schema([
                             TextInput::make('last_synced_at')
-                                ->label('Last Synced')
+                                ->label(__('Last Synced'))
                                 ->disabled()
                                 ->dehydrated(false)
                                 ->formatStateUsing(function ($state) {
@@ -566,7 +578,7 @@ class MediaServerIntegrationResource extends Resource
                                 }),
 
                             TextInput::make('sync_stats_summary')
-                                ->label('Last Sync Stats')
+                                ->label(__('Last Sync Stats'))
                                 ->disabled()
                                 ->dehydrated(false)
                                 ->formatStateUsing(function ($record) {
@@ -587,18 +599,18 @@ class MediaServerIntegrationResource extends Resource
                     ->visible(! $creating),
             ],
             'Plex Management' => [
-                Section::make('Plex Server Management')
-                    ->description('Manage your Plex server directly from m3u-editor — register DVR tuners, monitor sessions, and control libraries.')
+                Section::make(__('Plex Server Management'))
+                    ->description(__('Manage your Plex server directly from m3u-editor — register DVR tuners, monitor sessions, and control libraries.'))
                     ->schema([
                         Toggle::make('plex_management_enabled')
-                            ->label('Enable Plex Management')
-                            ->helperText('When enabled, you can manage your Plex server from this integration.')
+                            ->label(__('Enable Plex Management'))
+                            ->helperText(__('When enabled, you can manage your Plex server from this integration.'))
                             ->live()
                             ->default(false),
 
                         Grid::make(2)->schema([
                             Placeholder::make('plex_server_info')
-                                ->label('Server Info')
+                                ->label(__('Server Info'))
                                 ->content(function ($record) {
                                     if (! $record || ! $record->isPlex()) {
                                         return new HtmlString('<span class="text-gray-400">Save integration first</span>');
@@ -625,7 +637,7 @@ class MediaServerIntegrationResource extends Resource
                                 }),
 
                             Placeholder::make('plex_dvr_sync_status')
-                                ->label('DVR Sync Status')
+                                ->label(__('DVR Sync Status'))
                                 ->content(function ($record) {
                                     if (! $record || ! $record->isPlex()) {
                                         return '—';
@@ -675,12 +687,12 @@ class MediaServerIntegrationResource extends Resource
                                 }),
                         ])->visible(fn (callable $get) => $get('plex_management_enabled')),
 
-                        Section::make('DVR / Live TV Tuner')
-                            ->description('Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.')
+                        Section::make(__('DVR / Live TV Tuner'))
+                            ->description(__('Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.'))
                             ->collapsible()
                             ->schema([
                                 Placeholder::make('plex_dvr_status')
-                                    ->label('DVR Status')
+                                    ->label(__('DVR Status'))
                                     ->content(function ($record) {
                                         if (! $record || ! $record->isPlex()) {
                                             return new HtmlString('<span class="text-gray-400">Save integration first</span>');
@@ -703,7 +715,7 @@ class MediaServerIntegrationResource extends Resource
                                     )),
 
                                 Placeholder::make('plex_dvr_tuners_list')
-                                    ->label('Registered Tuners')
+                                    ->label(__('Registered Tuners'))
                                     ->content(function ($record) {
                                         $tuners = $record->plex_dvr_tuners ?? [];
                                         if (empty($tuners)) {
@@ -735,12 +747,12 @@ class MediaServerIntegrationResource extends Resource
                                         ->icon('heroicon-o-plus-circle')
                                         ->color('success')
                                         ->requiresConfirmation()
-                                        ->modalHeading('Register HDHomeRun Tuner')
-                                        ->modalDescription('This will register the playlist\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide. The HDHR URL must be reachable from your Plex server.')
+                                        ->modalHeading(__('Register HDHomeRun Tuner'))
+                                        ->modalDescription(__('This will register the playlist\\\'s HDHR endpoint as a DVR tuner in Plex and configure the EPG guide. The HDHR URL must be reachable from your Plex server.'))
                                         ->form([
                                             Select::make('playlist_uuid')
-                                                ->label('Playlist')
-                                                ->helperText('Select the playlist to use for HDHR/EPG endpoints.')
+                                                ->label(__('Playlist'))
+                                                ->helperText(__('Select the playlist to use for HDHR/EPG endpoints.'))
                                                 ->options(function ($record) {
                                                     $userId = Auth::id();
                                                     $existingUuids = collect($record->plex_dvr_tuners ?? [])->pluck('playlist_uuid')->filter()->all();
@@ -790,22 +802,22 @@ class MediaServerIntegrationResource extends Resource
                                                     return $playlist && $value !== 'number';
                                                 }),
                                             TextInput::make('hdhr_base_url')
-                                                ->label('HDHR Base URL')
-                                                ->helperText('This URL must be reachable from your Plex server. Use your machine\'s LAN IP, not localhost.')
+                                                ->label(__('HDHR Base URL'))
+                                                ->helperText(__('This URL must be reachable from your Plex server. Use your machine\\\'s LAN IP, not localhost.'))
                                                 ->required(),
                                             TextInput::make('epg_url')
-                                                ->label('EPG URL')
-                                                ->helperText('XMLTV EPG guide URL. Must also be reachable from Plex.')
+                                                ->label(__('EPG URL'))
+                                                ->helperText(__('XMLTV EPG guide URL. Must also be reachable from Plex.'))
                                                 ->required(),
                                             TextInput::make('dvr_country')
-                                                ->label('Country Code')
-                                                ->helperText('ISO country code for the DVR guide (e.g. us, de, gb).')
+                                                ->label(__('Country Code'))
+                                                ->helperText(__('ISO country code for the DVR guide (e.g. us, de, gb).'))
                                                 ->default('us')
                                                 ->maxLength(5)
                                                 ->required(),
                                             TextInput::make('dvr_language')
-                                                ->label('Language Code')
-                                                ->helperText('ISO language code for the DVR guide (e.g. en, de, fr).')
+                                                ->label(__('Language Code'))
+                                                ->helperText(__('ISO language code for the DVR guide (e.g. en, de, fr).'))
                                                 ->default('en')
                                                 ->maxLength(5)
                                                 ->required(),
@@ -820,23 +832,23 @@ class MediaServerIntegrationResource extends Resource
                                                 $data['playlist_uuid'],
                                             );
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Tuner Registered')->body($result['message'])->persistent()->send();
+                                                Notification::make()->success()->title(__('Tuner Registered'))->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Registration Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Registration Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex()),
 
                                     Action::make('removeTuner')
-                                        ->label('Remove Tuner')
+                                        ->label(__('Remove Tuner'))
                                         ->icon('heroicon-o-minus-circle')
                                         ->color('danger')
                                         ->requiresConfirmation()
-                                        ->modalHeading('Remove Tuner')
-                                        ->modalDescription('Select a tuner to remove from the DVR. If it is the last tuner, the entire DVR will be removed.')
+                                        ->modalHeading(__('Remove Tuner'))
+                                        ->modalDescription(__('Select a tuner to remove from the DVR. If it is the last tuner, the entire DVR will be removed.'))
                                         ->form([
                                             Select::make('device_key')
-                                                ->label('Tuner')
+                                                ->label(__('Tuner'))
                                                 ->options(function ($record) {
                                                     $tuners = $record->plex_dvr_tuners ?? [];
 
@@ -853,55 +865,55 @@ class MediaServerIntegrationResource extends Resource
                                             $service = PlexManagementService::make($record);
                                             $result = $service->removeTuner($data['device_key']);
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Tuner Removed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->success()->title(__('Tuner Removed'))->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Removal Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Removal Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && ! empty($record->plex_dvr_tuners)),
 
                                     Action::make('removeDvr')
-                                        ->label('Remove Entire DVR')
+                                        ->label(__('Remove Entire DVR'))
                                         ->icon('heroicon-o-trash')
                                         ->color('danger')
                                         ->requiresConfirmation()
-                                        ->modalHeading('Remove DVR')
-                                        ->modalDescription('This will remove the entire DVR and all tuners from Plex. Live TV & DVR will no longer work.')
+                                        ->modalHeading(__('Remove DVR'))
+                                        ->modalDescription(__('This will remove the entire DVR and all tuners from Plex. Live TV & DVR will no longer work.'))
                                         ->action(function ($record) {
                                             $service = PlexManagementService::make($record);
                                             $result = $service->removeDvr($record->plex_dvr_id);
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('DVR Removed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->success()->title(__('DVR Removed'))->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Removal Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Removal Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
 
                                     Action::make('refreshDvrGuide')
-                                        ->label('Refresh EPG Guide')
+                                        ->label(__('Refresh EPG Guide'))
                                         ->icon('heroicon-o-arrow-path')
                                         ->requiresConfirmation()
-                                        ->modalHeading('Refresh EPG Guide')
-                                        ->modalDescription('This will trigger Plex to re-fetch your EPG guide data and configure automatic refreshes.')
+                                        ->modalHeading(__('Refresh EPG Guide'))
+                                        ->modalDescription(__('This will trigger Plex to re-fetch your EPG guide data and configure automatic refreshes.'))
                                         ->action(function ($record) {
                                             if (! $record->plex_dvr_id) {
-                                                Notification::make()->warning()->title('Not Configured')->body('Register a DVR tuner first.')->persistent()->send();
+                                                Notification::make()->warning()->title(__('Not Configured'))->body(__('Register a DVR tuner first.'))->persistent()->send();
 
                                                 return;
                                             }
                                             $service = PlexManagementService::make($record);
                                             $result = $service->refreshGuides();
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Guide Refreshed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->success()->title(__('Guide Refreshed'))->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Refresh Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Refresh Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && $record->plex_dvr_id),
 
                                     Action::make('forceSyncChannels')
-                                        ->label('Force Sync Channels')
+                                        ->label(__('Force Sync Channels'))
                                         ->icon('heroicon-o-arrow-path-rounded-square')
                                         ->color('gray')
                                         ->action(function ($record) {
@@ -911,7 +923,7 @@ class MediaServerIntegrationResource extends Resource
                                                 $title = ($result['changed'] ?? false) ? 'Channels Synced' : 'Already In Sync';
                                                 Notification::make()->success()->title($title)->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Sync Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Sync Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex() && ! empty($record->plex_dvr_tuners)),
@@ -919,13 +931,13 @@ class MediaServerIntegrationResource extends Resource
                             ])
                             ->visible(fn (callable $get) => $get('plex_management_enabled')),
 
-                        Section::make('Libraries & Scanning')
-                            ->description('Manage Plex libraries and trigger scans.')
+                        Section::make(__('Libraries & Scanning'))
+                            ->description(__('Manage Plex libraries and trigger scans.'))
                             ->collapsible()
                             ->collapsed()
                             ->schema([
                                 Placeholder::make('plex_libraries')
-                                    ->label('Libraries')
+                                    ->label(__('Libraries'))
                                     ->content(function ($record) {
                                         if (! $record || ! $record->isPlex()) {
                                             return 'Save integration first';
@@ -951,16 +963,16 @@ class MediaServerIntegrationResource extends Resource
 
                                 Actions::make([
                                     Action::make('scanAllLibraries')
-                                        ->label('Scan All Libraries')
+                                        ->label(__('Scan All Libraries'))
                                         ->icon('heroicon-o-magnifying-glass')
                                         ->requiresConfirmation()
                                         ->action(function ($record) {
                                             $service = PlexManagementService::make($record);
                                             $result = $service->scanAllLibraries();
                                             if ($result['success']) {
-                                                Notification::make()->success()->title('Scan Started')->body($result['message'])->persistent()->send();
+                                                Notification::make()->success()->title(__('Scan Started'))->body($result['message'])->persistent()->send();
                                             } else {
-                                                Notification::make()->danger()->title('Scan Failed')->body($result['message'])->persistent()->send();
+                                                Notification::make()->danger()->title(__('Scan Failed'))->body($result['message'])->persistent()->send();
                                             }
                                         })
                                         ->visible(fn ($record) => $record && $record->isPlex()),
@@ -968,13 +980,13 @@ class MediaServerIntegrationResource extends Resource
                             ])
                             ->visible(fn (callable $get) => $get('plex_management_enabled')),
 
-                        Section::make('Recordings / DVR Subscriptions')
-                            ->description('View and manage Plex DVR recording subscriptions.')
+                        Section::make(__('Recordings / DVR Subscriptions'))
+                            ->description(__('View and manage Plex DVR recording subscriptions.'))
                             ->collapsible()
                             ->collapsed()
                             ->schema([
                                 Placeholder::make('plex_recordings')
-                                    ->label('Scheduled Recordings')
+                                    ->label(__('Scheduled Recordings'))
                                     ->content(function ($record) {
                                         if (! $record || ! $record->isPlex()) {
                                             return 'Save integration first';
@@ -1001,11 +1013,11 @@ class MediaServerIntegrationResource extends Resource
                     ->visible(fn (callable $get) => ! $creating && $get('type') === 'plex'),
             ],
             'Networks' => [
-                Section::make('Networks (Pseudo-Live Channels)')
-                    ->description('Create live TV channels from your media server content')
+                Section::make(__('Networks (Pseudo-Live Channels)'))
+                    ->description(__('Create live TV channels from your media server content'))
                     ->schema([
                         TextInput::make('networks_playlist_url')
-                            ->label('Networks Playlist URL')
+                            ->label(__('Networks Playlist URL'))
                             ->disabled()
                             ->dehydrated(false)
                             ->formatStateUsing(fn ($record) => $record
@@ -1014,20 +1026,20 @@ class MediaServerIntegrationResource extends Resource
                             )
                             ->hintAction(
                                 Action::make('qrCode')
-                                    ->label('QR Code')
+                                    ->label(__('QR Code'))
                                     ->icon('heroicon-o-qr-code')
-                                    ->modalHeading('Integration Playlist URL')
+                                    ->modalHeading(__('Integration Playlist URL'))
                                     ->modalContent(fn ($record) => view('components.qr-code-display', ['text' => $record ? route('networks.playlist', ['user' => $record->user_id]) : 'Save integration first']))
                                     ->modalWidth('sm')
                                     ->modalSubmitAction(false)
-                                    ->modalCancelAction(fn ($action) => $action->label('Close'))
+                                    ->modalCancelAction(fn ($action) => $action->label(__('Close')))
                                     ->visible(fn ($record) => $record?->user_id !== null)
                             )
                             ->hint(fn ($record) => $record ? view('components.copy-to-clipboard', ['text' => route('networks.playlist', ['user' => $record->user_id]), 'position' => 'left']) : null)
-                            ->helperText('M3U playlist containing all your Networks as live channels'),
+                            ->helperText(__('M3U playlist containing all your Networks as live channels')),
 
                         TextInput::make('networks_epg_url')
-                            ->label('Networks EPG URL')
+                            ->label(__('Networks EPG URL'))
                             ->disabled()
                             ->dehydrated(false)
                             ->formatStateUsing(fn ($record) => $record
@@ -1036,20 +1048,20 @@ class MediaServerIntegrationResource extends Resource
                             )
                             ->hintAction(
                                 Action::make('qrCode')
-                                    ->label('QR Code')
+                                    ->label(__('QR Code'))
                                     ->icon('heroicon-o-qr-code')
-                                    ->modalHeading('Integration EPG URL')
+                                    ->modalHeading(__('Integration EPG URL'))
                                     ->modalContent(fn ($record) => view('components.qr-code-display', ['text' => $record ? route('networks.epg', ['user' => $record->user_id]) : 'Save integration first']))
                                     ->modalWidth('sm')
                                     ->modalSubmitAction(false)
-                                    ->modalCancelAction(fn ($action) => $action->label('Close'))
+                                    ->modalCancelAction(fn ($action) => $action->label(__('Close')))
                                     ->visible(fn ($record) => $record?->user_id !== null)
                             )
                             ->hint(fn ($record) => $record ? view('components.copy-to-clipboard', ['text' => route('networks.epg', ['user' => $record->user_id]), 'position' => 'left']) : null)
-                            ->helperText('EPG data for your Networks'),
+                            ->helperText(__('EPG data for your Networks')),
 
                         TextInput::make('networks_count')
-                            ->label('Networks')
+                            ->label(__('Networks'))
                             ->disabled()
                             ->dehydrated(false)
                             ->formatStateUsing(function ($record) {
@@ -1060,7 +1072,7 @@ class MediaServerIntegrationResource extends Resource
 
                                 return $count.' '.str('network')->plural($count);
                             })
-                            ->helperText('Create Networks in the Networks section to build pseudo-live channels'),
+                            ->helperText(__('Create Networks in the Networks section to build pseudo-live channels')),
                     ])
                     ->visible(! $creating),
             ],
@@ -1071,11 +1083,11 @@ class MediaServerIntegrationResource extends Resource
     {
         return $table
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->columns([
                 TextColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->searchable()
                     ->description(function ($record) {
                         if ($record->playlist_id) {
@@ -1096,10 +1108,10 @@ class MediaServerIntegrationResource extends Resource
                     ->sortable(),
 
                 ToggleColumn::make('enabled')
-                    ->label('Enabled'),
+                    ->label(__('Enabled')),
 
                 TextColumn::make('type')
-                    ->label('Type')
+                    ->label(__('Type'))
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'local' => 'Local Media',
@@ -1116,7 +1128,7 @@ class MediaServerIntegrationResource extends Resource
                     }),
 
                 TextColumn::make('host')
-                    ->label('Server')
+                    ->label(__('Server'))
                     ->formatStateUsing(fn ($record): string => match ($record->type) {
                         'local' => 'Local filesystem',
                         'webdav' => "{$record->host}:{$record->port}",
@@ -1126,7 +1138,7 @@ class MediaServerIntegrationResource extends Resource
                     ->copyable(),
 
                 TextColumn::make('selected_library_ids')
-                    ->label('Libraries')
+                    ->label(__('Libraries'))
                     ->formatStateUsing(function ($record, $state): string {
                         $available = $record->available_libraries ?? [];
 
@@ -1142,7 +1154,7 @@ class MediaServerIntegrationResource extends Resource
                     ->color('success'),
 
                 TextColumn::make('status')
-                    ->label('Status')
+                    ->label(__('Status'))
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->color(fn (string $state): string => match ($state) {
@@ -1154,17 +1166,17 @@ class MediaServerIntegrationResource extends Resource
                     ->sortable(),
 
                 ProgressColumn::make('movie_progress')
-                    ->label('Movie Sync')
+                    ->label(__('Movie Sync'))
                     ->poll(fn ($record) => $record->status !== 'completed' && $record->status !== 'failed' ? '3s' : null)
                     ->toggleable(),
 
                 ProgressColumn::make('series_progress')
-                    ->label('Series Sync')
+                    ->label(__('Series Sync'))
                     ->poll(fn ($record) => $record->status !== 'completed' && $record->status !== 'failed' ? '3s' : null)
                     ->toggleable(),
 
                 TextColumn::make('last_synced_at')
-                    ->label('Last Synced')
+                    ->label(__('Last Synced'))
                     ->dateTime()
                     ->since()
                     ->sortable(),
@@ -1179,17 +1191,17 @@ class MediaServerIntegrationResource extends Resource
                         'local' => 'Local Media',
                     ]),
                 Tables\Filters\TernaryFilter::make('enabled')
-                    ->label('Enabled'),
+                    ->label(__('Enabled')),
             ])
             ->recordActions([
                 ActionGroup::make([
                     Action::make('sync')
                         ->disabled(fn ($record) => $record->status === 'processing')
-                        ->label('Sync Now')
+                        ->label(__('Sync Now'))
                         ->icon('heroicon-o-arrow-path')
                         ->requiresConfirmation()
-                        ->modalHeading('Sync Media Server')
-                        ->modalDescription('This will sync all content from the media server. For large libraries, this may take several minutes.')
+                        ->modalHeading(__('Sync Media Server'))
+                        ->modalDescription(__('This will sync all content from the media server. For large libraries, this may take several minutes.'))
                         ->action(function (MediaServerIntegration $record) {
                             // Update status to processing
                             $record->update([
@@ -1204,12 +1216,12 @@ class MediaServerIntegrationResource extends Resource
 
                             Notification::make()
                                 ->success()
-                                ->title('Sync Started')
+                                ->title(__('Sync Started'))
                                 ->body("Syncing content from {$record->name}. You'll be notified when complete.")
                                 ->send();
                         }),
                     Action::make('test')
-                        ->label('Test Connection')
+                        ->label(__('Test Connection'))
                         ->icon('heroicon-o-signal')
                         ->action(function (MediaServerIntegration $record) {
                             $service = MediaServerService::make($record);
@@ -1227,27 +1239,27 @@ class MediaServerIntegrationResource extends Resource
 
                                     Notification::make()
                                         ->success()
-                                        ->title('Connection Successful')
+                                        ->title(__('Connection Successful'))
                                         ->body("Connected to {$result['server_name']} (v{$result['version']}). Found {$libraries->count()} libraries. Edit the integration to select which libraries to import.")
                                         ->send();
                                 } else {
                                     Notification::make()
                                         ->success()
-                                        ->title('Connection Successful')
+                                        ->title(__('Connection Successful'))
                                         ->body("Connected to {$result['server_name']} (v{$result['version']}). No movie or TV show libraries found.")
                                         ->send();
                                 }
                             } else {
                                 Notification::make()
                                     ->danger()
-                                    ->title('Connection Failed')
+                                    ->title(__('Connection Failed'))
                                     ->body($result['message'])
                                     ->send();
                             }
                         }),
 
                     Action::make('refreshLibraries')
-                        ->label('Refresh Libraries')
+                        ->label(__('Refresh Libraries'))
                         ->icon('heroicon-o-arrow-path')
                         ->action(function (MediaServerIntegration $record) {
                             $service = MediaServerService::make($record);
@@ -1274,20 +1286,20 @@ class MediaServerIntegrationResource extends Resource
 
                                 Notification::make()
                                     ->success()
-                                    ->title('Libraries Refreshed')
+                                    ->title(__('Libraries Refreshed'))
                                     ->body($message)
                                     ->send();
                             } else {
                                 Notification::make()
                                     ->warning()
-                                    ->title('No Libraries Found')
-                                    ->body('No movie or TV show libraries were found on the server.')
+                                    ->title(__('No Libraries Found'))
+                                    ->body(__('No movie or TV show libraries were found on the server.'))
                                     ->send();
                             }
                         }),
 
                     Action::make('viewPlaylist')
-                        ->label('View Playlist')
+                        ->label(__('View Playlist'))
                         ->icon('heroicon-o-eye')
                         ->url(fn ($record) => $record->playlist_id
                             ? PlaylistResource::getUrl('view', ['record' => $record->playlist_id])
@@ -1296,25 +1308,25 @@ class MediaServerIntegrationResource extends Resource
                         ->visible(fn ($record) => $record->playlist_id !== null),
 
                     Action::make('cleanupDuplicates')
-                        ->label('Cleanup Duplicates')
+                        ->label(__('Cleanup Duplicates'))
                         ->icon('heroicon-o-trash')
                         ->color('warning')
                         ->requiresConfirmation()
-                        ->modalHeading('Cleanup Duplicate Series')
-                        ->modalDescription('This will find and merge duplicate series entries that were created due to sync format changes. Duplicate series without episodes will be removed, and their seasons will be merged into the series that has episodes.')
+                        ->modalHeading(__('Cleanup Duplicate Series'))
+                        ->modalDescription(__('This will find and merge duplicate series entries that were created due to sync format changes. Duplicate series without episodes will be removed, and their seasons will be merged into the series that has episodes.'))
                         ->action(function (MediaServerIntegration $record) {
                             $result = static::cleanupDuplicateSeries($record);
 
                             if ($result['duplicates'] === 0) {
                                 Notification::make()
                                     ->info()
-                                    ->title('No Duplicates Found')
-                                    ->body('No duplicate series were found for this media server.')
+                                    ->title(__('No Duplicates Found'))
+                                    ->body(__('No duplicate series were found for this media server.'))
                                     ->send();
                             } else {
                                 Notification::make()
                                     ->success()
-                                    ->title('Cleanup Complete')
+                                    ->title(__('Cleanup Complete'))
                                     ->body("Merged {$result['duplicates']} duplicate series and deleted {$result['deleted']} orphaned entries.")
                                     ->send();
                             }
@@ -1322,7 +1334,7 @@ class MediaServerIntegrationResource extends Resource
                         ->visible(fn ($record) => $record->playlist_id !== null),
 
                     Action::make('reset')
-                        ->label('Reset status')
+                        ->label(__('Reset status'))
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->action(function (MediaServerIntegration $record) {
@@ -1338,15 +1350,15 @@ class MediaServerIntegrationResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Media server status reset')
-                                ->body('Media server status has been reset.')
+                                ->title(__('Media server status reset'))
+                                ->body(__('Media server status has been reset.'))
                                 ->duration(3000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset media server status so it can be synced again. Only perform this action if you are having problems with the media server syncing.')
-                        ->modalSubmitActionLabel('Yes, reset now'),
+                        ->modalDescription(__('Reset media server status so it can be synced again. Only perform this action if you are having problems with the media server syncing.'))
+                        ->modalSubmitActionLabel(__('Yes, reset now')),
 
                     DeleteAction::make()
                         ->before(function (MediaServerIntegration $record) {
@@ -1360,7 +1372,7 @@ class MediaServerIntegrationResource extends Resource
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('syncAll')
-                        ->label('Sync Selected')
+                        ->label(__('Sync Selected'))
                         ->icon('heroicon-o-arrow-path')
                         ->requiresConfirmation()
                         ->action(function ($records) {
@@ -1371,13 +1383,13 @@ class MediaServerIntegrationResource extends Resource
 
                             Notification::make()
                                 ->success()
-                                ->title('Sync Started')
+                                ->title(__('Sync Started'))
                                 ->body('Syncing '.$records->count().' media servers.')
                                 ->send();
                         }),
 
                     BulkAction::make('reset')
-                        ->label('Reset status')
+                        ->label(__('Reset status'))
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->action(function ($records) {
@@ -1395,16 +1407,16 @@ class MediaServerIntegrationResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Media server status reset')
-                                ->body('Status has been reset for the selected media servers.')
+                                ->title(__('Media server status reset'))
+                                ->body(__('Status has been reset for the selected media servers.'))
                                 ->duration(3000)
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset status for the selected media servers so they can be synced again.')
-                        ->modalSubmitActionLabel('Yes, reset now'),
+                        ->modalDescription(__('Reset status for the selected media servers so they can be synced again.'))
+                        ->modalSubmitActionLabel(__('Yes, reset now')),
 
                     DeleteBulkAction::make(),
                 ]),
@@ -1544,7 +1556,7 @@ class MediaServerIntegrationResource extends Resource
     {
         return [
             Action::make('scanLocalMedia')
-                ->label('Scan & Discover Libraries')
+                ->label(__('Scan & Discover Libraries'))
                 ->icon('heroicon-o-folder-open')
                 ->action(function (callable $get, callable $set, $livewire) {
                     $paths = $get('local_media_paths') ?? [];
@@ -1552,8 +1564,8 @@ class MediaServerIntegrationResource extends Resource
                     if (empty($paths)) {
                         Notification::make()
                             ->warning()
-                            ->title('No Paths Configured')
-                            ->body('Please add at least one media library path before scanning.')
+                            ->title(__('No Paths Configured'))
+                            ->body(__('Please add at least one media library path before scanning.'))
                             ->send();
 
                         return;
@@ -1574,7 +1586,7 @@ class MediaServerIntegrationResource extends Resource
                     if (! $result['success']) {
                         Notification::make()
                             ->danger()
-                            ->title('Path Validation Failed')
+                            ->title(__('Path Validation Failed'))
                             ->body($result['message'])
                             ->send();
 
@@ -1587,8 +1599,8 @@ class MediaServerIntegrationResource extends Resource
                     if ($libraries->isEmpty()) {
                         Notification::make()
                             ->warning()
-                            ->title('No Media Found')
-                            ->body('No video files were found in the configured paths.')
+                            ->title(__('No Media Found'))
+                            ->body(__('No video files were found in the configured paths.'))
                             ->send();
                         $set('available_libraries', []);
 
@@ -1604,7 +1616,7 @@ class MediaServerIntegrationResource extends Resource
 
                     Notification::make()
                         ->success()
-                        ->title('Scan Complete')
+                        ->title(__('Scan Complete'))
                         ->body($result['message'])
                         ->send();
                 }),
@@ -1615,7 +1627,7 @@ class MediaServerIntegrationResource extends Resource
     {
         return [
             Action::make('testAndDiscover')
-                ->label('Test Connection & Discover Libraries')
+                ->label(__('Test Connection & Discover Libraries'))
                 ->icon('heroicon-o-signal')
                 ->action(function (callable $get, callable $set, $livewire) {
                     // Create temporary model from form state
@@ -1630,8 +1642,8 @@ class MediaServerIntegrationResource extends Resource
                     if (array_filter($values, fn ($value) => empty($value) && ! is_bool($value))) {
                         Notification::make()
                             ->danger()
-                            ->title('Validation Error')
-                            ->body('Please fill in all required connection fields before testing the connection.')
+                            ->title(__('Validation Error'))
+                            ->body(__('Please fill in all required connection fields before testing the connection.'))
                             ->send();
 
                         return;
@@ -1646,7 +1658,7 @@ class MediaServerIntegrationResource extends Resource
                     if (! $result['success']) {
                         Notification::make()
                             ->danger()
-                            ->title('Connection Failed')
+                            ->title(__('Connection Failed'))
                             ->body($result['message'])
                             ->send();
 
@@ -1659,7 +1671,7 @@ class MediaServerIntegrationResource extends Resource
                     if ($libraries->isEmpty()) {
                         Notification::make()
                             ->warning()
-                            ->title('Connected but No Libraries Found')
+                            ->title(__('Connected but No Libraries Found'))
                             ->body("Connected to {$result['server_name']}. No movie or TV show libraries were found.")
                             ->send();
                         $set('available_libraries', []);
@@ -1678,7 +1690,7 @@ class MediaServerIntegrationResource extends Resource
 
                     Notification::make()
                         ->success()
-                        ->title('Connection Successful')
+                        ->title(__('Connection Successful'))
                         ->body("Connected to {$result['server_name']} (v{$result['version']}). Found {$libraries->count()} libraries.")
                         ->send();
                 }),

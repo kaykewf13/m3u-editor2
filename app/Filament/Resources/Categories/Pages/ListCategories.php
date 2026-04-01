@@ -12,20 +12,24 @@ use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListCategories extends ListRecords
 {
     protected static string $resource = CategoryResource::class;
 
-    protected ?string $subheading = 'Manage series categories. Only enabled series will be automatically updated on Playlist sync, this includes fetching episodes and metadata. You can also manually sync series to update episodes and metadata.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Manage series categories. Only enabled series will be automatically updated on Playlist sync, this includes fetching episodes and metadata. You can also manually sync series to update episodes and metadata.');
+    }
 
     protected function getHeaderActions(): array
     {
         return [
             ActionGroup::make([
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema(fn () => FindReplaceService::getHeaderActionSchema('categories'))
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -39,18 +43,18 @@ class ListCategories extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your series category names.')
-                    ->modalSubmitActionLabel('Replace now'),
+                    ->modalDescription(__('Select what you would like to find and replace in your series category names.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
                 Action::make('find-replace-reset')
-                    ->label('Undo Find & Replace')
+                    ->label(__('Undo Find & Replace'))
                     ->schema(fn () => FindReplaceService::getHeaderResetSchema())
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -61,17 +65,17 @@ class ListCategories extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace reset started')
-                            ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace reset started'))
+                            ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Reset category names back to their original imported values. This will undo any find & replace changes for the selected playlist.')
-                    ->modalSubmitActionLabel('Reset now'),
-            ])->button()->label('Actions'),
+                    ->modalDescription(__('Reset category names back to their original imported values. This will undo any find & replace changes for the selected playlist.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
+            ])->button()->label(__('Actions')),
         ];
     }
 

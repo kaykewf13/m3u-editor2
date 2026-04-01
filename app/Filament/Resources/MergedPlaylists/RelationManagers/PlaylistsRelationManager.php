@@ -34,15 +34,15 @@ class PlaylistsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('name'),
                 TextColumn::make('groups_count')
-                    ->label('Groups')
+                    ->label(__('Groups'))
                     ->counts('groups')
                     ->sortable(),
                 TextColumn::make('channels_count')
-                    ->label('Channels')
+                    ->label(__('Channels'))
                     ->counts('channels')
                     ->sortable(),
                 TextColumn::make('enabled_channels_count')
-                    ->label('Enabled Channels')
+                    ->label(__('Enabled Channels'))
                     ->counts('enabled_channels')
                     ->sortable(),
                 TextColumn::make('status')
@@ -50,7 +50,7 @@ class PlaylistsRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (Status $state) => $state->getColor()),
                 TextColumn::make('synced')
-                    ->label('Last Synced')
+                    ->label(__('Last Synced'))
                     ->since()
                     ->sortable(),
             ])
@@ -72,7 +72,7 @@ class PlaylistsRelationManager extends RelationManager
                 // Tables\Actions\AttachAction::make()->schema(fn(Tables\Actions\AttachAction $action): array => [
                 //     $action->getRecordSelect(),
                 //     Forms\Components\TextInput::make('title')
-                //         ->label('Title')
+                //         ->label(__('Title'))
                 //         ->required(),
                 // ]),
             ])

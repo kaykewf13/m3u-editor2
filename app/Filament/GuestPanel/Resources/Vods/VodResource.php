@@ -28,7 +28,10 @@ class VodResource extends Resource
 
     protected static ?string $model = Channel::class;
 
-    protected static ?string $navigationLabel = 'VOD';
+    public static function getNavigationLabel(): string
+    {
+        return __('VOD');
+    }
 
     protected static ?string $slug = 'vod';
 
@@ -110,7 +113,7 @@ class VodResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('logo')
-                    ->label('Cover')
+                    ->label(__('Cover'))
                     ->checkFileExistence(false)
                     ->size('inherit', 'inherit')
                     ->extraImgAttributes(fn ($record): array => [
@@ -119,7 +122,7 @@ class VodResource extends Resource
                     ->getStateUsing(fn ($record) => LogoFacade::getChannelLogoUrl($record))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('info')
-                    ->label('Info')
+                    ->label(__('Info'))
                     ->wrap()
                     ->getStateUsing(function ($record) {
                         $info = $record->info;
@@ -137,7 +140,7 @@ class VodResource extends Resource
                     ->extraAttributes(['style' => 'min-width: 350px;'])
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('has_metadata')
-                    ->label('Metadata')
+                    ->label(__('Metadata'))
                     ->icon(function ($record): string {
                         if ($record->has_metadata) {
                             return 'heroicon-o-check-circle';
@@ -147,7 +150,7 @@ class VodResource extends Resource
                     })
                     ->color(fn ($record): string => $record->has_metadata ? 'success' : 'gray'),
                 Tables\Columns\TextColumn::make('group')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->toggleable()
                     ->badge()
                     ->searchable(query: function ($query, string $search): Builder {
@@ -176,24 +179,24 @@ class VodResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('stream_id')
-                    ->label('Default ID')
+                    ->label(__('Default ID'))
                     ->sortable()
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('title')
-                    ->label('Default Title')
+                    ->label(__('Default Title'))
                     ->sortable()
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Default Name')
+                    ->label(__('Default Name'))
                     ->sortable()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->orWhereRaw('LOWER(channels.name) LIKE ?', ['%'.strtolower($search).'%']);
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('url')
-                    ->label('Default URL')
+                    ->label(__('Default URL'))
                     ->sortable()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         $urlExpr = DB::getDriverName() === 'sqlite' ? 'channels.url' : 'channels.url::text';
@@ -216,7 +219,7 @@ class VodResource extends Resource
             ])
             ->recordActions([
                 Action::make('play')
-                    ->tooltip('Play Video')
+                    ->tooltip(__('Play Video'))
                     ->action(function ($record, $livewire) {
                         $livewire->dispatch('openFloatingStream', $record->getFloatingPlayerAttributes());
                     })

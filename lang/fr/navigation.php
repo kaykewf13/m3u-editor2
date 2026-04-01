@@ -1,0 +1,37 @@
+<?php
+
+return [
+    'groups' => [
+        'epg' => 'EPG',
+        'integrations' => 'Intégrations',
+        'live_channels' => 'Chaînes en direct',
+        'playlist' => 'Liste de lecture',
+        'proxy' => 'Procuration',
+        'series' => 'Série',
+        'tools' => 'Outils',
+        'vod_channels' => 'Chaînes VOD',
+    ],
+    'labels' => [
+        'api_docs' => 'Documentation sur l\'API',
+        'queue_manager' => 'Gestionnaire de files d\'attente',
+        'api_tokens' => 'Jetons API',
+        'assets' => 'Actifs',
+        'backup_restore' => 'Sauvegarde et restauration',
+        'categories' => 'Catégories',
+        'channels' => 'Canaux',
+        'debug_logs' => 'Journaux de débogage',
+        'groups' => 'Groupes',
+        'live_channels' => 'Chaînes en direct',
+        'media_servers' => 'Serveurs multimédias',
+        'movies' => 'Films',
+        'networks' => 'Réseaux',
+        'playlist_viewers' => 'Visionneuses de listes de lecture',
+        'release_logs' => 'Journaux de version',
+        'schedule_builder' => 'Générateur d\'horaires',
+        'series' => 'Série',
+        'settings' => 'Paramètres',
+        'stream_file_settings' => 'Paramètres du fichier de flux',
+        'stream_monitor' => 'Moniteur de flux',
+        'vod_channels' => 'Chaînes VOD',
+    ],
+];

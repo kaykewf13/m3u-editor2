@@ -50,7 +50,20 @@ class MergedEpgResource extends Resource
 
     protected static ?string $pluralLabel = 'Merged EPGs';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'EPG';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('EPG');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Merged EPG');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Merged EPGs');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -97,10 +110,10 @@ class MergedEpgResource extends Resource
                     ->sortable(),
                 TextColumn::make('source_epgs_count')
                     ->counts('sourceEpgs')
-                    ->label('Source EPGs')
+                    ->label(__('Source EPGs'))
                     ->sortable(),
                 TextColumn::make('channel_count')
-                    ->label('Channels')
+                    ->label(__('Channels'))
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('status')
@@ -109,23 +122,23 @@ class MergedEpgResource extends Resource
                     ->badge()
                     ->color(fn (Status $state) => $state->getColor()),
                 ProgressColumn::make('progress')
-                    ->label('Sync Progress')
-                    ->tooltip('Progress of merged EPG import/sync')
+                    ->label(__('Sync Progress'))
+                    ->tooltip(__('Progress of merged EPG import/sync'))
                     ->sortable()
                     ->poll(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending ? '3s' : null)
                     ->toggleable(),
                 ToggleColumn::make('auto_sync')
-                    ->label('Auto Sync')
+                    ->label(__('Auto Sync'))
                     ->toggleable()
-                    ->tooltip('Toggle auto-sync status')
+                    ->tooltip(__('Toggle auto-sync status'))
                     ->sortable(),
                 TextColumn::make('synced')
-                    ->label('Last Synced')
+                    ->label(__('Last Synced'))
                     ->since()
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('sync_interval')
-                    ->label('Next Sync')
+                    ->label(__('Next Sync'))
                     ->toggleable()
                     ->formatStateUsing(function ($state, $record) {
                         if ($record->auto_sync && $record->sync_interval && CronExpression::isValidExpression($record->sync_interval)) {
@@ -139,7 +152,7 @@ class MergedEpgResource extends Resource
             ->recordActions([
                 ActionGroup::make([
                     Action::make('process')
-                        ->label('Process')
+                        ->label(__('Process'))
                         ->icon('heroicon-o-arrow-path')
                         ->action(function ($record) {
                             $record->update([
@@ -152,22 +165,22 @@ class MergedEpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Merged EPG is processing')
-                                ->body('Merged EPG is being processed in the background. You will be notified on completion.')
+                                ->title(__('Merged EPG is processing'))
+                                ->body(__('Merged EPG is being processed in the background. You will be notified on completion.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->disabled(fn ($record): bool => $record->status === Status::Processing)
                         ->requiresConfirmation()
-                        ->modalDescription('Process merged EPG now?')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process merged EPG now?'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
                     Action::make('download')
-                        ->label('Download EPG')
+                        ->label(__('Download EPG'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn ($record) => route('epg.file', ['uuid' => $record->uuid]))
                         ->openUrlInNewTab(),
                     Action::make('reset')
-                        ->label('Reset status')
+                        ->label(__('Reset status'))
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->action(function ($record) {
@@ -183,16 +196,16 @@ class MergedEpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('EPG status reset')
-                                ->body('EPG status has been reset.')
+                                ->title(__('EPG status reset'))
+                                ->body(__('EPG status has been reset.'))
                                 ->duration(3000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset EPG status so it can be processed again. Only perform this action if you are having problems with the EPG syncing.')
-                        ->modalSubmitActionLabel('Yes, reset now'),
+                        ->modalDescription(__('Reset EPG status so it can be processed again. Only perform this action if you are having problems with the EPG syncing.'))
+                        ->modalSubmitActionLabel(__('Yes, reset now')),
                     DeleteAction::make(),
                 ])->button()->hiddenLabel()->size('sm'),
                 EditAction::make()->slideOver()
@@ -201,7 +214,7 @@ class MergedEpgResource extends Resource
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('process')
-                        ->label('Process selected')
+                        ->label(__('Process selected'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -215,16 +228,16 @@ class MergedEpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected merged EPGs are processing')
-                                ->body('The selected merged EPGs are being processed in the background.')
+                                ->title(__('Selected merged EPGs are processing'))
+                                ->body(__('The selected merged EPGs are being processed in the background.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-path')
-                        ->modalDescription('Process the selected merged EPG(s) now?')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process the selected merged EPG(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
                     DeleteBulkAction::make(),
                 ]),
             ])->checkIfRecordIsSelectableUsing(
@@ -258,11 +271,11 @@ class MergedEpgResource extends Resource
             TextInput::make('name')
                 ->columnSpan(1)
                 ->required()
-                ->helperText('Enter the name of the merged EPG. Internal use only.')
+                ->helperText(__('Enter the name of the merged EPG. Internal use only.'))
                 ->maxLength(255),
 
             Select::make('sourceEpgs')
-                ->label('Source EPGs')
+                ->label(__('Source EPGs'))
                 ->reorderable()
                 ->relationship(
                     name: 'sourceEpgs',
@@ -322,25 +335,25 @@ class MergedEpgResource extends Resource
                     'heroicon-s-information-circle',
                     tooltip: 'Select 2 or more source EPGs to merge into a single EPG output. Duplicates will be ignored based on channel name and number.',
                 )
-                ->helperText('Drag to re-order the assigned EPG sources. The first will be given the highest priority.'),
+                ->helperText(__('Drag to re-order the assigned EPG sources. The first will be given the highest priority.')),
 
-            Section::make('Scheduling')
-                ->description('Auto sync and scheduling options')
+            Section::make(__('Scheduling'))
+                ->description(__('Auto sync and scheduling options'))
                 ->columns(2)
                 ->schema([
                     Toggle::make('auto_sync')
-                        ->label('Automatically sync merged EPG')
-                        ->helperText('When enabled, the merged EPG will be automatically regenerated at the specified interval.')
+                        ->label(__('Automatically sync merged EPG'))
+                        ->helperText(__('When enabled, the merged EPG will be automatically regenerated at the specified interval.'))
                         ->live()
                         ->inline(false)
                         ->default(true),
                     TextInput::make('sync_interval')
-                        ->label('Sync Schedule')
+                        ->label(__('Sync Schedule'))
                         ->suffix(config('app.timezone'))
                         ->rules([new Cron])
                         ->live()
                         ->default('0 */6 * * *')
-                        ->placeholder('0 */6 * * *')
+                        ->placeholder(__('0 */6 * * *'))
                         ->helperText(fn ($get) => $get('sync_interval') && CronExpression::isValidExpression($get('sync_interval'))
                             ? 'Next scheduled sync: '.(new CronExpression($get('sync_interval')))->getNextRunDate()->format('Y-m-d H:i:s')
                             : 'Specify the CRON schedule for automatic sync, e.g. "0 */6 * * *".')
@@ -349,7 +362,7 @@ class MergedEpgResource extends Resource
                         ->columnSpanFull()
                         ->suffix(config('app.timezone'))
                         ->native(false)
-                        ->label('Last Synced')
+                        ->label(__('Last Synced'))
                         ->disabled()
                         ->hiddenOn('create')
                         ->hidden(fn (Get $get, $record): bool => ! $record?->id || ! $get('auto_sync'))

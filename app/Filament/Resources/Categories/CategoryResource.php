@@ -58,7 +58,20 @@ class CategoryResource extends Resource
             ->where('user_id', auth()->id());
     }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Series';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Series');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Category');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Categories');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -73,20 +86,20 @@ class CategoryResource extends Resource
                 ->maxLength(255),
             Toggle::make('enabled')
                 ->inline(false)
-                ->label('Auto Enable New Channels')
-                ->helperText('Automatically enable newly added channels to this group.')
+                ->label(__('Auto Enable New Channels'))
+                ->helperText(__('Automatically enable newly added channels to this group.'))
                 ->default(true),
             Select::make('stream_file_setting_id')
-                ->label('Stream File Setting Profile')
+                ->label(__('Stream File Setting Profile'))
                 ->searchable()
                 ->relationship('streamFileSetting', 'name', fn ($query) => $query->forSeries()->where('user_id', auth()->id()))
                 ->nullable()
-                ->helperText('Select a Stream File Setting profile for all series in this category. Series-level settings take priority. Leave empty to use global settings.'),
+                ->helperText(__('Select a Stream File Setting profile for all series in this category. Series-level settings take priority. Leave empty to use global settings.')),
         ];
 
         return $schema
             ->components([
-                Section::make('Category Settings')
+                Section::make(__('Category Settings'))
                     ->compact()
                     ->columns(2)
                     ->icon('heroicon-s-cog')
@@ -109,10 +122,10 @@ class CategoryResource extends Resource
                     ->withCount('enabled_series');
             })
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(25)
@@ -120,7 +133,7 @@ class CategoryResource extends Resource
             ->reorderable('sort_order')
             ->columns([
                 TextInputColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->rules(['min:0', 'max:255'])
                     ->placeholder(fn ($record) => $record->name_internal)
                     ->searchable()
@@ -131,16 +144,16 @@ class CategoryResource extends Resource
                     })
                     ->toggleable(),
                 ToggleColumn::make('enabled')
-                    ->label('Auto Enable')
+                    ->label(__('Auto Enable'))
                     ->toggleable()
-                    ->tooltip('Auto enable newly added category series')
+                    ->tooltip(__('Auto enable newly added category series'))
                     ->sortable(),
                 TextColumn::make('name_internal')
-                    ->label('Default name')
+                    ->label(__('Default name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('series_count')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->description(fn (Category $record): string => "Enabled: {$record->enabled_series_count}")
                     ->toggleable()
                     ->sortable(),
@@ -164,13 +177,13 @@ class CategoryResource extends Resource
                 ActionGroup::make([
                     PlaylistService::getAddToPlaylistAction('add', 'series', fn ($record) => $record->series()),
                     Action::make('move')
-                        ->label('Move Series to Category')
+                        ->label(__('Move Series to Category'))
                         ->schema([
                             Select::make('category')
                                 ->required()
                                 ->live()
-                                ->label('Category')
-                                ->helperText('Select the category you would like to move the series to.')
+                                ->label(__('Category'))
+                                ->helperText(__('Select the category you would like to move the series to.'))
                                 ->options(fn (Get $get, $record) => Category::where(['user_id' => auth()->id(), 'playlist_id' => $record->playlist_id])->get(['name', 'id'])->pluck('name', 'id'))
                                 ->searchable(),
                         ])
@@ -182,17 +195,17 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Series moved to category')
-                                ->body('The series have been moved to the chosen category.')
+                                ->title(__('Series moved to category'))
+                                ->body(__('The series have been moved to the chosen category.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-right-left')
                         ->modalIcon('heroicon-o-arrows-right-left')
-                        ->modalDescription('Move the series to another category.')
-                        ->modalSubmitActionLabel('Move now'),
+                        ->modalDescription(__('Move the series to another category.'))
+                        ->modalSubmitActionLabel(__('Move now')),
                     Action::make('process')
-                        ->label('Fetch Series Metadata')
+                        ->label(__('Fetch Series Metadata'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->action(function ($record) {
                             foreach ($record->enabled_series as $series) {
@@ -204,18 +217,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Series are being processed')
-                                ->body('You will be notified once complete.')
+                                ->title(__('Series are being processed'))
+                                ->body(__('You will be notified once complete.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-down-tray')
                         ->modalIcon('heroicon-o-arrow-down-tray')
-                        ->modalDescription('Process series for selected category now? Only enabled series will be processed. This will fetch all episodes and seasons for the category series. This may take a while depending on the number of series in the category.')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process series for selected category now? Only enabled series will be processed. This will fetch all episodes and seasons for the category series. This may take a while depending on the number of series in the category.'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
                     Action::make('sync')
-                        ->label('Sync Series .strm files')
+                        ->label(__('Sync Series .strm files'))
                         ->action(function ($record) {
                             foreach ($record->enabled_series as $series) {
                                 app('Illuminate\Contracts\Bus\Dispatcher')
@@ -226,25 +239,25 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('.strm files are being synced for selected category series. Only enabled series will be synced.')
-                                ->body('You will be notified once complete.')
+                                ->title(__('.strm files are being synced for selected category series. Only enabled series will be synced.'))
+                                ->body(__('You will be notified once complete.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-document-arrow-down')
                         ->modalIcon('heroicon-o-document-arrow-down')
-                        ->modalDescription('Sync selected category series .strm files now? This will generate .strm files for the enabled series at the path set for the series.')
-                        ->modalSubmitActionLabel('Yes, sync now'),
+                        ->modalDescription(__('Sync selected category series .strm files now? This will generate .strm files for the enabled series at the path set for the series.'))
+                        ->modalSubmitActionLabel(__('Yes, sync now')),
                     Action::make('enable')
-                        ->label('Enable Category Series')
+                        ->label(__('Enable Category Series'))
                         ->action(function ($record): void {
                             $record->series()->update(['enabled' => true]);
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected category series enabled')
-                                ->body('The selected category series have been enabled.')
+                                ->title(__('Selected category series enabled'))
+                                ->body(__('The selected category series have been enabled.'))
                                 ->send();
                         })
                         ->color('success')
@@ -252,17 +265,17 @@ class CategoryResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected category series now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected category series now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     Action::make('disable')
-                        ->label('Disable Category Series')
+                        ->label(__('Disable Category Series'))
                         ->action(function ($record): void {
                             $record->series()->update(['enabled' => false]);
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected category series disabled')
-                                ->body('The selected category series have been disabled.')
+                                ->title(__('Selected category series disabled'))
+                                ->body(__('The selected category series have been disabled.'))
                                 ->send();
                         })
                         ->color('warning')
@@ -270,8 +283,8 @@ class CategoryResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected category series now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected category series now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                 ])->color('primary')->button()->hiddenLabel()->size('sm'),
                 EditAction::make()
                     ->button()->hiddenLabel()->size('sm'),
@@ -282,13 +295,13 @@ class CategoryResource extends Resource
                         return $records->flatMap->series;
                     }),
                     BulkAction::make('move')
-                        ->label('Move Series to Category')
+                        ->label(__('Move Series to Category'))
                         ->schema([
                             Select::make('category')
                                 ->required()
                                 ->live()
-                                ->label('Category')
-                                ->helperText('Select the category you would like to move the series to.')
+                                ->label(__('Category'))
+                                ->helperText(__('Select the category you would like to move the series to.'))
                                 ->options(
                                     fn () => Category::query()
                                         ->with(['playlist'])
@@ -309,7 +322,7 @@ class CategoryResource extends Resource
                                 if ($category->playlist_id !== $record->playlist_id) {
                                     Notification::make()
                                         ->warning()
-                                        ->title('Warning')
+                                        ->title(__('Warning'))
                                         ->body("Cannot move \"{$category->name}\" to \"{$record->name}\" as they belong to different playlists.")
                                         ->persistent()
                                         ->send();
@@ -323,17 +336,17 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Series moved to category')
-                                ->body('The category series have been moved to the chosen category.')
+                                ->title(__('Series moved to category'))
+                                ->body(__('The category series have been moved to the chosen category.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-right-left')
                         ->modalIcon('heroicon-o-arrows-right-left')
-                        ->modalDescription('Move the category series to another category.')
-                        ->modalSubmitActionLabel('Move now'),
+                        ->modalDescription(__('Move the category series to another category.'))
+                        ->modalSubmitActionLabel(__('Move now')),
                     BulkAction::make('process')
-                        ->label('Fetch Series Metadata')
+                        ->label(__('Fetch Series Metadata'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->action(function (Collection $records) {
                             foreach ($records as $record) {
@@ -347,18 +360,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Series are being processed')
-                                ->body('You will be notified once complete.')
+                                ->title(__('Series are being processed'))
+                                ->body(__('You will be notified once complete.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-down-tray')
                         ->modalIcon('heroicon-o-arrow-down-tray')
-                        ->modalDescription('Process series for selected category now? Only enabled series will be processed. This will fetch all episodes and seasons for the category series. This may take a while depending on the number of series in the category.')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process series for selected category now? Only enabled series will be processed. This will fetch all episodes and seasons for the category series. This may take a while depending on the number of series in the category.'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
                     BulkAction::make('sync')
-                        ->label('Sync Series .strm files')
+                        ->label(__('Sync Series .strm files'))
                         ->action(function (Collection $records) {
                             foreach ($records as $record) {
                                 foreach ($record->enabled_series as $series) {
@@ -371,18 +384,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('.strm files are being synced for selected category series. Only enabled series will be synced.')
-                                ->body('You will be notified once complete.')
+                                ->title(__('.strm files are being synced for selected category series. Only enabled series will be synced.'))
+                                ->body(__('You will be notified once complete.'))
                                 ->duration(10000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-document-arrow-down')
                         ->modalIcon('heroicon-o-document-arrow-down')
-                        ->modalDescription('Sync selected category series .strm files now? This will generate .strm files for the selected series at the path set for the series.')
-                        ->modalSubmitActionLabel('Yes, sync now'),
+                        ->modalDescription(__('Sync selected category series .strm files now? This will generate .strm files for the selected series at the path set for the series.'))
+                        ->modalSubmitActionLabel(__('Yes, sync now')),
                     BulkAction::make('enable')
-                        ->label('Enable Category Series')
+                        ->label(__('Enable Category Series'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->series()->update(['enabled' => true]);
@@ -390,18 +403,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected category series enabled')
-                                ->body('The selected category series have been enabled.')
+                                ->title(__('Selected category series enabled'))
+                                ->body(__('The selected category series have been enabled.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected category series now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected category series now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     BulkAction::make('disable')
-                        ->label('Disable Category Series')
+                        ->label(__('Disable Category Series'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->series()->update(['enabled' => false]);
@@ -409,18 +422,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected category series disabled')
-                                ->body('The selected category series have been disabled.')
+                                ->title(__('Selected category series disabled'))
+                                ->body(__('The selected category series have been disabled.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected category series now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected category series now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                     BulkAction::make('enable_categories')
-                        ->label('Enable Categories')
+                        ->label(__('Enable Categories'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update(['enabled' => true]);
@@ -428,8 +441,8 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected categories enabled')
-                                ->body('The selected categories have been enabled.')
+                                ->title(__('Selected categories enabled'))
+                                ->body(__('The selected categories have been enabled.'))
                                 ->send();
                         })
                         ->color('success')
@@ -437,10 +450,10 @@ class CategoryResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected categories now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected categories now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     BulkAction::make('disable_categories')
-                        ->label('Disable Categories')
+                        ->label(__('Disable Categories'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update(['enabled' => false]);
@@ -448,8 +461,8 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected categories disabled')
-                                ->body('The selected categories have been disabled.')
+                                ->title(__('Selected categories disabled'))
+                                ->body(__('The selected categories have been disabled.'))
                                 ->send();
                         })
                         ->color('warning')
@@ -457,10 +470,10 @@ class CategoryResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected categories now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected categories now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                     BulkAction::make('find-replace')
-                        ->label('Find & Replace')
+                        ->label(__('Find & Replace'))
                         ->schema(fn () => FindReplaceService::getBulkActionSchema('categories'))
                         ->action(function (Collection $records, array $data): void {
                             app('Illuminate\Contracts\Bus\Dispatcher')
@@ -474,18 +487,18 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace started')
-                                ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace started'))
+                                ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-magnifying-glass')
                         ->color('gray')
                         ->modalIcon('heroicon-o-magnifying-glass')
-                        ->modalDescription('Select what you would like to find and replace in the selected category names.')
-                        ->modalSubmitActionLabel('Replace now'),
+                        ->modalDescription(__('Select what you would like to find and replace in the selected category names.'))
+                        ->modalSubmitActionLabel(__('Replace now')),
                     BulkAction::make('find-replace-reset')
-                        ->label('Undo Find & Replace')
+                        ->label(__('Undo Find & Replace'))
                         ->action(function (Collection $records): void {
                             app('Illuminate\Contracts\Bus\Dispatcher')
                                 ->dispatch(new CategoryFindAndReplaceReset(
@@ -495,16 +508,16 @@ class CategoryResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace reset started')
-                                ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace reset started'))
+                                ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset category names back to their original imported values? This will undo any find & replace changes.')
-                        ->modalSubmitActionLabel('Reset now'),
+                        ->modalDescription(__('Reset category names back to their original imported values? This will undo any find & replace changes.'))
+                        ->modalSubmitActionLabel(__('Reset now')),
                 ]),
             ]);
     }

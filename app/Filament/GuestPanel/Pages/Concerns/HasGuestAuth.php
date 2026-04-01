@@ -90,10 +90,10 @@ trait HasGuestAuth
         return $schema
             ->components([
                 Forms\Components\TextInput::make('username')
-                    ->label('Username')
+                    ->label(__('Username'))
                     ->required(),
                 Forms\Components\TextInput::make('password')
-                    ->label('Password')
+                    ->label(__('Password'))
                     ->password()
                     ->revealable()
                     ->required(),

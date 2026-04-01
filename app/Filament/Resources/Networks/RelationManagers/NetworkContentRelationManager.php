@@ -59,7 +59,7 @@ class NetworkContentRelationManager extends RelationManager
 
         return $table
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->reorderable('sort_order')
             ->defaultSort('sort_order')
@@ -87,12 +87,12 @@ class NetworkContentRelationManager extends RelationManager
     {
         return [
             TextColumn::make('sort_order')
-                ->label('#')
+                ->label(__('#'))
                 ->sortable()
                 ->width('60px'),
 
             TextColumn::make('contentable_type')
-                ->label('Type')
+                ->label(__('Type'))
                 ->formatStateUsing(fn (string $state): string => match ($state) {
                     'App\\Models\\Episode' => 'Episode',
                     'App\\Models\\Channel' => 'Movie',
@@ -106,13 +106,13 @@ class NetworkContentRelationManager extends RelationManager
                 }),
 
             TextColumn::make('title')
-                ->label('Title')
+                ->label(__('Title'))
                 ->getStateUsing(fn (NetworkContent $record): string => $record->title)
                 ->wrap()
                 ->searchable(false),
 
             TextColumn::make('duration')
-                ->label('Duration')
+                ->label(__('Duration'))
                 ->getStateUsing(function (NetworkContent $record): string {
                     $seconds = $record->duration_seconds;
                     if ($seconds <= 0) {
@@ -127,7 +127,7 @@ class NetworkContentRelationManager extends RelationManager
                 }),
 
             TextColumn::make('weight')
-                ->label('Weight')
+                ->label(__('Weight'))
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: true),
         ];
@@ -143,25 +143,25 @@ class NetworkContentRelationManager extends RelationManager
 
         return [
             Action::make('addMovies')
-                ->label('Add Movies')
+                ->label(__('Add Movies'))
                 ->icon('heroicon-o-film')
                 ->slideOver()
                 ->visible(fn () => $playlistId !== null)
                 ->schema([
                     ModalTableSelect::make('movies')
                         ->tableConfiguration(NetworkMoviesTable::class)
-                        ->label('Select Movies')
+                        ->label(__('Select Movies'))
                         ->multiple()
                         ->required()
-                        ->helperText('Select movies to add to this network. Once added, you can sort them using drag and drop in the main table.')
+                        ->helperText(__('Select movies to add to this network. Once added, you can sort them using drag and drop in the main table.'))
                         ->tableArguments([
                             'playlist_id' => $playlistId,
                         ])
                         ->selectAction(
                             fn (Action $action) => $action
                                 ->label('Select Movies from '.$mediaServerName)
-                                ->modalHeading('Search and Select Movies')
-                                ->modalSubmitActionLabel('Confirm selection')
+                                ->modalHeading(__('Search and Select Movies'))
+                                ->modalSubmitActionLabel(__('Confirm selection'))
                                 ->button(),
                         )
                         ->getOptionLabelFromRecordUsing(fn ($record) => $record->title)
@@ -196,32 +196,32 @@ class NetworkContentRelationManager extends RelationManager
 
                     Notification::make()
                         ->success()
-                        ->title('Movies added')
+                        ->title(__('Movies added'))
                         ->body(count($movieIds).' movie(s) have been added to the network.')
                         ->send();
                 })
-                ->successNotificationTitle('Movies added successfully'),
+                ->successNotificationTitle(__('Movies added successfully')),
 
             Action::make('addEpisodes')
-                ->label('Add Episodes')
+                ->label(__('Add Episodes'))
                 ->icon('heroicon-o-play')
                 ->slideOver()
                 ->visible(fn () => $playlistId !== null)
                 ->schema([
                     ModalTableSelect::make('episodes')
                         ->tableConfiguration(NetworkEpisodesTable::class)
-                        ->label('Select Episodes')
+                        ->label(__('Select Episodes'))
                         ->multiple()
                         ->required()
-                        ->helperText('Select episodes to add to this network. Once added, you can sort them using drag and drop in the main table.')
+                        ->helperText(__('Select episodes to add to this network. Once added, you can sort them using drag and drop in the main table.'))
                         ->tableArguments([
                             'playlist_id' => $playlistId,
                         ])
                         ->selectAction(
                             fn (Action $action) => $action
                                 ->label('Select Episodes from '.$mediaServerName)
-                                ->modalHeading('Search and Select Episodes')
-                                ->modalSubmitActionLabel('Confirm selection')
+                                ->modalHeading(__('Search and Select Episodes'))
+                                ->modalSubmitActionLabel(__('Confirm selection'))
                                 ->button(),
                         )
                         ->getOptionLabelFromRecordUsing(fn ($record) => $record->title)
@@ -256,11 +256,11 @@ class NetworkContentRelationManager extends RelationManager
 
                     Notification::make()
                         ->success()
-                        ->title('Episodes added')
+                        ->title(__('Episodes added'))
                         ->body(count($episodeIds).' episode(s) have been added to the network.')
                         ->send();
                 })
-                ->successNotificationTitle('Episodes added successfully'),
+                ->successNotificationTitle(__('Episodes added successfully')),
         ];
     }
 
@@ -297,17 +297,17 @@ class NetworkContentRelationManager extends RelationManager
     {
         return $schema->components([
             TextInput::make('sort_order')
-                ->label('Sort Order')
+                ->label(__('Sort Order'))
                 ->numeric()
                 ->default(0)
                 ->required(),
 
             TextInput::make('weight')
-                ->label('Weight (for shuffle)')
+                ->label(__('Weight (for shuffle)'))
                 ->numeric()
                 ->default(1)
                 ->minValue(1)
-                ->helperText('Higher weight = more likely to appear when shuffling'),
+                ->helperText(__('Higher weight = more likely to appear when shuffling')),
         ]);
     }
 }

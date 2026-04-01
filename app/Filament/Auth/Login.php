@@ -93,7 +93,7 @@ class Login extends \Filament\Auth\Pages\Login
     protected function getLoginFormComponent(): Component
     {
         return TextInput::make('login')
-            ->label('Login')
+            ->label(__('Login'))
             ->required()
             ->autocomplete()
             ->autofocus()

@@ -54,7 +54,7 @@ class EditPlaylist extends EditRecord
     {
         return [
             ViewAction::make()
-                ->label('View Playlist')
+                ->label(__('View Playlist'))
                 ->icon('heroicon-m-eye')
                 ->color('gray')
                 ->action(function () {

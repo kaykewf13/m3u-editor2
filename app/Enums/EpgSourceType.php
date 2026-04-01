@@ -7,11 +7,17 @@ enum EpgSourceType: string
     case URL = 'url';
     case SCHEDULES_DIRECT = 'schedules_direct';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
-            self::URL => 'URL/XML File',
-            self::SCHEDULES_DIRECT => 'SchedulesDirect',
+            self::URL => __('URL/XML File'),
+            self::SCHEDULES_DIRECT => __('SchedulesDirect'),
         };
+    }
+
+    /** @deprecated Use getLabel() instead */
+    public function label(): string
+    {
+        return $this->getLabel();
     }
 }

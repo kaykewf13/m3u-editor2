@@ -46,7 +46,20 @@ class EpgChannelResource extends Resource
 
     protected static ?string $pluralLabel = 'EPG Channels';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'EPG';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('EPG');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('EPG Channel');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('EPG Channels');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -68,7 +81,7 @@ class EpgChannelResource extends Resource
     {
         return $table
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->deferLoading()
             ->paginated([10, 25, 50, 100])
@@ -76,7 +89,7 @@ class EpgChannelResource extends Resource
             ->recordAction(null)
             ->columns([
                 ImageColumn::make('logo')
-                    ->label('Logo')
+                    ->label(__('Logo'))
                     ->checkFileExistence(false)
                     ->size('inherit', 'inherit')
                     ->extraImgAttributes(fn ($record): array => [
@@ -85,14 +98,14 @@ class EpgChannelResource extends Resource
                     ->getStateUsing(fn ($record) => $record->icon_custom ?? $record->icon)
                     ->toggleable(),
                 TextInputColumn::make('display_name_custom')
-                    ->label('Display Name')
+                    ->label(__('Display Name'))
                     ->rules(['min:0', 'max:255'])
                     ->tooltip(fn ($record) => $record->display_name)
                     ->placeholder(fn ($record) => $record->display_name)
                     ->searchable()
                     ->toggleable(),
                 TextInputColumn::make('name_custom')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->rules(['min:0', 'max:255'])
                     ->tooltip(fn ($record) => $record->name)
                     ->placeholder(fn ($record) => $record->name)
@@ -108,7 +121,7 @@ class EpgChannelResource extends Resource
                     ->searchable(),
                 // WARNING! Slows table load quite a bit...
                 // Tables\Columns\TextColumn::make('programmes_count')
-                //     ->label('Programs')
+                //     ->label(__('Programs'))
                 //     ->counts('programmes')
                 //     ->sortable(),
                 TextColumn::make('epg.name')
@@ -142,15 +155,15 @@ class EpgChannelResource extends Resource
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('find-replace')
-                        ->label('Find & Replace')
+                        ->label(__('Find & Replace'))
                         ->schema([
                             Toggle::make('use_regex')
-                                ->label('Use Regex')
+                                ->label(__('Use Regex'))
                                 ->live()
-                                ->helperText('Use regex patterns to find and replace. If disabled, will use direct string comparison.')
+                                ->helperText(__('Use regex patterns to find and replace. If disabled, will use direct string comparison.'))
                                 ->default(true),
                             Select::make('column')
-                                ->label('Column to modify')
+                                ->label(__('Column to modify'))
                                 ->options([
                                     'icon' => 'Channel Icon',
                                     'name' => 'Channel Name',
@@ -172,8 +185,8 @@ class EpgChannelResource extends Resource
                                         : 'This is the regex pattern you want to find. Make sure to use valid regex syntax.'
                                 ),
                             TextInput::make('replace_with')
-                                ->label('Replace with (optional)')
-                                ->placeholder('Leave empty to remove'),
+                                ->label(__('Replace with (optional)'))
+                                ->placeholder(__('Leave empty to remove')),
 
                         ])
                         ->action(function (Collection $records, array $data): void {
@@ -189,21 +202,21 @@ class EpgChannelResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace started')
-                                ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace started'))
+                                ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-magnifying-glass')
                         ->color('gray')
                         ->modalIcon('heroicon-o-magnifying-glass')
-                        ->modalDescription('Select what you would like to find and replace in the selected epg channels.')
-                        ->modalSubmitActionLabel('Replace now'),
+                        ->modalDescription(__('Select what you would like to find and replace in the selected epg channels.'))
+                        ->modalSubmitActionLabel(__('Replace now')),
                     BulkAction::make('find-replace-reset')
-                        ->label('Undo Find & Replace')
+                        ->label(__('Undo Find & Replace'))
                         ->schema([
                             Select::make('column')
-                                ->label('Column to reset')
+                                ->label(__('Column to reset'))
                                 ->options([
                                     'icon' => 'Channel Icon',
                                     'name' => 'Channel Name',
@@ -223,16 +236,16 @@ class EpgChannelResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace reset started')
-                                ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace reset started'))
+                                ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset Find & Replace results back to epg defaults for the selected epg channels. This will remove any custom values set in the selected column.')
-                        ->modalSubmitActionLabel('Reset now'),
+                        ->modalDescription(__('Reset Find & Replace results back to epg defaults for the selected epg channels. This will remove any custom values set in the selected column.'))
+                        ->modalSubmitActionLabel(__('Reset now')),
                 ]),
             ]);
     }
@@ -257,26 +270,26 @@ class EpgChannelResource extends Resource
     {
         return [
             TextInput::make('icon_custom')
-                ->label('Icon')
+                ->label(__('Icon'))
                 ->columnSpan(1)
                 ->prefixIcon('heroicon-m-globe-alt')
                 ->placeholder(fn ($record) => $record?->icon)
-                ->helperText('Leave empty to use provider icon.')
+                ->helperText(__('Leave empty to use provider icon.'))
                 ->type('url')
                 ->suffixActions([
                     AssetPickerAction::upload('icon_custom'),
                     AssetPickerAction::browse('icon_custom'),
                 ]),
             TextInput::make('display_name_custom')
-                ->label('Display Name')
+                ->label(__('Display Name'))
                 ->columnSpan(1)
                 ->placeholder(fn ($record) => $record?->display_name)
-                ->helperText('Leave empty to use provider display name.'),
+                ->helperText(__('Leave empty to use provider display name.')),
             TextInput::make('name_custom')
-                ->label('Name')
+                ->label(__('Name'))
                 ->columnSpan(2)
                 ->placeholder(fn ($record) => $record?->name)
-                ->helperText('Leave empty to use provider name.'),
+                ->helperText(__('Leave empty to use provider name.')),
         ];
     }
 }

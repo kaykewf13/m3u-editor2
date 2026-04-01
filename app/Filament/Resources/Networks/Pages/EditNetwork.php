@@ -21,13 +21,13 @@ class EditNetwork extends EditRecord
     {
         return [
             Action::make('startBroadcast')
-                ->label('Start Broadcast')
-                ->tooltip('Start continuous HLS broadcasting')
+                ->label(__('Start Broadcast'))
+                ->tooltip(__('Start continuous HLS broadcasting'))
                 ->icon('heroicon-s-play')
                 ->color('success')
                 ->hiddenLabel()
                 ->requiresConfirmation()
-                ->modalHeading('Start Broadcasting')
+                ->modalHeading(__('Start Broadcasting'))
                 ->modalDescription(function (Network $record): string {
                     $base = 'Start continuous HLS broadcasting for this network. The stream will be available at the network\'s HLS URL.';
 
@@ -63,13 +63,13 @@ class EditNetwork extends EditRecord
                     if ($result) {
                         Notification::make()
                             ->success()
-                            ->title('Broadcast Started')
+                            ->title(__('Broadcast Started'))
                             ->body("Broadcasting started for {$record->name}")
                             ->send();
                     } elseif ($record->broadcast_schedule_enabled && $record->broadcast_scheduled_start && now()->lt($record->broadcast_scheduled_start)) {
                         Notification::make()
                             ->info()
-                            ->title('Broadcast Scheduled')
+                            ->title(__('Broadcast Scheduled'))
                             ->body("Broadcast will start at {$record->broadcast_scheduled_start->format('M j, Y H:i:s')} ({$record->broadcast_scheduled_start->diffForHumans()})")
                             ->send();
                     } else {
@@ -77,21 +77,21 @@ class EditNetwork extends EditRecord
 
                         Notification::make()
                             ->danger()
-                            ->title('Failed to Start')
+                            ->title(__('Failed to Start'))
                             ->body($errorMsg)
                             ->send();
                     }
                 }),
 
             Action::make('stopBroadcast')
-                ->label('Stop Broadcast')
-                ->tooltip('Stop the current broadcast')
+                ->label(__('Stop Broadcast'))
+                ->tooltip(__('Stop the current broadcast'))
                 ->icon('heroicon-s-stop')
                 ->color('danger')
                 ->hiddenLabel()
                 ->requiresConfirmation()
-                ->modalHeading('Stop Broadcasting')
-                ->modalDescription('Stop the current broadcast. Viewers will be disconnected.')
+                ->modalHeading(__('Stop Broadcasting'))
+                ->modalDescription(__('Stop the current broadcast. Viewers will be disconnected.'))
                 ->visible(fn (Network $record): bool => $record->isBroadcasting())
                 ->action(function (Network $record) {
                     $service = app(NetworkBroadcastService::class);
@@ -99,7 +99,7 @@ class EditNetwork extends EditRecord
 
                     Notification::make()
                         ->warning()
-                        ->title('Broadcast Stopped')
+                        ->title(__('Broadcast Stopped'))
                         ->body("Broadcasting stopped for {$record->name}")
                         ->send();
                 }),
@@ -108,11 +108,11 @@ class EditNetwork extends EditRecord
 
             ActionGroup::make([
                 Action::make('generateSchedule')
-                    ->label('Generate Schedule')
+                    ->label(__('Generate Schedule'))
                     ->icon('heroicon-o-calendar')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->modalHeading('Generate Schedule')
+                    ->modalHeading(__('Generate Schedule'))
                     ->modalDescription(fn (): string => 'This will generate a '.($this->record->schedule_window_days ?? 7).'-day programme schedule for this network. Existing future programmes will be replaced.')
                     ->disabled(fn (): bool => $this->record->network_playlist_id === null)
                     ->tooltip(fn (): ?string => $this->record->network_playlist_id === null ? 'Assign to a playlist first' : null)
@@ -123,7 +123,7 @@ class EditNetwork extends EditRecord
 
                         Notification::make()
                             ->success()
-                            ->title('Schedule Generated')
+                            ->title(__('Schedule Generated'))
                             ->body("Generated programme schedule for {$this->record->name}")
                             ->send();
 
@@ -131,7 +131,7 @@ class EditNetwork extends EditRecord
                     }),
 
                 Action::make('viewPlaylist')
-                    ->label('View Playlist')
+                    ->label(__('View Playlist'))
                     ->icon('heroicon-o-eye')
                     ->visible(fn (Network $record): bool => $record->network_playlist_id !== null)
                     ->url(fn (Network $record): string => PlaylistResource::getUrl('view', ['record' => $record->network_playlist_id])),

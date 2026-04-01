@@ -58,7 +58,20 @@ class CustomPlaylistResource extends Resource
         return ['name'];
     }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Custom Playlist');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Custom Playlists');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -93,29 +106,29 @@ class CustomPlaylistResource extends Resource
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('available_streams')
-                    ->label('Streams')
+                    ->label(__('Streams'))
                     ->toggleable()
                     ->formatStateUsing(fn (int $state): string => $state === 0 ? '∞' : (string) $state)
-                    ->tooltip('Total streams available for this playlist (∞ indicates no limit)')
+                    ->tooltip(__('Total streams available for this playlist (∞ indicates no limit)'))
                     ->description(fn (CustomPlaylist $record): string => 'Active: '.M3uProxyService::getPlaylistActiveStreamsCount($record))
                     ->sortable(),
                 TextColumn::make('live_channels_count')
-                    ->label('Live')
+                    ->label(__('Live'))
                     ->description(fn (CustomPlaylist $record): string => "Enabled: {$record->enabled_live_channels_count}")
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('vod_channels_count')
-                    ->label('VOD')
+                    ->label(__('VOD'))
                     ->description(fn (CustomPlaylist $record): string => "Enabled: {$record->enabled_vod_channels_count}")
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('series_count')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->description(fn (CustomPlaylist $record): string => "Enabled: {$record->enabled_series_count}")
                     ->toggleable()
                     ->sortable(),
                 ToggleColumn::make('enable_proxy')
-                    ->label('Proxy')
+                    ->label(__('Proxy'))
                     ->toggleable()
                     ->tooltip(fn (CustomPlaylist $record): string => $record->hasPooledSourcePlaylists()
                         ? 'Required (pooled sources)'
@@ -156,18 +169,18 @@ class CustomPlaylistResource extends Resource
             ->recordActions([
                 ActionGroup::make([
                     Action::make('Download M3U')
-                        ->label('Download M3U')
+                        ->label(__('Download M3U'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn ($record) => PlaylistFacade::getUrls($record)['m3u'])
                         ->openUrlInNewTab(),
                     EpgCacheService::getEpgTableAction(),
                     Action::make('HDHomeRun URL')
-                        ->label('HDHomeRun URL')
+                        ->label(__('HDHomeRun URL'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->url(fn ($record) => PlaylistFacade::getUrls($record)['hdhr'])
                         ->openUrlInNewTab(),
                     Action::make('Public URL')
-                        ->label('Public URL')
+                        ->label(__('Public URL'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->url(fn ($record) => '/playlist/v/'.$record->uuid)
                         ->openUrlInNewTab(),
@@ -215,9 +228,9 @@ class CustomPlaylistResource extends Resource
                 ->schema([
                     TextInput::make('name')
                         ->required()
-                        ->helperText('Enter the name of the playlist. Internal use only.'),
+                        ->helperText(__('Enter the name of the playlist. Internal use only.')),
                     TextInput::make('user_agent')
-                        ->helperText('User agent string to use for making requests.')
+                        ->helperText(__('User agent string to use for making requests.'))
                         ->default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
                         ->required(),
                 ]),
@@ -226,20 +239,20 @@ class CustomPlaylistResource extends Resource
                 ->columns(3)
                 ->schema([
                     Toggle::make('short_urls_enabled')
-                        ->label('Use Short URLs')
-                        ->helperText('When enabled, short URLs will be used for the playlist links. Save changes to generate the short URLs (or remove them).')
+                        ->label(__('Use Short URLs'))
+                        ->helperText(__('When enabled, short URLs will be used for the playlist links. Save changes to generate the short URLs (or remove them).'))
                         ->columnSpan(2)
                         ->inline(false)
                         ->default(false),
                     Toggle::make('edit_uuid')
-                        ->label('View/Update Unique Identifier')
+                        ->label(__('View/Update Unique Identifier'))
                         ->columnSpanFull()
                         ->inline(false)
                         ->live()
                         ->dehydrated(false)
                         ->default(false),
                     TextInput::make('uuid')
-                        ->label('Unique Identifier')
+                        ->label(__('Unique Identifier'))
                         ->columnSpanFull()
                         ->rules(function ($record) {
                             return [
@@ -249,7 +262,7 @@ class CustomPlaylistResource extends Resource
                                 Rule::unique('playlists', 'uuid')->ignore($record?->id),
                             ];
                         })
-                        ->helperText('Value must be between 3 and 36 characters.')
+                        ->helperText(__('Value must be between 3 and 36 characters.'))
                         ->hintIcon(
                             'heroicon-m-exclamation-triangle',
                             tooltip: 'Be careful changing this value as this will change the URLs for the Playlist, its EPG, and HDHR.'
@@ -259,45 +272,45 @@ class CustomPlaylistResource extends Resource
                 ])->hiddenOn('create'),
         ];
         $outputScheme = [
-            Section::make('Playlist Output')
-                ->description('Determines how the playlist is output')
+            Section::make(__('Playlist Output'))
+                ->description(__('Determines how the playlist is output'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
                 ->columns(2)
                 ->schema([
                     Toggle::make('auto_channel_increment')
-                        ->label('Auto channel number increment')
+                        ->label(__('Auto channel number increment'))
                         ->columnSpan(1)
                         ->inline(false)
                         ->live()
                         ->default(false)
-                        ->helperText('If no channel number is set, output an automatically incrementing number.'),
+                        ->helperText(__('If no channel number is set, output an automatically incrementing number.')),
                     TextInput::make('channel_start')
-                        ->helperText('The starting channel number.')
+                        ->helperText(__('The starting channel number.'))
                         ->columnSpan(1)
                         ->rules(['min:1'])
                         ->type('number')
                         ->hidden(fn (Get $get): bool => ! $get('auto_channel_increment'))
                         ->required(),
                 ]),
-            Section::make('EPG Output')
-                ->description('EPG output options')
+            Section::make(__('EPG Output'))
+                ->description(__('EPG output options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
                 ->columns(2)
                 ->schema([
                     Toggle::make('dummy_epg')
-                        ->label('Enable dummy EPG')
+                        ->label(__('Enable dummy EPG'))
                         ->columnSpan(1)
                         ->live()
                         ->inline(false)
                         ->default(false)
-                        ->helperText('When enabled, dummy EPG data will be generated for the next 5 days. Thus, it is possible to assign channels for which no EPG data is available. As program information, the channel name and the set program length are used.'),
+                        ->helperText(__('When enabled, dummy EPG data will be generated for the next 5 days. Thus, it is possible to assign channels for which no EPG data is available. As program information, the channel name and the set program length are used.')),
                     Select::make('id_channel_by')
-                        ->label('Preferred TVG ID output')
-                        ->helperText('How you would like to ID your channels in the EPG.')
+                        ->label(__('Preferred TVG ID output'))
+                        ->helperText(__('How you would like to ID your channels in the EPG.'))
                         ->options([
                             'stream_id' => 'TVG ID/Stream ID (default)',
                             'channel_id' => 'Channel ID (recommended for HDHR)',
@@ -309,7 +322,7 @@ class CustomPlaylistResource extends Resource
                         ->default('stream_id') // Default to stream_id
                         ->columnSpan(1),
                     TextInput::make('dummy_epg_length')
-                        ->label('Dummy program length (in minutes)')
+                        ->label(__('Dummy program length (in minutes)'))
                         ->columnSpan(1)
                         ->rules(['min:1'])
                         ->type('number')
@@ -317,8 +330,8 @@ class CustomPlaylistResource extends Resource
                         ->hidden(fn (Get $get): bool => ! $get('dummy_epg'))
                         ->required(),
                 ]),
-            Section::make('Streaming Output')
-                ->description('Output processing options')
+            Section::make(__('Streaming Output'))
+                ->description(__('Output processing options'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->collapsed($creating)
@@ -326,7 +339,7 @@ class CustomPlaylistResource extends Resource
                 ->hidden(fn () => ! auth()->user()->canUseProxy())
                 ->schema([
                     Toggle::make('enable_proxy')
-                        ->label('Enable Stream Proxy')
+                        ->label(__('Enable Stream Proxy'))
                         ->hint(function (Get $get, ?CustomPlaylist $record): string {
                             if ($record?->hasPooledSourcePlaylists()) {
                                 return 'Required (pooled sources)';
@@ -354,16 +367,16 @@ class CustomPlaylistResource extends Resource
                         ->inline(false)
                         ->default(false),
                     Toggle::make('enable_logo_proxy')
-                        ->label('Enable Logo Proxy')
+                        ->label(__('Enable Logo Proxy'))
                         ->hint(fn (Get $get): string => $get('enable_logo_proxy') ? 'Proxied' : 'Not proxied')
                         ->hintIcon(fn (Get $get): string => ! $get('enable_logo_proxy') ? 'heroicon-m-lock-open' : 'heroicon-m-lock-closed')
                         ->live()
-                        ->helperText('When enabled, channel logos will be proxied through the application. Logos will be cached for up to 30 days to reduce bandwidth and speed up loading times.')
+                        ->helperText(__('When enabled, channel logos will be proxied through the application. Logos will be cached for up to 30 days to reduce bandwidth and speed up loading times.'))
                         ->inline(false)
                         ->default(false),
                     TextInput::make('streams')
-                        ->label('HDHR/Xtream API Streams')
-                        ->helperText('Number of streams available for HDHR and Xtream API service (if using).')
+                        ->label(__('HDHR/Xtream API Streams'))
+                        ->helperText(__('Number of streams available for HDHR and Xtream API service (if using).'))
                         ->columnSpan(1)
                         ->hintIcon(
                             'heroicon-m-question-mark-circle',
@@ -374,58 +387,58 @@ class CustomPlaylistResource extends Resource
                         ->default(1) // Default to 1 stream
                         ->required(),
                     TextInput::make('server_timezone')
-                        ->label('Provider Timezone')
-                        ->helperText('The portal/provider timezone (DST-aware). Needed to correctly use timeshift functionality.')
-                        ->placeholder('Etc/UTC'),
+                        ->label(__('Provider Timezone'))
+                        ->helperText(__('The portal/provider timezone (DST-aware). Needed to correctly use timeshift functionality.'))
+                        ->placeholder(__('Etc/UTC')),
 
                     Grid::make()
                         ->columns(3)
                         ->schema([
                             TextInput::make('available_streams')
-                                ->label('Available Streams')
-                                ->hint('Set to 0 for unlimited streams.')
-                                ->helperText('Number of streams available for this playlist (only applies to custom channels assigned to this Custom Playlist).')
+                                ->label(__('Available Streams'))
+                                ->hint(__('Set to 0 for unlimited streams.'))
+                                ->helperText(__('Number of streams available for this playlist (only applies to custom channels assigned to this Custom Playlist).'))
                                 ->columnSpan(1)
                                 ->rules(['min:0'])
                                 ->type('number')
                                 ->default(0) // Default to 0 streams (for unlimted)
                                 ->required(),
                             Toggle::make('strict_live_ts')
-                                ->label('Enable Strict Live TS Handling')
+                                ->label(__('Enable Strict Live TS Handling'))
                                 ->hintAction(
                                     Action::make('learn_more_strict_live_ts')
-                                        ->label('Learn More')
+                                        ->label(__('Learn More'))
                                         ->icon('heroicon-o-arrow-top-right-on-square')
                                         ->iconPosition('after')
                                         ->size('sm')
                                         ->url('https://m3ue.sparkison.dev/docs/proxy/strict-live-ts')
                                         ->openUrlInNewTab(true)
                                 )
-                                ->helperText('Enhanced stability for live MPEG-TS streams with PVR clients like Kodi and HDHomeRun (only used when not using transcoding profiles).')
+                                ->helperText(__('Enhanced stability for live MPEG-TS streams with PVR clients like Kodi and HDHomeRun (only used when not using transcoding profiles).'))
                                 ->inline(false)
                                 ->default(false),
                             Toggle::make('use_sticky_session')
                                 ->hintAction(
                                     Action::make('learn_more_sticky_session')
-                                        ->label('Learn More')
+                                        ->label(__('Learn More'))
                                         ->icon('heroicon-o-arrow-top-right-on-square')
                                         ->iconPosition('after')
                                         ->size('sm')
                                         ->url('https://m3ue.sparkison.dev/docs/proxy/sticky-sessions')
                                         ->openUrlInNewTab(true)
                                 )
-                                ->label('Enable Sticky Session Handler')
+                                ->label(__('Enable Sticky Session Handler'))
                                 ->helperText('')
                                 ->inline(false)
                                 ->default(false)
-                                ->helperText('Lock clients to specific backend origins after redirects to prevent playback loops when load balancers bounce between origins. Disable if your provider doesn\'t use load balancing.'),
+                                ->helperText(__('Lock clients to specific backend origins after redirects to prevent playback loops when load balancers bounce between origins. Disable if your provider doesn\\\'t use load balancing.')),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
 
-                    Fieldset::make('Transcoding Settings (optional)')
+                    Fieldset::make(__('Transcoding Settings (optional)'))
                         ->columnSpanFull()
                         ->schema([
                             Select::make('stream_profile_id')
-                                ->label('Live Streaming Profile')
+                                ->label(__('Live Streaming Profile'))
                                 ->relationship('streamProfile', 'name')
                                 ->options(function () {
                                     return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
@@ -433,10 +446,10 @@ class CustomPlaylistResource extends Resource
                                 ->searchable()
                                 ->preload()
                                 ->nullable()
-                                ->helperText('Select a transcoding profile to apply to Live streams from this playlist. Leave empty for direct stream proxying.')
-                                ->placeholder('Leave empty for direct stream proxying'),
+                                ->helperText(__('Select a transcoding profile to apply to Live streams from this playlist. Leave empty for direct stream proxying.'))
+                                ->placeholder(__('Leave empty for direct stream proxying')),
                             Select::make('vod_stream_profile_id')
-                                ->label('VOD and Series Streaming Profile')
+                                ->label(__('VOD and Series Streaming Profile'))
                                 ->relationship('vodStreamProfile', 'name')
                                 ->options(function () {
                                     return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
@@ -448,28 +461,28 @@ class CustomPlaylistResource extends Resource
                                     'heroicon-m-question-mark-circle',
                                     tooltip: 'Time seeking is not supported when transcoding VOD or Series streams. This is a limitation of live-transcoding. Leave empty to allow time seeking.'
                                 )
-                                ->helperText('Select a transcoding profile to apply to VOD and Series streams from this playlist. Leave empty for direct stream proxying.')
-                                ->placeholder('Leave empty for direct stream proxying'),
+                                ->helperText(__('Select a transcoding profile to apply to VOD and Series streams from this playlist. Leave empty for direct stream proxying.'))
+                                ->placeholder(__('Leave empty for direct stream proxying')),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
 
-                    Fieldset::make('HTTP Headers (optional)')
+                    Fieldset::make(__('HTTP Headers (optional)'))
                         ->columnSpanFull()
                         ->schema([
                             Repeater::make('custom_headers')
                                 ->hiddenLabel()
-                                ->helperText('Add any custom headers to include when streaming a channel/episode.')
+                                ->helperText(__('Add any custom headers to include when streaming a channel/episode.'))
                                 ->columnSpanFull()
                                 ->columns(2)
                                 ->default([])
                                 ->schema([
                                     TextInput::make('header')
-                                        ->label('Header')
+                                        ->label(__('Header'))
                                         ->required()
-                                        ->placeholder('e.g. Authorization'),
+                                        ->placeholder(__('e.g. Authorization')),
                                     TextInput::make('value')
-                                        ->label('Value')
+                                        ->label(__('Value'))
                                         ->required()
-                                        ->placeholder('e.g. Bearer abc123'),
+                                        ->placeholder(__('e.g. Bearer abc123')),
                                 ]),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
                 ]),
@@ -493,11 +506,11 @@ class CustomPlaylistResource extends Resource
                         ->contained(false)
                         ->persistTabInQueryString()
                         ->tabs([
-                            Tab::make('General')
+                            Tab::make(__('General'))
                                 ->columns(2)
                                 ->icon('heroicon-m-cog')
                                 ->schema([
-                                    Section::make('Playlist Settings')
+                                    Section::make(__('Playlist Settings'))
                                         ->compact()
                                         ->collapsible()
                                         ->collapsed(true)
@@ -509,18 +522,18 @@ class CustomPlaylistResource extends Resource
                                         ]),
                                 ]),
 
-                            Tab::make('Auth')
+                            Tab::make(__('Auth'))
                                 ->columns(2)
                                 ->icon('heroicon-m-key')
                                 ->schema([
-                                    Section::make('Auth')
+                                    Section::make(__('Auth'))
                                         ->compact()
-                                        ->description('Add and manage authentication.')
+                                        ->description(__('Add and manage authentication.'))
                                         ->icon('heroicon-m-key')
                                         ->columnSpan(2)
                                         ->schema([
                                             Select::make('assigned_auth_ids')
-                                                ->label('Assigned Auths')
+                                                ->label(__('Assigned Auths'))
                                                 ->multiple()
                                                 ->options(function ($record) {
                                                     $options = [];
@@ -546,7 +559,7 @@ class CustomPlaylistResource extends Resource
                                                 })
                                                 ->searchable()
                                                 ->nullable()
-                                                ->placeholder('Select auths or leave empty')
+                                                ->placeholder(__('Select auths or leave empty'))
                                                 ->default(function ($record) {
                                                     if ($record) {
                                                         return $record->playlistAuths()->pluck('playlist_auths.id')->toArray();
@@ -560,7 +573,7 @@ class CustomPlaylistResource extends Resource
                                                         $component->state($currentAuthIds);
                                                     }
                                                 })
-                                                ->helperText('Only unassigned auths are available. Each auth can only be assigned to one playlist at a time.')
+                                                ->helperText(__('Only unassigned auths are available. Each auth can only be assigned to one playlist at a time.'))
                                                 ->afterStateUpdated(function ($state, $record) {
                                                     if (! $record) {
                                                         return;
@@ -590,7 +603,7 @@ class CustomPlaylistResource extends Resource
                                                 ->dehydrated(false), // Don't save this field directly
                                         ]),
                                 ]),
-                            Tab::make('Output')
+                            Tab::make(__('Output'))
                                 ->icon('heroicon-m-arrow-up-right')
                                 ->columns(2)
                                 ->schema($outputScheme),

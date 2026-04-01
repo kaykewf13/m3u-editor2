@@ -35,9 +35,9 @@ class PlaylistsRelationManager extends RelationManager
             ->components([
                 Select::make('authenticatable_type')
                     ->required()
-                    ->label('Type of Playlist')
+                    ->label(__('Type of Playlist'))
                     ->live()
-                    ->helperText('The type of playlist to assign this auth to.')
+                    ->helperText(__('The type of playlist to assign this auth to.'))
                     ->options([
                         Playlist::class => 'Playlist',
                         CustomPlaylist::class => 'Custom Playlist',
@@ -48,28 +48,28 @@ class PlaylistsRelationManager extends RelationManager
 
                 Select::make('authenticatable_id')
                     ->required()
-                    ->label('Playlist')
-                    ->helperText('Select the playlist you would like to assign this auth to.')
+                    ->label(__('Playlist'))
+                    ->helperText(__('Select the playlist you would like to assign this auth to.'))
                     ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                     ->hidden(fn ($get) => $get('authenticatable_type') !== Playlist::class)
                     ->searchable(),
                 Select::make('authenticatable_id')
                     ->required()
-                    ->label('Custom Playlist')
-                    ->helperText('Select the playlist you would like to assign this auth to.')
+                    ->label(__('Custom Playlist'))
+                    ->helperText(__('Select the playlist you would like to assign this auth to.'))
                     ->options(CustomPlaylist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                     ->hidden(fn ($get) => $get('authenticatable_type') !== CustomPlaylist::class)
                     ->searchable(),
                 Select::make('authenticatable_id')
                     ->required()
-                    ->label('Merged Playlist')
-                    ->helperText('Select the playlist you would like to assign this auth to.')
+                    ->label(__('Merged Playlist'))
+                    ->helperText(__('Select the playlist you would like to assign this auth to.'))
                     ->options(MergedPlaylist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                     ->hidden(fn ($get) => $get('authenticatable_type') !== MergedPlaylist::class)
                     ->searchable(),
 
                 TextInput::make('playlist_auth_id')
-                    ->label('Playlist Auth ID')
+                    ->label(__('Playlist Auth ID'))
                     ->default($this->ownerRecord->id)
                     ->hidden(),
             ]);
@@ -81,9 +81,9 @@ class PlaylistsRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->columns([
                 PivotNameColumn::make('playlist_name')
-                    ->label('Playlist'),
+                    ->label(__('Playlist')),
                 PlaylistUrlColumn::make('playlist_url')
-                    ->label('Playlist URL')
+                    ->label(__('Playlist URL'))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
@@ -95,8 +95,8 @@ class PlaylistsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->label('Assign Auth to Playlist')
-                    ->modalHeading('Assign Auth to Playlist')
+                    ->label(__('Assign Auth to Playlist'))
+                    ->modalHeading(__('Assign Auth to Playlist'))
                     ->using(function (array $data): Model {
                         $playlistAuth = $this->ownerRecord;
 
@@ -114,10 +114,10 @@ class PlaylistsRelationManager extends RelationManager
             ])
             ->recordActions([
                 DeleteAction::make()
-                    ->label('Remove auth from Playlist')
-                    ->modalHeading('Remove Auth')
-                    ->modalDescription('Remove auth from Playlist?')
-                    ->modalSubmitActionLabel('Remove')
+                    ->label(__('Remove auth from Playlist'))
+                    ->modalHeading(__('Remove Auth'))
+                    ->modalDescription(__('Remove auth from Playlist?'))
+                    ->modalSubmitActionLabel(__('Remove'))
                     ->icon('heroicon-o-x-circle')
                     ->modalIcon('heroicon-o-x-circle')
                     ->button()
@@ -126,10 +126,10 @@ class PlaylistsRelationManager extends RelationManager
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
-                        ->label('Remove auth')
-                        ->modalHeading('Remove Auth')
-                        ->modalDescription('Remove auth from selected Playlist?')
-                        ->modalSubmitActionLabel('Remove')
+                        ->label(__('Remove auth'))
+                        ->modalHeading(__('Remove Auth'))
+                        ->modalDescription(__('Remove auth from selected Playlist?'))
+                        ->modalSubmitActionLabel(__('Remove'))
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle'),
                 ]),

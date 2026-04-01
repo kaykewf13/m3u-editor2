@@ -65,7 +65,20 @@ class EpgResource extends Resource
 
     protected static ?string $pluralLabel = 'EPGs';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'EPG';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('EPG');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('EPG');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('EPGs');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -112,7 +125,7 @@ class EpgResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(),
                 TextColumn::make('channels_count')
-                    ->label('Channels')
+                    ->label(__('Channels'))
                     ->counts('channels')
                     ->toggleable()
                     ->sortable(),
@@ -122,40 +135,40 @@ class EpgResource extends Resource
                     ->badge()
                     ->color(fn (Status $state) => $state->getColor()),
                 ProgressColumn::make('progress')
-                    ->label('Sync Progress')
-                    ->tooltip('Progress of EPG import/sync')
+                    ->label(__('Sync Progress'))
+                    ->tooltip(__('Progress of EPG import/sync'))
                     ->sortable()
                     ->poll(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending ? '3s' : null)
                     ->toggleable(),
                 ProgressColumn::make('cache_progress')
-                    ->label('Cache Progress')
-                    ->tooltip('Progress of EPG cache generation')
+                    ->label(__('Cache Progress'))
+                    ->tooltip(__('Progress of EPG cache generation'))
                     ->sortable()
                     ->poll(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending ? '3s' : null)
                     ->toggleable(),
                 ProgressColumn::make('sd_progress')
-                    ->label('SD Progress')
-                    ->tooltip('Progress of SchedulesDirect import (if using)')
+                    ->label(__('SD Progress'))
+                    ->tooltip(__('Progress of SchedulesDirect import (if using)'))
                     ->sortable()
                     ->poll(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending ? '3s' : null)
                     ->toggleable(),
                 IconColumn::make('is_cached')
-                    ->label('Cached')
+                    ->label(__('Cached'))
                     ->boolean()
                     ->toggleable()
                     ->sortable(),
                 ToggleColumn::make('auto_sync')
-                    ->label('Auto Sync')
+                    ->label(__('Auto Sync'))
                     ->toggleable()
-                    ->tooltip('Toggle auto-sync status')
+                    ->tooltip(__('Toggle auto-sync status'))
                     ->sortable(),
                 TextColumn::make('synced')
-                    ->label('Last Synced')
+                    ->label(__('Last Synced'))
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('sync_interval')
-                    ->label('Next Sync')
+                    ->label(__('Next Sync'))
                     ->toggleable()
                     ->formatStateUsing(function ($state, $record) {
                         if ($record->auto_sync && $record->sync_interval && CronExpression::isValidExpression($record->sync_interval)) {
@@ -166,7 +179,7 @@ class EpgResource extends Resource
                     })
                     ->sortable(),
                 TextColumn::make('sync_time')
-                    ->label('Sync Time')
+                    ->label(__('Sync Time'))
                     ->formatStateUsing(fn (string $state): string => gmdate('H:i:s', (int) $state))
                     ->toggleable()
                     ->sortable(),
@@ -185,7 +198,7 @@ class EpgResource extends Resource
             ->recordActions([
                 ActionGroup::make([
                     Action::make('process')
-                        ->label('Process')
+                        ->label(__('Process'))
                         ->icon('heroicon-o-arrow-path')
                         ->action(function ($record) {
                             $record->update([
@@ -199,8 +212,8 @@ class EpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('EPG is processing')
-                                ->body('EPG is being processed in the background. Depending on the size of the guide data, this may take a while. You will be notified on completion.')
+                                ->title(__('EPG is processing'))
+                                ->body(__('EPG is being processed in the background. Depending on the size of the guide data, this may take a while. You will be notified on completion.'))
                                 ->duration(10000)
                                 ->send();
                         })
@@ -208,10 +221,10 @@ class EpgResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-path')
                         ->modalIcon('heroicon-o-arrow-path')
-                        ->modalDescription('Process EPG now?')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process EPG now?'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
                     Action::make('cache')
-                        ->label('Generate Cache')
+                        ->label(__('Generate Cache'))
                         ->icon('heroicon-o-arrows-pointing-in')
                         ->action(function ($record) {
                             $record->update([
@@ -223,22 +236,22 @@ class EpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('EPG Cache is being generated')
-                                ->body('EPG Cache is being generated in the background. You will be notified when complete.')
+                                ->title(__('EPG Cache is being generated'))
+                                ->body(__('EPG Cache is being generated in the background. You will be notified when complete.'))
                                 ->duration(5000)
                                 ->send();
                         })
                         ->disabled(fn ($record) => $record->status === Status::Processing)
                         ->requiresConfirmation()
-                        ->modalDescription('Generate EPG Cache now? This will create a cache for the EPG data.')
-                        ->modalSubmitActionLabel('Yes, generate cache now'),
+                        ->modalDescription(__('Generate EPG Cache now? This will create a cache for the EPG data.'))
+                        ->modalSubmitActionLabel(__('Yes, generate cache now')),
                     Action::make('Download EPG')
-                        ->label('Download EPG')
+                        ->label(__('Download EPG'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn ($record) => route('epg.file', ['uuid' => $record->uuid]))
                         ->openUrlInNewTab(),
                     Action::make('reset')
-                        ->label('Reset status')
+                        ->label(__('Reset status'))
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->action(function ($record) {
@@ -254,16 +267,16 @@ class EpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('EPG status reset')
-                                ->body('EPG status has been reset.')
+                                ->title(__('EPG status reset'))
+                                ->body(__('EPG status has been reset.'))
                                 ->duration(3000)
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset EPG status so it can be processed again. Only perform this action if you are having problems with the EPG syncing.')
-                        ->modalSubmitActionLabel('Yes, reset now'),
+                        ->modalDescription(__('Reset EPG status so it can be processed again. Only perform this action if you are having problems with the EPG syncing.'))
+                        ->modalSubmitActionLabel(__('Yes, reset now')),
                     DeleteAction::make(),
                 ])->button()->hiddenLabel()->size('sm'),
                 EditAction::make()->slideOver()
@@ -274,7 +287,7 @@ class EpgResource extends Resource
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('process')
-                        ->label('Process selected')
+                        ->label(__('Process selected'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -289,8 +302,8 @@ class EpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected EPGs are processing')
-                                ->body('The selected EPGs are being processed in the background. Depending on the size of the guide data, this may take a while.')
+                                ->title(__('Selected EPGs are processing'))
+                                ->body(__('The selected EPGs are being processed in the background. Depending on the size of the guide data, this may take a while.'))
                                 ->duration(10000)
                                 ->send();
                         })
@@ -298,11 +311,11 @@ class EpgResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-path')
                         ->modalIcon('heroicon-o-arrow-path')
-                        ->modalDescription('Process the selected epg(s) now?')
-                        ->modalSubmitActionLabel('Yes, process now'),
+                        ->modalDescription(__('Process the selected epg(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, process now')),
 
                     BulkAction::make('cache')
-                        ->label('Generate Cache')
+                        ->label(__('Generate Cache'))
                         ->icon('heroicon-o-arrows-pointing-in')
                         ->action(function ($records) {
                             foreach ($records as $record) {
@@ -316,14 +329,14 @@ class EpgResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('EPG Cache is being generated for selected EPGs')
-                                ->body('EPG Cache is being generated in the background for the selected EPGs. You will be notified when complete.')
+                                ->title(__('EPG Cache is being generated for selected EPGs'))
+                                ->body(__('EPG Cache is being generated in the background for the selected EPGs. You will be notified when complete.'))
                                 ->duration(5000)
                                 ->send();
                         })
                         ->requiresConfirmation()
-                        ->modalDescription('Generate EPG Cache now? This will create a cache for the EPG data.')
-                        ->modalSubmitActionLabel('Yes, generate cache now'),
+                        ->modalDescription(__('Generate EPG Cache now? This will create a cache for the EPG data.'))
+                        ->modalSubmitActionLabel(__('Yes, generate cache now')),
 
                     DeleteBulkAction::make(),
                 ]),
@@ -355,10 +368,10 @@ class EpgResource extends Resource
             TextInput::make('name')
                 ->columnSpan(1)
                 ->required()
-                ->helperText('Enter the name of the EPG. Internal use only.')
+                ->helperText(__('Enter the name of the EPG. Internal use only.'))
                 ->maxLength(255),
             ToggleButtons::make('source_type')
-                ->label('EPG type')
+                ->label(__('EPG type'))
                 ->columnSpan(1)
                 ->grouped()
                 ->options([
@@ -372,14 +385,14 @@ class EpgResource extends Resource
                 ->default('url')
                 ->live()
                 ->hiddenOn('edit')
-                ->helperText('Choose between URL/file upload or SchedulesDirect integration'),
+                ->helperText(__('Choose between URL/file upload or SchedulesDirect integration')),
 
             // SchedulesDirect Configuration
-            Section::make('SchedulesDirect Configuration')
-                ->description('Configure your SchedulesDirect account settings')
+            Section::make(__('SchedulesDirect Configuration'))
+                ->description(__('Configure your SchedulesDirect account settings'))
                 ->headerActions([
                     Action::make('SchedulesDirect')
-                        ->label('SchedulesDirect')
+                        ->label(__('SchedulesDirect'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->iconPosition('after')
                         ->size('sm')
@@ -392,10 +405,10 @@ class EpgResource extends Resource
                         ->columns(2)
                         ->schema([
                             TextInput::make('sd_username')
-                                ->label('Username')
+                                ->label(__('Username'))
                                 ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
                             TextInput::make('sd_password')
-                                ->label('Password')
+                                ->label(__('Password'))
                                 ->password()
                                 ->revealable()
                                 ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
@@ -405,7 +418,7 @@ class EpgResource extends Resource
                         ->columns(2)
                         ->schema([
                             Select::make('sd_country')
-                                ->label('Country')
+                                ->label(__('Country'))
                                 ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value)
                                 ->searchable()
                                 ->preload()
@@ -433,7 +446,7 @@ class EpgResource extends Resource
                                 ->default('USA')
                                 ->live(),
                             TextInput::make('sd_postal_code')
-                                ->label('Postal Code')
+                                ->label(__('Postal Code'))
                                 ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
                         ]),
 
@@ -441,8 +454,8 @@ class EpgResource extends Resource
                         ->columns(2)
                         ->schema([
                             Select::make('sd_lineup_id')
-                                ->label('Lineup')
-                                ->helperText('Select your SchedulesDirect lineup')
+                                ->label(__('Lineup'))
+                                ->helperText(__('Select your SchedulesDirect lineup'))
                                 ->searchable()
                                 ->getSearchResultsUsing(function (string $search, Get $get, SchedulesDirectService $service) {
                                     $country = $get('sd_country');
@@ -524,22 +537,22 @@ class EpgResource extends Resource
                                     }
                                 }),
                             TextInput::make('sd_days_to_import')
-                                ->label('Days to Import')
+                                ->label(__('Days to Import'))
                                 ->numeric()
                                 ->default(3)
                                 ->minValue(1)
                                 ->maxValue(14)
-                                ->helperText('Number of days to import from SchedulesDirect (1-14)')
+                                ->helperText(__('Number of days to import from SchedulesDirect (1-14)'))
                                 ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
                             Toggle::make('sd_metadata.enabled')
-                                ->label('Import  Metadata')
-                                ->helperText('Enable to import additional program images (NOTE: this can significantly increase import time)')
+                                ->label(__('Import  Metadata'))
+                                ->helperText(__('Enable to import additional program images (NOTE: this can significantly increase import time)'))
                                 ->default(false)
                                 ->visible(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
 
                             Toggle::make('sd_debug')
-                                ->label('Enable Debugging')
-                                ->helperText('This should be disabled unless directed by SchedulesDirect support')
+                                ->label(__('Enable Debugging'))
+                                ->helperText(__('This should be disabled unless directed by SchedulesDirect support'))
                                 ->default(false)
                                 ->hiddenOn('create')
                                 ->visible(fn (Get $get): bool => $get('source_type') === EpgSourceType::SCHEDULES_DIRECT->value),
@@ -550,7 +563,7 @@ class EpgResource extends Resource
                         ->schema([
                             Actions::make([
                                 Action::make('test_connection')
-                                    ->label('Test Connection')
+                                    ->label(__('Test Connection'))
                                     ->icon('heroicon-o-wifi')
                                     ->color('gray')
                                     ->action(function (Get $get, SchedulesDirectService $service) {
@@ -560,8 +573,8 @@ class EpgResource extends Resource
                                         if (! $username || ! $password) {
                                             Notification::make()
                                                 ->danger()
-                                                ->title('Missing credentials')
-                                                ->body('Please enter username and password first')
+                                                ->title(__('Missing credentials'))
+                                                ->body(__('Please enter username and password first'))
                                                 ->send();
 
                                             return;
@@ -572,19 +585,19 @@ class EpgResource extends Resource
 
                                             Notification::make()
                                                 ->success()
-                                                ->title('Connection successful!')
+                                                ->title(__('Connection successful!'))
                                                 ->body('Token expires: '.date('Y-m-d H:i:s', $authData['expires']))
                                                 ->send();
                                         } catch (Exception $e) {
                                             Notification::make()
                                                 ->danger()
-                                                ->title('Connection failed')
+                                                ->title(__('Connection failed'))
                                                 ->body($e->getMessage())
                                                 ->send();
                                         }
                                     }),
                                 Action::make('browse_lineups')
-                                    ->label('View Lineups')
+                                    ->label(__('View Lineups'))
                                     ->icon('heroicon-o-tv')
                                     ->color('gray')
                                     ->action(function (Get $get, SchedulesDirectService $service) {
@@ -596,8 +609,8 @@ class EpgResource extends Resource
                                         if (! $country || ! $postalCode || ! $username || ! $password) {
                                             Notification::make()
                                                 ->warning()
-                                                ->title('Missing information')
-                                                ->body('Please fill in all required fields first')
+                                                ->title(__('Missing information'))
+                                                ->body(__('Please fill in all required fields first'))
                                                 ->send();
 
                                             return;
@@ -634,13 +647,13 @@ class EpgResource extends Resource
                                         } catch (Exception $e) {
                                             Notification::make()
                                                 ->danger()
-                                                ->title('Failed to fetch lineups')
+                                                ->title(__('Failed to fetch lineups'))
                                                 ->body($e->getMessage())
                                                 ->send();
                                         }
                                     }),
                                 // Forms\Components\Actions\Action::make('add_lineup')
-                                //     ->label('Add Lineup to Account')
+                                //     ->label(__('Add Lineup to Account'))
                                 //     ->icon('heroicon-o-plus')
                                 //     ->color('success')
                                 //     ->action(function (Get $get, SchedulesDirectService $service) {
@@ -651,8 +664,8 @@ class EpgResource extends Resource
                                 //         if (!$username || !$password || !$lineupId) {
                                 //             Notification::make()
                                 //                 ->warning()
-                                //                 ->title('Missing information')
-                                //                 ->body('Please enter credentials and select a lineup first')
+                                //                 ->title(__('Missing information'))
+                                //                 ->body(__('Please enter credentials and select a lineup first'))
                                 //                 ->send();
                                 //             return;
                                 //         }
@@ -663,13 +676,13 @@ class EpgResource extends Resource
 
                                 //             Notification::make()
                                 //                 ->success()
-                                //                 ->title('Lineup added successfully!')
+                                //                 ->title(__('Lineup added successfully!'))
                                 //                 ->body("Lineup {$lineupId} has been added to your SchedulesDirect account")
                                 //                 ->send();
                                 //         } catch (\Exception $e) {
                                 //             Notification::make()
                                 //                 ->danger()
-                                //                 ->title('Failed to add lineup')
+                                //                 ->title(__('Failed to add lineup'))
                                 //                 ->body($e->getMessage())
                                 //                 ->send();
                                 //         }
@@ -679,11 +692,11 @@ class EpgResource extends Resource
                 ]),
 
             // URL/File Configuration
-            Section::make('XMLTV File, URL or Path')
-                ->description('You can either upload an XMLTV file or provide a URL to an XMLTV file. File should conform to the XMLTV format.')
+            Section::make(__('XMLTV File, URL or Path'))
+                ->description(__('You can either upload an XMLTV file or provide a URL to an XMLTV file. File should conform to the XMLTV format.'))
                 ->headerActions([
                     Action::make('XMLTV Format')
-                        ->label('XMLTV Format')
+                        ->label(__('XMLTV Format'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->iconPosition('after')
                         ->size('sm')
@@ -694,18 +707,18 @@ class EpgResource extends Resource
                 ->visible(fn (Get $get): bool => $get('source_type') === EpgSourceType::URL->value || ! $get('source_type'))
                 ->schema([
                     TextInput::make('url')
-                        ->label('URL or Local file path')
+                        ->label(__('URL or Local file path'))
                         ->prefixIcon('heroicon-m-globe-alt')
-                        ->helperText('Enter the URL of the XMLTV guide data. If this is a local file, you can enter a full or relative path. If changing URL, the guide data will be re-imported. Use with caution as this could lead to data loss if the new guide differs from the old one.')
+                        ->helperText(__('Enter the URL of the XMLTV guide data. If this is a local file, you can enter a full or relative path. If changing URL, the guide data will be re-imported. Use with caution as this could lead to data loss if the new guide differs from the old one.'))
                         ->requiredWithout('uploads')
                         ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::URL->value && ! $get('uploads'))
                         ->rules([new CheckIfUrlOrLocalPath])
                         ->maxLength(255),
                     FileUpload::make('uploads')
-                        ->label('File')
+                        ->label(__('File'))
                         ->disk('local')
                         ->directory('epg')
-                        ->helperText('Upload the XMLTV file for the EPG. This will be used to import the guide data.')
+                        ->helperText(__('Upload the XMLTV file for the EPG. This will be used to import the guide data.'))
                         ->rules(['file'])
                         ->required(fn (Get $get): bool => $get('source_type') === EpgSourceType::URL->value && ! $get('url')),
 
@@ -714,13 +727,13 @@ class EpgResource extends Resource
                         ->columnSpanFull()
                         ->schema([
                             TextInput::make('user_agent')
-                                ->helperText('User agent string to use for fetching the EPG.')
+                                ->helperText(__('User agent string to use for fetching the EPG.'))
                                 ->default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
                                 ->columnSpan(2)
                                 ->required(),
                             Toggle::make('disable_ssl_verification')
-                                ->label('Disable SSL verification')
-                                ->helperText('Only disable this if you are having issues.')
+                                ->label(__('Disable SSL verification'))
+                                ->helperText(__('Only disable this if you are having issues.'))
                                 ->columnSpan(1)
                                 ->onColor('danger')
                                 ->inline(false)
@@ -728,25 +741,25 @@ class EpgResource extends Resource
                         ]),
                 ]),
 
-            Section::make('Scheduling')
-                ->description('Auto sync and scheduling options')
+            Section::make(__('Scheduling'))
+                ->description(__('Auto sync and scheduling options'))
                 ->columns(2)
                 ->schema([
                     Toggle::make('auto_sync')
-                        ->label('Automatically sync EPG')
-                        ->helperText('When enabled, the EPG will be automatically re-synced at the specified interval.')
+                        ->label(__('Automatically sync EPG'))
+                        ->helperText(__('When enabled, the EPG will be automatically re-synced at the specified interval.'))
                         ->live()
                         ->inline(false)
                         ->default(true),
                     TextInput::make('sync_interval')
-                        ->label('Sync Schedule')
+                        ->label(__('Sync Schedule'))
                         ->suffix(config('app.timezone'))
                         ->rules([new Cron])
                         ->live()
-                        ->placeholder('0 */6 * * *')
+                        ->placeholder(__('0 */6 * * *'))
                         ->hintAction(
                             Action::make('view_cron_example')
-                                ->label('CRON Example')
+                                ->label(__('CRON Example'))
                                 ->icon('heroicon-o-arrow-top-right-on-square')
                                 ->iconPosition('after')
                                 ->size('sm')
@@ -759,18 +772,18 @@ class EpgResource extends Resource
                         ->hidden(fn (Get $get): bool => ! $get('auto_sync')),
                     Placeholder::make('synced')
                         ->columnSpanFull()
-                        ->label('Last Synced')
+                        ->label(__('Last Synced'))
                         ->content(fn ($record) => app(DateFormatService::class)->format($record?->synced)),
                 ]),
 
-            Section::make('Mapping')
-                ->description('Settings used when mapping EPG to a Playlist.')
+            Section::make(__('Mapping'))
+                ->description(__('Settings used when mapping EPG to a Playlist.'))
                 ->schema([
                     TextInput::make('preferred_local')
-                        ->label('Preferred Locale')
+                        ->label(__('Preferred Locale'))
                         ->prefixIcon('heroicon-m-language')
-                        ->placeholder('en')
-                        ->helperText('Entered your desired locale - if you\'re not sure what to put here, look at your EPG source. If you see entries like "CHANNEL.en", then "en" would be a good choice if you prefer english. This is used when mapping the EPG to a playlist. If the EPG has multiple locales, this will be used as the preferred locale when a direct match is not found.')
+                        ->placeholder(__('en'))
+                        ->helperText(__('Entered your desired locale - if you\\\'re not sure what to put here, look at your EPG source. If you see entries like "CHANNEL.en", then "en" would be a good choice if you prefer english. This is used when mapping the EPG to a playlist. If the EPG has multiple locales, this will be used as the preferred locale when a direct match is not found.'))
                         ->maxLength(10),
                 ]),
         ];

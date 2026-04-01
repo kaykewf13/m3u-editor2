@@ -31,13 +31,25 @@ class StreamFileSettingResource extends Resource
 
     protected static ?string $model = StreamFileSetting::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
 
-    protected static ?string $navigationLabel = 'Stream File Settings';
+    public static function getNavigationLabel(): string
+    {
+        return __('Stream File Settings');
+    }
 
-    protected static ?string $modelLabel = 'Stream File Setting';
+    public static function getModelLabel(): string
+    {
+        return __('Stream File Setting');
+    }
 
-    protected static ?string $pluralModelLabel = 'Stream File Settings';
+    public static function getPluralModelLabel(): string
+    {
+        return __('Stream File Settings');
+    }
 
     /**
      * Check if the user can access this page.
@@ -58,13 +70,13 @@ class StreamFileSettingResource extends Resource
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Profile Name')
+                    ->label(__('Profile Name'))
                     ->required()
                     ->maxLength(255)
-                    ->helperText('A descriptive name for this stream file setting profile'),
+                    ->helperText(__('A descriptive name for this stream file setting profile')),
 
                 Select::make('type')
-                    ->label('Type')
+                    ->label(__('Type'))
                     ->options([
                         'series' => 'Series',
                         'vod' => 'VOD',
@@ -82,23 +94,23 @@ class StreamFileSettingResource extends Resource
                         }
                         $set('filename_metadata', []);
                     })
-                    ->helperText('Determines which path structure options are available and where this profile can be assigned'),
+                    ->helperText(__('Determines which path structure options are available and where this profile can be assigned')),
 
                 Textarea::make('description')
-                    ->label('Description')
+                    ->label(__('Description'))
                     ->columnSpanFull()
                     ->rows(2)
                     ->maxLength(255)
-                    ->helperText('Optional description of this profile'),
+                    ->helperText(__('Optional description of this profile')),
 
                 Toggle::make('enabled')
-                    ->label('Enable .strm file generation')
+                    ->label(__('Enable .strm file generation'))
                     ->default(true)
                     ->columnSpanFull()
                     ->live(),
 
                 Select::make('url_type')
-                    ->label('URL Type')
+                    ->label(__('URL Type'))
                     ->options([
                         'proxy' => 'M3U Editor (default)',
                         'original' => 'Original Source URL',
@@ -110,10 +122,10 @@ class StreamFileSettingResource extends Resource
                         'heroicon-s-information-circle',
                         tooltip: 'When routing through M3U Editor, the generated .strm files will use URLs that point to the editor, which then proxies the request to the original media source, or redirects to the original source if proxy is disabled. Use original source URLs if your media server can access the original media source directly and you want to avoid the extra hop through m3u-editor. Note that using original source URLs may expose the location of your media files to clients, so ensure that your media server is properly secured if you choose this option.',
                     )
-                    ->helperText('Default routes through M3U Editor for dynamic routing.'),
+                    ->helperText(__('Default routes through M3U Editor for dynamic routing.')),
 
                 TextInput::make('location')
-                    ->label('Sync Location')
+                    ->label(__('Sync Location'))
                     ->rules([new CheckIfUrlOrLocalPath(localOnly: true, isDirectory: true)])
                     ->required()
                     ->columnSpanFull()
@@ -282,7 +294,7 @@ class StreamFileSettingResource extends Resource
                     ->placeholder(fn ($get) => $get('type') === 'series' ? '/Series' : '/Movies'),
 
                 ToggleButtons::make('path_structure')
-                    ->label('Path structure (folders)')
+                    ->label(__('Path structure (folders)'))
                     ->live()
                     ->multiple()
                     ->grouped()
@@ -308,13 +320,13 @@ class StreamFileSettingResource extends Resource
                     })
                     ->hidden(fn ($get) => ! $get('enabled')),
 
-                Fieldset::make('Include Metadata')
+                Fieldset::make(__('Include Metadata'))
                     ->columnSpanFull()
                     ->columns(2)
                     ->schema([
                         ToggleButtons::make('folder_metadata')
-                            ->label('Title folder metadata')
-                            ->helperText('Added to the title folder name')
+                            ->label(__('Title folder metadata'))
+                            ->helperText(__('Added to the title folder name'))
                             ->live()
                             ->inline()
                             ->multiple()
@@ -322,7 +334,7 @@ class StreamFileSettingResource extends Resource
                             ->default(['year', 'tmdb_id'])
                             ->visible(fn (Get $get): bool => $get('type') === 'vod' && in_array('title', $get('path_structure') ?? [])),
                         ToggleButtons::make('filename_metadata')
-                            ->label('Filename metadata')
+                            ->label(__('Filename metadata'))
                             ->live()
                             ->inline()
                             ->multiple()
@@ -343,7 +355,7 @@ class StreamFileSettingResource extends Resource
                                 ],
                             }),
                         ToggleButtons::make('tmdb_id_format')
-                            ->label('TMDB ID format')
+                            ->label(__('TMDB ID format'))
                             ->inline()
                             ->grouped()
                             ->live()
@@ -355,7 +367,7 @@ class StreamFileSettingResource extends Resource
                             ->hidden(fn (Get $get): bool => ! in_array('tmdb_id', $get('filename_metadata') ?? [])
                                 && ! in_array('tmdb_id', $get('folder_metadata') ?? [])),
                         ToggleButtons::make('tmdb_id_apply_to')
-                            ->label('Apply TMDB ID to')
+                            ->label(__('Apply TMDB ID to'))
                             ->inline()
                             ->grouped()
                             ->live()
@@ -365,25 +377,25 @@ class StreamFileSettingResource extends Resource
                                 'both' => 'Both',
                             ])
                             ->default('episodes')
-                            ->helperText('How should the TMDB ID be used.')
+                            ->helperText(__('How should the TMDB ID be used.'))
                             ->hidden(fn (Get $get): bool => $get('type') !== 'series' || ! in_array('tmdb_id', $get('filename_metadata') ?? [])),
                     ])
                     ->hidden(fn ($get) => ! $get('enabled')),
 
-                Fieldset::make('Filename Cleansing')
+                Fieldset::make(__('Filename Cleansing'))
                     ->columnSpanFull()
                     ->schema([
                         Toggle::make('clean_special_chars')
-                            ->label('Clean special characters')
-                            ->helperText('Remove or replace special characters in filenames')
+                            ->label(__('Clean special characters'))
+                            ->helperText(__('Remove or replace special characters in filenames'))
                             ->default(true)
                             ->inline(false),
                         Toggle::make('remove_consecutive_chars')
-                            ->label('Remove consecutive replacement characters')
+                            ->label(__('Remove consecutive replacement characters'))
                             ->default(true)
                             ->inline(false),
                         ToggleButtons::make('replace_char')
-                            ->label('Replace with')
+                            ->label(__('Replace with'))
                             ->live()
                             ->inline()
                             ->grouped()
@@ -399,28 +411,28 @@ class StreamFileSettingResource extends Resource
                     ])
                     ->hidden(fn ($get) => ! $get('enabled')),
 
-                Fieldset::make('Name Filtering')
+                Fieldset::make(__('Name Filtering'))
                     ->columnSpanFull()
                     ->schema([
                         Toggle::make('name_filter_enabled')
-                            ->label('Enable name filtering')
-                            ->helperText('Remove specific words or symbols from folder and file names')
+                            ->label(__('Enable name filtering'))
+                            ->helperText(__('Remove specific words or symbols from folder and file names'))
                             ->inline(false)
                             ->live(),
                         Forms\Components\TagsInput::make('name_filter_patterns')
-                            ->label('Patterns to remove')
-                            ->placeholder('Add pattern (e.g. "DE • " or "EN |")')
-                            ->helperText('Enter words, symbols or prefixes to remove. Press Enter after each pattern.')
+                            ->label(__('Patterns to remove'))
+                            ->placeholder(__('Add pattern (e.g. "DE • " or "EN |")'))
+                            ->helperText(__('Enter words, symbols or prefixes to remove. Press Enter after each pattern.'))
                             ->columnSpanFull()
                             ->hidden(fn ($get) => ! $get('name_filter_enabled')),
                     ])
                     ->hidden(fn ($get) => ! $get('enabled')),
 
-                Fieldset::make('NFO File Generation')
+                Fieldset::make(__('NFO File Generation'))
                     ->columnSpanFull()
                     ->schema([
                         Toggle::make('generate_nfo')
-                            ->label('Generate NFO files')
+                            ->label(__('Generate NFO files'))
                             ->helperText(fn ($get) => $get('type') === 'series'
                                 ? 'Create tvshow.nfo and episode.nfo files for Kodi, Emby, and Jellyfin compatibility'
                                 : 'Create movie.nfo files for Kodi, Emby, and Jellyfin compatibility'
@@ -429,16 +441,16 @@ class StreamFileSettingResource extends Resource
                     ])
                     ->hidden(fn ($get) => ! $get('enabled')),
 
-                Fieldset::make('Media Server Library Refresh')
+                Fieldset::make(__('Media Server Library Refresh'))
                     ->columnSpanFull()
                     ->schema([
                         Toggle::make('refresh_media_server')
-                            ->label('Refresh media server library after sync')
-                            ->helperText('Automatically trigger a library scan on your media server after .strm files are synced')
+                            ->label(__('Refresh media server library after sync'))
+                            ->helperText(__('Automatically trigger a library scan on your media server after .strm files are synced'))
                             ->inline(false)
                             ->live(),
                         Select::make('media_server_integration_id')
-                            ->label('Media Server')
+                            ->label(__('Media Server'))
                             ->options(fn () => MediaServerIntegration::query()
                                 ->where('user_id', auth()->id())
                                 ->whereIn('type', ['jellyfin', 'emby', 'plex'])
@@ -446,15 +458,15 @@ class StreamFileSettingResource extends Resource
                             )
                             ->searchable()
                             ->required()
-                            ->helperText('Select which media server to refresh (Jellyfin, Emby, or Plex)')
+                            ->helperText(__('Select which media server to refresh (Jellyfin, Emby, or Plex)'))
                             ->hidden(fn ($get) => ! $get('refresh_media_server')),
                         TextInput::make('refresh_delay_seconds')
-                            ->label('Delay before refresh (seconds)')
+                            ->label(__('Delay before refresh (seconds)'))
                             ->numeric()
                             ->default(5)
                             ->minValue(0)
                             ->maxValue(300)
-                            ->helperText('Wait this many seconds after sync completes before triggering the library refresh')
+                            ->helperText(__('Wait this many seconds after sync completes before triggering the library refresh'))
                             ->hidden(fn ($get) => ! $get('refresh_media_server')),
                     ])
                     ->hidden(fn ($get) => ! $get('enabled')),
@@ -466,18 +478,18 @@ class StreamFileSettingResource extends Resource
         return $table
             ->persistSortInSession()
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->modifyQueryUsing(function ($query) {
                 $query->withCount(['series', 'channels', 'groups', 'categories']);
             })
             ->columns([
                 TextColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('type')
-                    ->label('Type')
+                    ->label(__('Type'))
                     ->badge()
                     ->colors([
                         'primary' => 'series',
@@ -485,25 +497,25 @@ class StreamFileSettingResource extends Resource
                     ])
                     ->sortable(),
                 TextColumn::make('location')
-                    ->label('Location')
+                    ->label(__('Location'))
                     ->limit(30)
                     ->toggleable(),
                 ToggleColumn::make('enabled')
-                    ->label('Enabled'),
+                    ->label(__('Enabled')),
                 TextColumn::make('series_count')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->counts('series')
                     ->toggleable(),
                 TextColumn::make('channels_count')
-                    ->label('VOD')
+                    ->label(__('VOD'))
                     ->counts('channels')
                     ->toggleable(),
                 TextColumn::make('groups_count')
-                    ->label('Groups')
+                    ->label(__('Groups'))
                     ->counts('groups')
                     ->toggleable(),
                 TextColumn::make('categories_count')
-                    ->label('Categories')
+                    ->label(__('Categories'))
                     ->counts('categories')
                     ->toggleable(),
             ])

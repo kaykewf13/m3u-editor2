@@ -27,14 +27,14 @@ class BulkModalActionGroup extends BulkAction
         $static = parent::make($name);
 
         // Set defaults
-        $static->label('Bulk Actions');
-        $static->tooltip('Open bulk action menu');
+        $static->label(__('Bulk Actions'));
+        $static->tooltip(__('Open bulk action menu'));
         $static->icon('heroicon-s-wrench-screwdriver');
         $static->modalIcon('heroicon-o-wrench-screwdriver');
-        $static->modalHeading('Bulk Actions');
+        $static->modalHeading(__('Bulk Actions'));
         $static->modalWidth('2xl');
         $static->modalSubmitAction(false);
-        $static->modalCancelActionLabel('Cancel');
+        $static->modalCancelActionLabel(__('Cancel'));
         $static->color('gray');
         $static->slideOver(condition: true); // Default to slide-over for better UX with many actions
 

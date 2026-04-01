@@ -10,19 +10,23 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\Width;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListEpgMaps extends ListRecords
 {
     protected static string $resource = EpgMapResource::class;
 
-    protected ?string $subheading = 'View the EPG channel mapping jobs and progress here.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('View the EPG channel mapping jobs and progress here.');
+    }
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('map')
-                ->label('Map EPG to Playlist')
+                ->label(__('Map EPG to Playlist'))
                 ->schema(EpgMapResource::getForm())
                 ->action(function (array $data): void {
                     app('Illuminate\Contracts\Bus\Dispatcher')
@@ -36,21 +40,21 @@ class ListEpgMaps extends ListRecords
                 })->after(function () {
                     Notification::make()
                         ->success()
-                        ->title('EPG to Channel mapping')
-                        ->body('Channel mapping started, you will be notified when the process is complete.')
+                        ->title(__('EPG to Channel mapping'))
+                        ->body(__('Channel mapping started, you will be notified when the process is complete.'))
                         ->send();
                 })
                 ->requiresConfirmation()
                 ->icon('heroicon-o-link')
                 ->modalIcon('heroicon-o-link')
                 ->modalWidth(Width::FourExtraLarge)
-                ->modalDescription('Map the selected EPG to the selected Playlist channels.')
-                ->modalSubmitActionLabel('Map now'),
+                ->modalDescription(__('Map the selected EPG to the selected Playlist channels.'))
+                ->modalSubmitActionLabel(__('Map now')),
             Action::make('unmap')
-                ->label('Undo EPG Map')
+                ->label(__('Undo EPG Map'))
                 ->schema([
                     Select::make('playlist_id')
-                        ->label('Playlist')
+                        ->label(__('Playlist'))
                         ->options(Playlist::where('user_id', auth()->id())->pluck('name', 'id'))
                         ->live()
                         ->required()
@@ -63,16 +67,16 @@ class ListEpgMaps extends ListRecords
                 })->after(function () {
                     Notification::make()
                         ->success()
-                        ->title('EPG Channel mapping removed')
-                        ->body('Channel mapping removed for the selected Playlist.')
+                        ->title(__('EPG Channel mapping removed'))
+                        ->body(__('Channel mapping removed for the selected Playlist.'))
                         ->send();
                 })
                 ->requiresConfirmation()
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->color('warning')
                 ->modalIcon('heroicon-o-arrow-uturn-left')
-                ->modalDescription('Clear EPG mappings for all channels of the selected playlist.')
-                ->modalSubmitActionLabel('Reset now'),
+                ->modalDescription(__('Clear EPG mappings for all channels of the selected playlist.'))
+                ->modalSubmitActionLabel(__('Reset now')),
         ];
     }
 

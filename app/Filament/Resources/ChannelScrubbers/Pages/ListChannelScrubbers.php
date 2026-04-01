@@ -5,12 +5,16 @@ namespace App\Filament\Resources\ChannelScrubbers\Pages;
 use App\Filament\Resources\ChannelScrubbers\ChannelScrubberResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 
 class ListChannelScrubbers extends ListRecords
 {
     protected static string $resource = ChannelScrubberResource::class;
 
-    protected ?string $subheading = 'Scrubber tasks run after Playlist sync to check for dead URLs and automatically disable failing channels based on the configuration.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Scrubber tasks run after Playlist sync to check for dead URLs and automatically disable failing channels based on the configuration.');
+    }
 
     protected function getHeaderActions(): array
     {

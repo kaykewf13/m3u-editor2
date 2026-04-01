@@ -25,9 +25,15 @@ use Filament\Support\Enums\Size;
  */
 class M3uProxyStreamMonitor extends Page
 {
-    protected static ?string $navigationLabel = 'Stream Monitor';
+    public static function getNavigationLabel(): string
+    {
+        return __('Stream Monitor');
+    }
 
-    protected static ?string $title = 'M3U Proxy Stream Monitor';
+    public function getTitle(): string
+    {
+        return __('M3U Proxy Stream Monitor');
+    }
 
     /**
      * Check if the user can access this page.
@@ -38,7 +44,10 @@ class M3uProxyStreamMonitor extends Page
         return auth()->check() && auth()->user()->canUseProxy();
     }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Proxy';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Proxy');
+    }
 
     protected static ?int $navigationSort = 6;
 
@@ -91,21 +100,21 @@ class M3uProxyStreamMonitor extends Page
     {
         return [
             Action::make('refresh')
-                ->label('Refresh')
+                ->label(__('Refresh'))
                 ->icon('heroicon-o-arrow-path')
                 ->size(Size::Small)
                 ->action('refreshData'),
 
             // Action::make('cleanup')
-            //     ->label('Cleanup Streams')
+            //     ->label(__('Cleanup Streams'))
             //     ->icon('heroicon-o-trash')
             //     ->size(Size::Small)
             //     ->color('danger')
             //     ->requiresConfirmation()
-            //     ->modalDescription('This will stop all inactive streams via external API.')
+            //     ->modalDescription(__('This will stop all inactive streams via external API.'))
             //     ->action(function (): void {
             //         // If external API exposes a cleanup endpoint add call here
-            //         Notification::make()->title('Cleanup requested.')->success()->send();
+            //         Notification::make()->title(__('Cleanup requested.'))->success()->send();
             //         $this->refreshData();
             //     }),
         ];
@@ -128,7 +137,7 @@ class M3uProxyStreamMonitor extends Page
             }
         } catch (Exception $e) {
             Notification::make()
-                ->title('Error triggering failover.')
+                ->title(__('Error triggering failover.'))
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
@@ -176,7 +185,7 @@ class M3uProxyStreamMonitor extends Page
             }
         } catch (Exception $e) {
             Notification::make()
-                ->title('Error stopping stream.')
+                ->title(__('Error stopping stream.'))
                 ->body($e->getMessage())
                 ->danger()
                 ->send();

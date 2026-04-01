@@ -27,14 +27,14 @@ class ModalActionGroup extends Action
         $static = parent::make($name);
 
         // Set defaults
-        $static->label('Actions');
-        $static->tooltip('Open action menu');
+        $static->label(__('Actions'));
+        $static->tooltip(__('Open action menu'));
         $static->icon('heroicon-s-wrench-screwdriver');
         $static->modalIcon('heroicon-o-wrench-screwdriver');
-        $static->modalHeading('Actions');
+        $static->modalHeading(__('Actions'));
         $static->modalWidth('2xl');
         $static->modalSubmitAction(false);
-        $static->modalCancelActionLabel('Cancel');
+        $static->modalCancelActionLabel(__('Cancel'));
         $static->slideOver(condition: true); // Default to slide-over for better UX with many actions
 
         // Add custom class to the modal for targeting

@@ -34,6 +34,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Hydrat\TableLayoutToggle\Concerns\HasToggleableTable;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Url;
@@ -46,7 +47,10 @@ class ListChannels extends ListRecords
 
     protected static string $resource = ChannelResource::class;
 
-    protected ?string $subheading = 'NOTE: Playlist channel output order is based on: 1 Sort order, 2 Channel no. and 3 Channel title - in that order. You can edit your Playlist output to auto sort as well, which will define the sort order based on the playlist order.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('NOTE: Playlist channel output order is based on: 1 Sort order, 2 Channel no. and 3 Channel title - in that order. You can edit your Playlist output to auto sort as well, which will define the sort order based on the playlist order.');
+    }
 
     #[Url(as: 'status')]
     public ?string $statusFilter = 'all';
@@ -55,9 +59,9 @@ class ListChannels extends ListRecords
     {
         return [
             CreateAction::make()
-                ->label('Create Custom Channel')
-                ->modalHeading('New Custom Channel')
-                ->modalDescription('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.')
+                ->label(__('Create Custom Channel'))
+                ->modalHeading(__('New Custom Channel'))
+                ->modalDescription(__('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.'))
                 ->using(fn (array $data, string $model): Model => ChannelResource::createCustomChannel(
                     data: $data,
                     model: $model,
@@ -68,20 +72,20 @@ class ListChannels extends ListRecords
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel merge started')
-                            ->body('Merging channels in the background. You will be notified once the process is complete.')
+                            ->title(__('Channel merge started'))
+                            ->body(__('Merging channels in the background. You will be notified once the process is complete.'))
                             ->send();
                     }),
                 PlaylistService::getUnmergeAction()
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel unmerge started')
-                            ->body('Unmerging channels in the background. You will be notified once the process is complete.')
+                            ->title(__('Channel unmerge started'))
+                            ->body(__('Unmerging channels in the background. You will be notified once the process is complete.'))
                             ->send();
                     }),
                 Action::make('map')
-                    ->label('Map EPG to Playlist')
+                    ->label(__('Map EPG to Playlist'))
                     ->schema(EpgMapResource::getForm())
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -95,8 +99,8 @@ class ListChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('EPG to Channel mapping')
-                            ->body('Channel mapping started, you will be notified when the process is complete.')
+                            ->title(__('EPG to Channel mapping'))
+                            ->body(__('Channel mapping started, you will be notified when the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
@@ -104,13 +108,13 @@ class ListChannels extends ListRecords
                     ->color('gray')
                     ->modalIcon('heroicon-o-link')
                     ->modalWidth(Width::FourExtraLarge)
-                    ->modalDescription('Map the selected EPG to the selected Playlist channels.')
-                    ->modalSubmitActionLabel('Map now'),
+                    ->modalDescription(__('Map the selected EPG to the selected Playlist channels.'))
+                    ->modalSubmitActionLabel(__('Map now')),
                 Action::make('unmap')
-                    ->label('Undo EPG Map')
+                    ->label(__('Undo EPG Map'))
                     ->schema([
                         Select::make('playlist_id')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->options(Playlist::where('user_id', auth()->id())->pluck('name', 'id'))
                             ->live()
                             ->required()
@@ -126,18 +130,18 @@ class ListChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('EPG Channel mapping removed')
-                            ->body('Channel mapping removed for the selected Playlist.')
+                            ->title(__('EPG Channel mapping removed'))
+                            ->body(__('Channel mapping removed for the selected Playlist.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Clear EPG mappings for all channels of the selected playlist.')
-                    ->modalSubmitActionLabel('Reset now'),
+                    ->modalDescription(__('Clear EPG mappings for all channels of the selected playlist.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema(function (): array {
                         $savedPatterns = [];
                         $savedPatternRules = [];
@@ -154,9 +158,9 @@ class ListChannels extends ListRecords
 
                         return [
                             Select::make('saved_pattern')
-                                ->label('Load saved pattern')
+                                ->label(__('Load saved pattern'))
                                 ->searchable()
-                                ->placeholder('Select a saved pattern...')
+                                ->placeholder(__('Select a saved pattern...'))
                                 ->options($savedPatterns)
                                 ->hidden(empty($savedPatterns))
                                 ->live()
@@ -175,24 +179,24 @@ class ListChannels extends ListRecords
                                 })
                                 ->dehydrated(false),
                             Toggle::make('all_playlists')
-                                ->label('All Playlists')
+                                ->label(__('All Playlists'))
                                 ->live()
-                                ->helperText('Apply find and replace to all playlists? If disabled, it will only apply to the selected playlist.')
+                                ->helperText(__('Apply find and replace to all playlists? If disabled, it will only apply to the selected playlist.'))
                                 ->default(true),
                             Select::make('playlist')
-                                ->label('Playlist')
+                                ->label(__('Playlist'))
                                 ->required()
-                                ->helperText('Select the playlist you would like to apply changes to.')
+                                ->helperText(__('Select the playlist you would like to apply changes to.'))
                                 ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                                 ->hidden(fn (Get $get) => $get('all_playlists') === true)
                                 ->searchable(),
                             Toggle::make('use_regex')
-                                ->label('Use Regex')
+                                ->label(__('Use Regex'))
                                 ->live()
-                                ->helperText('Use regex patterns to find and replace. If disabled, will use direct string comparison.')
+                                ->helperText(__('Use regex patterns to find and replace. If disabled, will use direct string comparison.'))
                                 ->default(true),
                             Select::make('column')
-                                ->label('Column to modify')
+                                ->label(__('Column to modify'))
                                 ->options([
                                     'title' => 'Channel Title',
                                     'name' => 'Channel Name (tvg-name)',
@@ -213,8 +217,8 @@ class ListChannels extends ListRecords
                                         : 'This is the regex pattern you want to find. Make sure to use valid regex syntax.'
                                 ),
                             TextInput::make('replace_with')
-                                ->label('Replace with (optional)')
-                                ->placeholder('Leave empty to remove'),
+                                ->label(__('Replace with (optional)'))
+                                ->placeholder(__('Leave empty to remove')),
                         ];
                     })
                     ->action(function (array $data): void {
@@ -231,34 +235,34 @@ class ListChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your channels list.')
-                    ->modalSubmitActionLabel('Replace now'),
+                    ->modalDescription(__('Select what you would like to find and replace in your channels list.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
 
                 Action::make('find-replace-reset')
-                    ->label('Undo Find & Replace')
+                    ->label(__('Undo Find & Replace'))
                     ->schema([
                         Toggle::make('all_playlists')
-                            ->label('All Playlists')
+                            ->label(__('All Playlists'))
                             ->live()
-                            ->helperText('Apply reset to all playlists? If disabled, it will only apply to the selected playlist.')
+                            ->helperText(__('Apply reset to all playlists? If disabled, it will only apply to the selected playlist.'))
                             ->default(false),
                         Select::make('playlist')
                             ->required()
-                            ->label('Playlist')
-                            ->helperText('Select the playlist you would like to apply the reset to.')
+                            ->label(__('Playlist'))
+                            ->helperText(__('Select the playlist you would like to apply the reset to.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_playlists') === true)
                             ->searchable(),
                         Select::make('column')
-                            ->label('Column to reset')
+                            ->label(__('Column to reset'))
                             ->options([
                                 'title' => 'Channel Title',
                                 'name' => 'Channel Name (tvg-name)',
@@ -280,29 +284,29 @@ class ListChannels extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace reset started')
-                            ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace reset started'))
+                            ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Reset Find & Replace results back to playlist defaults. This will remove any custom values set in the selected column.')
-                    ->modalSubmitActionLabel('Reset now'),
+                    ->modalDescription(__('Reset Find & Replace results back to playlist defaults. This will remove any custom values set in the selected column.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
 
                 ImportAction::make()
                     ->importer(ChannelImporter::class)
-                    ->label('Import Channels')
+                    ->label(__('Import Channels'))
                     ->icon('heroicon-m-arrow-down-tray')
                     ->color('primary')
-                    ->modalDescription('Import channels from a CSV or XLSX file.'),
+                    ->modalDescription(__('Import channels from a CSV or XLSX file.')),
                 ExportAction::make()
                     ->exporter(ChannelExporter::class)
-                    ->label('Export Channels')
+                    ->label(__('Export Channels'))
                     ->icon('heroicon-m-arrow-up-tray')
                     ->color('primary')
-                    ->modalDescription('Export channels to a CSV or XLSX file. NOTE: Only enabled channels will be exported.')
+                    ->modalDescription(__('Export channels to a CSV or XLSX file. NOTE: Only enabled channels will be exported.'))
                     ->columnMapping(false)
                     ->modifyQueryUsing(function ($query, array $options) {
                         // For now, only allow exporting enabled channels
@@ -315,7 +319,7 @@ class ListChannels extends ListRecords
                         //         return $query->where('enabled', $enabled);
                         //     });
                     }),
-            ])->button()->label('Actions'),
+            ])->button()->label(__('Actions')),
         ];
     }
 
@@ -331,7 +335,7 @@ class ListChannels extends ListRecords
             ->pluck('aggregate', 'playlist_id');
 
         return [
-            'all' => Tab::make('All Playlists')
+            'all' => Tab::make(__('All Playlists'))
                 ->badge($playlistCounts->sum()),
             ...($playlists->mapWithKeys(fn (Playlist $playlist) => [
                 'playlist_'.$playlist->id => Tab::make($playlist->name)
@@ -372,21 +376,21 @@ class ListChannels extends ListRecords
             })->count();
 
         return [
-            'all' => Tab::make('All Live Channels')
+            'all' => Tab::make(__('All Live Channels'))
                 ->badge($totalCount),
-            'enabled' => Tab::make('Enabled')
+            'enabled' => Tab::make(__('Enabled'))
                 ->badgeColor('success')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', true))
                 ->badge($enabledCount),
-            'disabled' => Tab::make('Disabled')
+            'disabled' => Tab::make(__('Disabled'))
                 ->badgeColor('danger')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', false))
                 ->badge($disabledCount),
-            'failover' => Tab::make('Failover')
+            'failover' => Tab::make(__('Failover'))
                 ->badgeColor('info')
                 ->modifyQueryUsing(fn ($query) => $query->whereHas('failovers'))
                 ->badge($withFailoverCount),
-            'custom' => Tab::make('Custom')
+            'custom' => Tab::make(__('Custom'))
                 ->modifyQueryUsing(fn ($query) => $query->where('is_custom', true))
                 ->badge($customCount),
         ];

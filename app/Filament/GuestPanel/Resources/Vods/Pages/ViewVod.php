@@ -57,7 +57,7 @@ class ViewVod extends ViewRecord
     {
         return [
             Actions\Action::make('back')
-                ->label('Back to VOD')
+                ->label(__('Back to VOD'))
                 ->url(VodResource::getUrl('index'))
                 ->icon('heroicon-s-arrow-left')
                 ->color('gray')

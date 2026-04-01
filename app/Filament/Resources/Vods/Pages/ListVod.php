@@ -37,6 +37,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -48,7 +49,10 @@ class ListVod extends ListRecords
 
     protected static string $resource = VodResource::class;
 
-    protected ?string $subheading = 'NOTE: VOD output order is based on: 1 Sort order, 2 Channel no. and 3 Title - in that order. You can edit your Playlist output to auto sort as well, which will define the sort order based on the playlist order.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('NOTE: VOD output order is based on: 1 Sort order, 2 Channel no. and 3 Title - in that order. You can edit your Playlist output to auto sort as well, which will define the sort order based on the playlist order.');
+    }
 
     #[Url(as: 'status')]
     public ?string $statusFilter = 'all';
@@ -57,9 +61,9 @@ class ListVod extends ListRecords
     {
         return [
             CreateAction::make()
-                ->label('Create Custom Channel')
-                ->modalHeading('New Custom Channel')
-                ->modalDescription('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.')
+                ->label(__('Create Custom Channel'))
+                ->modalHeading(__('New Custom Channel'))
+                ->modalDescription(__('NOTE: Custom channels need to be associated with a Playlist or Custom Playlist.'))
                 ->using(fn (array $data, string $model): Model => VodResource::createCustomChannel(
                     data: $data,
                     model: $model,
@@ -70,31 +74,31 @@ class ListVod extends ListRecords
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel merge started')
-                            ->body('Merging channels in the background. You will be notified once the process is complete.')
+                            ->title(__('Channel merge started'))
+                            ->body(__('Merging channels in the background. You will be notified once the process is complete.'))
                             ->send();
                     }),
                 PlaylistService::getUnmergeAction()
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel unmerge started')
-                            ->body('Unmerging channels in the background. You will be notified once the process is complete.')
+                            ->title(__('Channel unmerge started'))
+                            ->body(__('Unmerging channels in the background. You will be notified once the process is complete.'))
                             ->send();
                     }),
 
                 Action::make('process_vod')
-                    ->label('Fetch Metadata')
+                    ->label(__('Fetch Metadata'))
                     ->icon('heroicon-o-arrow-down-tray')
                     ->schema([
                         Toggle::make('overwrite_existing')
-                            ->label('Overwrite Existing Metadata')
-                            ->helperText('Overwrite existing metadata? If disabled, it will only fetch and process metadata if it does not already exist.')
+                            ->label(__('Overwrite Existing Metadata'))
+                            ->helperText(__('Overwrite existing metadata? If disabled, it will only fetch and process metadata if it does not already exist.'))
                             ->default(false),
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to fetch VOD metadata for.')
+                            ->helperText(__('Select the Playlist you would like to fetch VOD metadata for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->searchable(),
                     ])
@@ -109,28 +113,28 @@ class ListVod extends ListRecords
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Fetching VOD metadata for playlist')
-                            ->body('The VOD metadata fetching and processing has been started. You will be notified when it is complete.')
+                            ->title(__('Fetching VOD metadata for playlist'))
+                            ->body(__('The VOD metadata fetching and processing has been started. You will be notified when it is complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-down-tray')
                     ->modalIcon('heroicon-o-arrow-down-tray')
-                    ->modalDescription('Fetch and process VOD metadata for the selected Playlist? Only enabled VOD channels will be processed.')
-                    ->modalSubmitActionLabel('Yes, process now'),
+                    ->modalDescription(__('Fetch and process VOD metadata for the selected Playlist? Only enabled VOD channels will be processed.'))
+                    ->modalSubmitActionLabel(__('Yes, process now')),
                 Action::make('fetch_tmdb_ids')
-                    ->label('Fetch TMDB IDs')
+                    ->label(__('Fetch TMDB IDs'))
                     ->icon('heroicon-o-magnifying-glass')
                     ->schema([
                         Toggle::make('overwrite_existing')
-                            ->label('Overwrite Existing IDs')
-                            ->helperText('Overwrite existing TMDB/IMDB IDs? If disabled, it will only fetch IDs for items that don\'t have them.')
+                            ->label(__('Overwrite Existing IDs'))
+                            ->helperText(__('Overwrite existing TMDB/IMDB IDs? If disabled, it will only fetch IDs for items that don\\\'t have them.'))
                             ->default(false),
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to fetch TMDB IDs for.')
+                            ->helperText(__('Select the Playlist you would like to fetch TMDB IDs for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->searchable(),
                     ])
@@ -139,8 +143,8 @@ class ListVod extends ListRecords
                         if (empty($settings->tmdb_api_key)) {
                             Notification::make()
                                 ->danger()
-                                ->title('TMDB API Key Required')
-                                ->body('Please configure your TMDB API key in Settings > TMDB before using this feature.')
+                                ->title(__('TMDB API Key Required'))
+                                ->body(__('Please configure your TMDB API key in Settings > TMDB before using this feature.'))
                                 ->duration(10000)
                                 ->send();
 
@@ -161,8 +165,8 @@ class ListVod extends ListRecords
                         if ($vodCount === 0) {
                             Notification::make()
                                 ->warning()
-                                ->title('No VOD channels found')
-                                ->body('No enabled VOD channels found in the selected playlist.')
+                                ->title(__('No VOD channels found'))
+                                ->body(__('No enabled VOD channels found in the selected playlist.'))
                                 ->send();
 
                             return;
@@ -183,21 +187,21 @@ class ListVod extends ListRecords
                         Notification::make()
                             ->success()
                             ->title("Fetching TMDB IDs for {$vodCount} VOD channel(s)")
-                            ->body('The TMDB ID lookup has been started. You will be notified when it is complete.')
+                            ->body(__('The TMDB ID lookup has been started. You will be notified when it is complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Search TMDB for matching movies and populate TMDB/IMDB IDs for all VOD channels in the selected playlist? This enables Trash Guides compatibility for Radarr.')
-                    ->modalSubmitActionLabel('Yes, fetch IDs now'),
+                    ->modalDescription(__('Search TMDB for matching movies and populate TMDB/IMDB IDs for all VOD channels in the selected playlist? This enables Trash Guides compatibility for Radarr.'))
+                    ->modalSubmitActionLabel(__('Yes, fetch IDs now')),
                 Action::make('sync')
-                    ->label('Sync VOD .strm files')
+                    ->label(__('Sync VOD .strm files'))
                     ->schema([
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to fetch VOD metadata for.')
+                            ->helperText(__('Select the Playlist you would like to fetch VOD metadata for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->searchable(),
                     ])
@@ -210,19 +214,19 @@ class ListVod extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('.strm files are being synced for selected VOD channels')
-                            ->body('You will be notified once complete.')
+                            ->title(__('.strm files are being synced for selected VOD channels'))
+                            ->body(__('You will be notified once complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-document-arrow-down')
                     ->modalIcon('heroicon-o-document-arrow-down')
-                    ->modalDescription('Sync selected VOD .strm files now? This will generate .strm files for the selected VOD channels at the path set for the channels.')
-                    ->modalSubmitActionLabel('Yes, sync now'),
+                    ->modalDescription(__('Sync selected VOD .strm files now? This will generate .strm files for the selected VOD channels at the path set for the channels.'))
+                    ->modalSubmitActionLabel(__('Yes, sync now')),
 
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema(function (): array {
                         $savedPatterns = [];
                         $savedPatternRules = [];
@@ -239,9 +243,9 @@ class ListVod extends ListRecords
 
                         return [
                             Select::make('saved_pattern')
-                                ->label('Load saved pattern')
+                                ->label(__('Load saved pattern'))
                                 ->searchable()
-                                ->placeholder('Select a saved pattern...')
+                                ->placeholder(__('Select a saved pattern...'))
                                 ->options($savedPatterns)
                                 ->hidden(empty($savedPatterns))
                                 ->live()
@@ -260,24 +264,24 @@ class ListVod extends ListRecords
                                 })
                                 ->dehydrated(false),
                             Toggle::make('all_playlists')
-                                ->label('All Playlists')
+                                ->label(__('All Playlists'))
                                 ->live()
-                                ->helperText('Apply find and replace to all playlists? If disabled, it will only apply to the selected playlist.')
+                                ->helperText(__('Apply find and replace to all playlists? If disabled, it will only apply to the selected playlist.'))
                                 ->default(true),
                             Select::make('playlist')
-                                ->label('Playlist')
+                                ->label(__('Playlist'))
                                 ->required()
-                                ->helperText('Select the playlist you would like to apply changes to.')
+                                ->helperText(__('Select the playlist you would like to apply changes to.'))
                                 ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                                 ->hidden(fn (Get $get) => $get('all_playlists') === true)
                                 ->searchable(),
                             Toggle::make('use_regex')
-                                ->label('Use Regex')
+                                ->label(__('Use Regex'))
                                 ->live()
-                                ->helperText('Use regex patterns to find and replace. If disabled, will use direct string comparison.')
+                                ->helperText(__('Use regex patterns to find and replace. If disabled, will use direct string comparison.'))
                                 ->default(true),
                             Select::make('column')
-                                ->label('Column to modify')
+                                ->label(__('Column to modify'))
                                 ->options([
                                     'title' => 'Channel Title',
                                     'name' => 'Channel Name (tvg-name)',
@@ -300,8 +304,8 @@ class ListVod extends ListRecords
                                         : 'This is the regex pattern you want to find. Make sure to use valid regex syntax.'
                                 ),
                             TextInput::make('replace_with')
-                                ->label('Replace with (optional)')
-                                ->placeholder('Leave empty to remove'),
+                                ->label(__('Replace with (optional)'))
+                                ->placeholder(__('Leave empty to remove')),
                         ];
                     })
                     ->action(function (array $data): void {
@@ -318,34 +322,34 @@ class ListVod extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your channels list.')
-                    ->modalSubmitActionLabel('Replace now'),
+                    ->modalDescription(__('Select what you would like to find and replace in your channels list.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
 
                 Action::make('find-replace-reset')
-                    ->label('Undo Find & Replace')
+                    ->label(__('Undo Find & Replace'))
                     ->schema([
                         Toggle::make('all_playlists')
-                            ->label('All Playlists')
+                            ->label(__('All Playlists'))
                             ->live()
-                            ->helperText('Apply reset to all playlists? If disabled, it will only apply to the selected playlist.')
+                            ->helperText(__('Apply reset to all playlists? If disabled, it will only apply to the selected playlist.'))
                             ->default(false),
                         Select::make('playlist')
                             ->required()
-                            ->label('Playlist')
-                            ->helperText('Select the playlist you would like to apply the reset to.')
+                            ->label(__('Playlist'))
+                            ->helperText(__('Select the playlist you would like to apply the reset to.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_playlists') === true)
                             ->searchable(),
                         Select::make('column')
-                            ->label('Column to reset')
+                            ->label(__('Column to reset'))
                             ->options([
                                 'title' => 'Channel Title',
                                 'name' => 'Channel Name (tvg-name)',
@@ -367,29 +371,29 @@ class ListVod extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace reset started')
-                            ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace reset started'))
+                            ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('warning')
                     ->modalIcon('heroicon-o-arrow-uturn-left')
-                    ->modalDescription('Reset Find & Replace results back to playlist defaults. This will remove any custom values set in the selected column.')
-                    ->modalSubmitActionLabel('Reset now'),
+                    ->modalDescription(__('Reset Find & Replace results back to playlist defaults. This will remove any custom values set in the selected column.'))
+                    ->modalSubmitActionLabel(__('Reset now')),
 
                 ImportAction::make()
                     ->importer(ChannelImporter::class)
-                    ->label('Import Channels')
+                    ->label(__('Import Channels'))
                     ->icon('heroicon-m-arrow-down-tray')
                     ->color('primary')
-                    ->modalDescription('Import channels from a CSV or XLSX file.'),
+                    ->modalDescription(__('Import channels from a CSV or XLSX file.')),
                 ExportAction::make()
                     ->exporter(ChannelExporter::class)
-                    ->label('Export Channels')
+                    ->label(__('Export Channels'))
                     ->icon('heroicon-m-arrow-up-tray')
                     ->color('primary')
-                    ->modalDescription('Export channels to a CSV or XLSX file. NOTE: Only enabled channels will be exported.')
+                    ->modalDescription(__('Export channels to a CSV or XLSX file. NOTE: Only enabled channels will be exported.'))
                     ->columnMapping(false)
                     ->modifyQueryUsing(function ($query, array $options) {
                         // For now, only allow exporting enabled channels
@@ -402,7 +406,7 @@ class ListVod extends ListRecords
                         //         return $query->where('enabled', $enabled);
                         //     });
                     }),
-            ])->button()->label('Actions'),
+            ])->button()->label(__('Actions')),
         ];
     }
 
@@ -418,7 +422,7 @@ class ListVod extends ListRecords
             ->pluck('aggregate', 'playlist_id');
 
         return [
-            'all' => Tab::make('All Playlists')
+            'all' => Tab::make(__('All Playlists'))
                 ->badge($playlistCounts->sum()),
             ...($playlists->mapWithKeys(fn (Playlist $playlist) => [
                 'playlist_'.$playlist->id => Tab::make($playlist->name)
@@ -459,21 +463,21 @@ class ListVod extends ListRecords
             })->count();
 
         return [
-            'all' => Tab::make('All VOD Channels')
+            'all' => Tab::make(__('All VOD Channels'))
                 ->badge($totalCount),
-            'enabled' => Tab::make('Enabled')
+            'enabled' => Tab::make(__('Enabled'))
                 ->badgeColor('success')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', true))
                 ->badge($enabledCount),
-            'disabled' => Tab::make('Disabled')
+            'disabled' => Tab::make(__('Disabled'))
                 ->badgeColor('danger')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', false))
                 ->badge($disabledCount),
-            'failover' => Tab::make('Failover')
+            'failover' => Tab::make(__('Failover'))
                 ->badgeColor('info')
                 ->modifyQueryUsing(fn ($query) => $query->whereHas('failovers'))
                 ->badge($withFailoverCount),
-            'custom' => Tab::make('Custom')
+            'custom' => Tab::make(__('Custom'))
                 ->modifyQueryUsing(fn ($query) => $query->where('is_custom', true))
                 ->badge($customCount),
         ];
@@ -556,8 +560,8 @@ class ListVod extends ListRecords
 
                 Notification::make()
                     ->danger()
-                    ->title('Error')
-                    ->body('Could not determine the record to update. Please close the modal and try again.')
+                    ->title(__('Error'))
+                    ->body(__('Could not determine the record to update. Please close the modal and try again.'))
                     ->send();
 
                 return;
@@ -570,8 +574,8 @@ class ListVod extends ListRecords
                 if (! $series) {
                     Notification::make()
                         ->danger()
-                        ->title('Error')
-                        ->body('Series record not found.')
+                        ->title(__('Error'))
+                        ->body(__('Series record not found.'))
                         ->send();
 
                     return;
@@ -583,8 +587,8 @@ class ListVod extends ListRecords
                 if (! $vod) {
                     Notification::make()
                         ->danger()
-                        ->title('Error')
-                        ->body('VOD record not found.')
+                        ->title(__('Error'))
+                        ->body(__('VOD record not found.'))
                         ->send();
 
                     return;
@@ -594,8 +598,8 @@ class ListVod extends ListRecords
             } else {
                 Notification::make()
                     ->danger()
-                    ->title('Error')
-                    ->body('Failed to apply TMDB selection.')
+                    ->title(__('Error'))
+                    ->body(__('Failed to apply TMDB selection.'))
                     ->send();
 
                 return;
@@ -609,7 +613,7 @@ class ListVod extends ListRecords
 
             Notification::make()
                 ->danger()
-                ->title('Error')
+                ->title(__('Error'))
                 ->body('An error occurred: '.$e->getMessage())
                 ->send();
         }
@@ -624,8 +628,8 @@ class ListVod extends ListRecords
         if (! $metadata) {
             Notification::make()
                 ->danger()
-                ->title('Error')
-                ->body('Failed to fetch TMDB data for this movie.')
+                ->title(__('Error'))
+                ->body(__('Failed to fetch TMDB data for this movie.'))
                 ->send();
 
             return;
@@ -755,7 +759,7 @@ class ListVod extends ListRecords
 
         Notification::make()
             ->success()
-            ->title('TMDB Metadata Applied')
+            ->title(__('TMDB Metadata Applied'))
             ->body("Successfully linked \"{$vodName}\" to \"{$tmdbTitle}\" (TMDB: {$metadata['tmdb_id']}) with full metadata.")
             ->send();
 
@@ -771,8 +775,8 @@ class ListVod extends ListRecords
         if (! $metadata) {
             Notification::make()
                 ->danger()
-                ->title('Error')
-                ->body('Failed to fetch TMDB data for this series.')
+                ->title(__('Error'))
+                ->body(__('Failed to fetch TMDB data for this series.'))
                 ->send();
 
             return;
@@ -891,7 +895,7 @@ class ListVod extends ListRecords
 
         Notification::make()
             ->success()
-            ->title('TMDB Metadata Applied')
+            ->title(__('TMDB Metadata Applied'))
             ->body("Successfully linked \"{$series->name}\" to TMDB: {$metadata['tmdb_id']} with full metadata.")
             ->send();
 

@@ -16,7 +16,10 @@ class GuestDashboard extends Page implements HasSchemas
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-s-tv';
 
-    protected static ?string $navigationLabel = 'Live TV';
+    public static function getNavigationLabel(): string
+    {
+        return __('Live TV');
+    }
 
     protected static ?string $slug = 'live';
 

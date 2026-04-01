@@ -27,11 +27,14 @@ class CategoriesRelationManager extends RelationManager
 
     protected static ?string $title = 'Categories';
 
-    protected static ?string $navigationLabel = 'Categories';
+    public static function getNavigationLabel(): string
+    {
+        return __('Categories');
+    }
 
     public static function getTabComponent(Model $ownerRecord, string $pageClass): Tab
     {
-        return Tab::make('Categories')
+        return Tab::make(__('Categories'))
             ->badge($ownerRecord->categories()->count());
     }
 
@@ -40,7 +43,7 @@ class CategoriesRelationManager extends RelationManager
         return $schema
             ->components([
                 TextInput::make('name.en')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->required()
                     ->columnSpanFull()
                     ->maxLength(255),
@@ -54,10 +57,10 @@ class CategoriesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->modifyQueryUsing(function (Builder $query) use ($ownerRecord) {
                 $query->where('type', $ownerRecord->uuid.'-category');
@@ -85,8 +88,8 @@ class CategoriesRelationManager extends RelationManager
                     ->successNotification(
                         Notification::make()
                             ->success()
-                            ->title('Group created')
-                            ->body('You can now assign channels to this group from the Channels tab.'),
+                            ->title(__('Group created'))
+                            ->body(__('You can now assign channels to this group from the Channels tab.')),
                     ),
             ])
             ->recordActions([

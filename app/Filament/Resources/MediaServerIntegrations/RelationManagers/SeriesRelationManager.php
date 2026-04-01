@@ -20,7 +20,10 @@ class SeriesRelationManager extends RelationManager
 
     protected static ?string $title = 'Series';
 
-    protected static ?string $navigationLabel = 'Series';
+    public static function getNavigationLabel(): string
+    {
+        return __('Series');
+    }
 
     public function isReadOnly(): bool
     {
@@ -29,7 +32,7 @@ class SeriesRelationManager extends RelationManager
 
     public static function getTabComponent(Model $ownerRecord, string $pageClass): Tab
     {
-        return Tab::make('Series')
+        return Tab::make(__('Series'))
             ->badge($ownerRecord->series()->count())
             ->icon('heroicon-m-video-camera');
     }
@@ -51,7 +54,7 @@ class SeriesRelationManager extends RelationManager
             ->persistSortInSession()
             ->recordTitleAttribute('name')
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(25)

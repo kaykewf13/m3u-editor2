@@ -49,7 +49,7 @@ class ViewSeries extends ViewRecord
     {
         return [
             Actions\Action::make('back')
-                ->label('Back to series')
+                ->label(__('Back to series'))
                 ->url(SeriesResource::getUrl('index'))
                 ->icon('heroicon-s-arrow-left')
                 ->color('gray')

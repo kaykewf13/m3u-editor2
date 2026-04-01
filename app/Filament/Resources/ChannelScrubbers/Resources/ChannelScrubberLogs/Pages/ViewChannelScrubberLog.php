@@ -15,7 +15,7 @@ class ViewChannelScrubberLog extends ViewRecord
     {
         return [
             Action::make('back')
-                ->label('Back to Scrubber')
+                ->label(__('Back to Scrubber'))
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(fn () => "/channel-scrubbers/{$this->getParentRecord()->id}"),

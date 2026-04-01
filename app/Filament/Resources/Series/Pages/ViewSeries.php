@@ -47,12 +47,12 @@ class ViewSeries extends ViewRecord
     {
         return [
             Actions\Action::make('back')
-                ->label('Back to Series')
+                ->label(__('Back to Series'))
                 ->url(SeriesResource::getUrl('index'))
                 ->icon('heroicon-s-arrow-left')
                 ->color('gray'),
             Actions\EditAction::make()
-                ->label('Edit Series')
+                ->label(__('Edit Series'))
                 ->slideOver()
                 ->color('gray')
                 ->icon('heroicon-s-pencil'),

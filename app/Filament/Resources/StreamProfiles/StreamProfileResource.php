@@ -18,7 +18,20 @@ class StreamProfileResource extends Resource
 {
     protected static ?string $model = StreamProfile::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Proxy';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Proxy');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Stream Profile');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Stream Profiles');
+    }
 
     /**
      * Check if the user can access this resource.
@@ -34,27 +47,27 @@ class StreamProfileResource extends Resource
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Profile Name')
+                    ->label(__('Profile Name'))
                     ->required()
                     ->columnSpanFull()
                     ->maxLength(255)
-                    ->helperText('A descriptive name for this transcoding profile (e.g., "720p Standard", "1080p High Quality")'),
+                    ->helperText(__('A descriptive name for this transcoding profile (e.g., "720p Standard", "1080p High Quality")')),
 
                 Textarea::make('description')
-                    ->label('Description')
+                    ->label(__('Description'))
                     ->columnSpanFull()
                     ->rows(2)
                     ->maxLength(255)
-                    ->helperText('Optional description of what this profile does'),
+                    ->helperText(__('Optional description of what this profile does')),
 
                 Textarea::make('args')
-                    ->label('FFmpeg Template')
+                    ->label(__('FFmpeg Template'))
                     ->required()
                     ->columnSpanFull()
                     ->rows(4)
                     ->hintAction(
                         Action::make('view_profile_docs')
-                            ->label('View Docs')
+                            ->label(__('View Docs'))
                             ->icon('heroicon-o-arrow-top-right-on-square')
                             ->iconPosition('after')
                             ->size('sm')
@@ -65,7 +78,7 @@ class StreamProfileResource extends Resource
                     ->placeholder('-i {input_url} -c:v libx264 -preset faster -crf {crf|23} -maxrate {maxrate|2500k} -bufsize {bufsize|5000k} -c:a aac -b:a {audio_bitrate|192k} -f mpegts {output_args|pipe:1}')
                     ->helperText('FFmpeg arguments for transcoding. Use placeholders like {crf|23} for configurable parameters with defaults. Hardware acceleration will be applied automatically by the proxy server.'),
                 Select::make('format')
-                    ->label('Stream Format')
+                    ->label(__('Stream Format'))
                     ->searchable()
                     ->options([
                         'mp4' => 'MP4 (.mp4)',
@@ -81,7 +94,7 @@ class StreamProfileResource extends Resource
                     ])
                     ->default('ts')
                     ->required()
-                    ->helperText('The container format for the output stream.'),
+                    ->helperText(__('The container format for the output stream.')),
             ]);
     }
 
@@ -90,15 +103,15 @@ class StreamProfileResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('description')
-                    ->label('Description')
+                    ->label(__('Description'))
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('format')
-                    ->label('Format')
+                    ->label(__('Format'))
                     ->badge()
                     ->sortable()
                     ->searchable(),

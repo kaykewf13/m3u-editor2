@@ -31,6 +31,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Url;
@@ -41,7 +42,10 @@ class ListSeries extends ListRecords
 
     protected static string $resource = SeriesResource::class;
 
-    protected ?string $subheading = 'Only enabled series will be automatically updated on Playlist sync, this includes fetching episodes and metadata. You can also manually sync series to update episodes and metadata.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Only enabled series will be automatically updated on Playlist sync, this includes fetching episodes and metadata. You can also manually sync series to update episodes and metadata.');
+    }
 
     #[Url(as: 'status')]
     public ?string $statusFilter = 'all';
@@ -51,7 +55,7 @@ class ListSeries extends ListRecords
         return [
             Action::make('create')
                 ->slideOver()
-                ->label('Add Series')
+                ->label(__('Add Series'))
                 ->steps(SeriesResource::getFormSteps())
                 ->color('primary')
                 ->action(function (array $data): void {
@@ -66,32 +70,32 @@ class ListSeries extends ListRecords
                 })->after(function () {
                     Notification::make()
                         ->success()
-                        ->title('Series have been added and are being processed.')
-                        ->body('You will be notified when the process is complete.')
+                        ->title(__('Series have been added and are being processed.'))
+                        ->body(__('You will be notified when the process is complete.'))
                         ->send();
                 })
                 ->requiresConfirmation()
                 ->modalWidth('2xl')
                 ->modalIcon(null)
-                ->modalDescription('Select the playlist Series you would like to add.')
-                ->modalSubmitActionLabel('Import Series Episodes & Metadata'),
+                ->modalDescription(__('Select the playlist Series you would like to add.'))
+                ->modalSubmitActionLabel(__('Import Series Episodes & Metadata')),
             ActionGroup::make([
                 Action::make('process')
-                    ->label('Fetch Series Metadata')
+                    ->label(__('Fetch Series Metadata'))
                     ->schema([
                         Toggle::make('overwrite_existing')
-                            ->label('Overwrite Existing Metadata')
-                            ->helperText('Overwrite existing metadata? Episodes and seasons will always be fetched/updated.')
+                            ->label(__('Overwrite Existing Metadata'))
+                            ->helperText(__('Overwrite existing metadata? Episodes and seasons will always be fetched/updated.'))
                             ->default(false),
                         Toggle::make('all_playlists')
-                            ->label('All Playlists')
+                            ->label(__('All Playlists'))
                             ->live()
-                            ->helperText('Fetch metadata for all enabled Playlist Series? If disabled, it will only be fetched for Series of the selected Playlist.')
+                            ->helperText(__('Fetch metadata for all enabled Playlist Series? If disabled, it will only be fetched for Series of the selected Playlist.'))
                             ->default(true),
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to fetch Series metadata for.')
+                            ->helperText(__('Select the Playlist you would like to fetch Series metadata for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_playlists') === true)
                             ->searchable(),
@@ -107,33 +111,33 @@ class ListSeries extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Series are being processed')
-                            ->body('You will be notified once complete.')
+                            ->title(__('Series are being processed'))
+                            ->body(__('You will be notified once complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-down-tray')
                     ->modalIcon('heroicon-o-arrow-down-tray')
-                    ->modalDescription('Process now? This will fetch all episodes and seasons for the enabled series.')
-                    ->modalSubmitActionLabel('Yes, process now'),
+                    ->modalDescription(__('Process now? This will fetch all episodes and seasons for the enabled series.'))
+                    ->modalSubmitActionLabel(__('Yes, process now')),
                 Action::make('fetch_tmdb_ids')
-                    ->label('Fetch TMDB/TVDB IDs')
+                    ->label(__('Fetch TMDB/TVDB IDs'))
                     ->icon('heroicon-o-magnifying-glass')
                     ->schema([
                         Toggle::make('overwrite_existing')
-                            ->label('Overwrite Existing IDs')
-                            ->helperText('Overwrite existing TMDB/TVDB/IMDB IDs? If disabled, it will only fetch IDs for series that don\'t have them.')
+                            ->label(__('Overwrite Existing IDs'))
+                            ->helperText(__('Overwrite existing TMDB/TVDB/IMDB IDs? If disabled, it will only fetch IDs for series that don\\\'t have them.'))
                             ->default(false),
                         Toggle::make('all_playlists')
-                            ->label('All Playlists')
+                            ->label(__('All Playlists'))
                             ->live()
-                            ->helperText('Fetch IDs for all enabled Playlist Series? If disabled, it will only be fetched for Series of the selected Playlist.')
+                            ->helperText(__('Fetch IDs for all enabled Playlist Series? If disabled, it will only be fetched for Series of the selected Playlist.'))
                             ->default(true),
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to fetch TMDB IDs for.')
+                            ->helperText(__('Select the Playlist you would like to fetch TMDB IDs for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_playlists') === true)
                             ->searchable(),
@@ -143,8 +147,8 @@ class ListSeries extends ListRecords
                         if (empty($settings->tmdb_api_key)) {
                             Notification::make()
                                 ->danger()
-                                ->title('TMDB API Key Required')
-                                ->body('Please configure your TMDB API key in Settings > TMDB before using this feature.')
+                                ->title(__('TMDB API Key Required'))
+                                ->body(__('Please configure your TMDB API key in Settings > TMDB before using this feature.'))
                                 ->duration(10000)
                                 ->send();
 
@@ -167,8 +171,8 @@ class ListSeries extends ListRecords
                         if ($seriesCount === 0) {
                             Notification::make()
                                 ->warning()
-                                ->title('No series found')
-                                ->body('No enabled series found matching the criteria.')
+                                ->title(__('No series found'))
+                                ->body(__('No enabled series found matching the criteria.'))
                                 ->send();
 
                             return;
@@ -189,26 +193,26 @@ class ListSeries extends ListRecords
                         Notification::make()
                             ->success()
                             ->title("Fetching TMDB/TVDB IDs for {$seriesCount} series")
-                            ->body('The TMDB ID lookup has been started. You will be notified when it is complete.')
+                            ->body(__('The TMDB ID lookup has been started. You will be notified when it is complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Search TMDB for matching TV series and populate TMDB/TVDB/IMDB IDs? This enables Trash Guides compatibility for Sonarr.')
-                    ->modalSubmitActionLabel('Yes, fetch IDs now'),
+                    ->modalDescription(__('Search TMDB for matching TV series and populate TMDB/TVDB/IMDB IDs? This enables Trash Guides compatibility for Sonarr.'))
+                    ->modalSubmitActionLabel(__('Yes, fetch IDs now')),
                 Action::make('sync')
-                    ->label('Sync Series .strm files')
+                    ->label(__('Sync Series .strm files'))
                     ->schema([
                         Toggle::make('all_playlists')
-                            ->label('All Playlists')
+                            ->label(__('All Playlists'))
                             ->live()
-                            ->helperText('Sync stream files for all enabled Playlist Series? If disabled, it will only sync for Series of the selected Playlist.')
+                            ->helperText(__('Sync stream files for all enabled Playlist Series? If disabled, it will only sync for Series of the selected Playlist.'))
                             ->default(true),
                         Select::make('playlist')
-                            ->label('Playlist')
+                            ->label(__('Playlist'))
                             ->required()
-                            ->helperText('Select the Playlist you would like to sync Series stream files for.')
+                            ->helperText(__('Select the Playlist you would like to sync Series stream files for.'))
                             ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                             ->hidden(fn (Get $get) => $get('all_playlists') === true)
                             ->searchable(),
@@ -223,18 +227,18 @@ class ListSeries extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Series .strm files are being synced')
-                            ->body('You will be notified once complete.')
+                            ->title(__('Series .strm files are being synced'))
+                            ->body(__('You will be notified once complete.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-document-arrow-down')
                     ->modalIcon('heroicon-o-document-arrow-down')
-                    ->modalDescription('Sync .strm files now? This will generate .strm files for enabled series.')
-                    ->modalSubmitActionLabel('Yes, sync now'),
+                    ->modalDescription(__('Sync .strm files now? This will generate .strm files for enabled series.'))
+                    ->modalSubmitActionLabel(__('Yes, sync now')),
                 Action::make('find-replace')
-                    ->label('Find & Replace')
+                    ->label(__('Find & Replace'))
                     ->schema(function (): array {
                         $savedPatterns = [];
                         $savedPatternRules = [];
@@ -251,9 +255,9 @@ class ListSeries extends ListRecords
 
                         return [
                             Select::make('saved_pattern')
-                                ->label('Load saved pattern')
+                                ->label(__('Load saved pattern'))
                                 ->searchable()
-                                ->placeholder('Select a saved pattern...')
+                                ->placeholder(__('Select a saved pattern...'))
                                 ->options($savedPatterns)
                                 ->hidden(empty($savedPatterns))
                                 ->live()
@@ -272,24 +276,24 @@ class ListSeries extends ListRecords
                                 })
                                 ->dehydrated(false),
                             Toggle::make('all_series')
-                                ->label('All Series')
+                                ->label(__('All Series'))
                                 ->live()
-                                ->helperText('Apply find and replace to all Series? If disabled, it will only apply to the selected Series.')
+                                ->helperText(__('Apply find and replace to all Series? If disabled, it will only apply to the selected Series.'))
                                 ->default(true),
                             Select::make('series')
-                                ->label('Series')
+                                ->label(__('Series'))
                                 ->required()
-                                ->helperText('Select the Series you would like to apply changes to.')
+                                ->helperText(__('Select the Series you would like to apply changes to.'))
                                 ->options(Series::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                                 ->hidden(fn (Get $get) => $get('all_series') === true)
                                 ->searchable(),
                             Toggle::make('use_regex')
-                                ->label('Use Regex')
+                                ->label(__('Use Regex'))
                                 ->live()
-                                ->helperText('Use regex patterns to find and replace. If disabled, will use direct string comparison.')
+                                ->helperText(__('Use regex patterns to find and replace. If disabled, will use direct string comparison.'))
                                 ->default(true),
                             Select::make('column')
-                                ->label('Column to modify')
+                                ->label(__('Column to modify'))
                                 ->options([
                                     'name' => 'Series Name',
                                     'genre' => 'Genre',
@@ -311,8 +315,8 @@ class ListSeries extends ListRecords
                                         : 'This is the regex pattern you want to find. Make sure to use valid regex syntax.'
                                 ),
                             TextInput::make('replace_with')
-                                ->label('Replace with (optional)')
-                                ->placeholder('Leave empty to remove'),
+                                ->label(__('Replace with (optional)'))
+                                ->placeholder(__('Leave empty to remove')),
                         ];
                     })
                     ->action(function (array $data): void {
@@ -329,17 +333,17 @@ class ListSeries extends ListRecords
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Find & Replace started')
-                            ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                            ->title(__('Find & Replace started'))
+                            ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('gray')
                     ->modalIcon('heroicon-o-magnifying-glass')
-                    ->modalDescription('Select what you would like to find and replace in your channels list.')
-                    ->modalSubmitActionLabel('Replace now'),
-            ])->button()->label('Actions'),
+                    ->modalDescription(__('Select what you would like to find and replace in your channels list.'))
+                    ->modalSubmitActionLabel(__('Replace now')),
+            ])->button()->label(__('Actions')),
         ];
     }
 
@@ -363,7 +367,7 @@ class ListSeries extends ListRecords
             ->pluck('aggregate', 'playlist_id');
 
         return [
-            'all' => Tab::make('All Playlists')
+            'all' => Tab::make(__('All Playlists'))
                 ->badge($playlistCounts->sum()),
             ...($playlists->mapWithKeys(fn (Playlist $playlist) => [
                 'playlist_'.$playlist->id => Tab::make($playlist->name)
@@ -394,13 +398,13 @@ class ListSeries extends ListRecords
             })->count();
 
         return [
-            'all' => Tab::make('All Series')
+            'all' => Tab::make(__('All Series'))
                 ->badge($totalCount),
-            'enabled' => Tab::make('Enabled')
+            'enabled' => Tab::make(__('Enabled'))
                 ->badgeColor('success')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', true))
                 ->badge($enabledCount),
-            'disabled' => Tab::make('Disabled')
+            'disabled' => Tab::make(__('Disabled'))
                 ->badgeColor('danger')
                 ->modifyQueryUsing(fn ($query) => $query->where('enabled', false))
                 ->badge($disabledCount),
@@ -479,8 +483,8 @@ class ListSeries extends ListRecords
 
                 Notification::make()
                     ->danger()
-                    ->title('Error')
-                    ->body('Could not determine the record to update. Please close the modal and try again.')
+                    ->title(__('Error'))
+                    ->body(__('Could not determine the record to update. Please close the modal and try again.'))
                     ->send();
 
                 return;
@@ -493,8 +497,8 @@ class ListSeries extends ListRecords
                 if (! $series) {
                     Notification::make()
                         ->danger()
-                        ->title('Error')
-                        ->body('Series record not found.')
+                        ->title(__('Error'))
+                        ->body(__('Series record not found.'))
                         ->send();
 
                     return;
@@ -506,8 +510,8 @@ class ListSeries extends ListRecords
                 if (! $vod) {
                     Notification::make()
                         ->danger()
-                        ->title('Error')
-                        ->body('VOD record not found.')
+                        ->title(__('Error'))
+                        ->body(__('VOD record not found.'))
                         ->send();
 
                     return;
@@ -517,8 +521,8 @@ class ListSeries extends ListRecords
             } else {
                 Notification::make()
                     ->danger()
-                    ->title('Error')
-                    ->body('Failed to apply TMDB selection.')
+                    ->title(__('Error'))
+                    ->body(__('Failed to apply TMDB selection.'))
                     ->send();
 
                 return;
@@ -532,7 +536,7 @@ class ListSeries extends ListRecords
 
             Notification::make()
                 ->danger()
-                ->title('Error')
+                ->title(__('Error'))
                 ->body('An error occurred: '.$e->getMessage())
                 ->send();
         }
@@ -547,8 +551,8 @@ class ListSeries extends ListRecords
         if (! $metadata) {
             Notification::make()
                 ->danger()
-                ->title('Error')
-                ->body('Failed to fetch TMDB data for this series.')
+                ->title(__('Error'))
+                ->body(__('Failed to fetch TMDB data for this series.'))
                 ->send();
 
             return;
@@ -667,7 +671,7 @@ class ListSeries extends ListRecords
 
         Notification::make()
             ->success()
-            ->title('TMDB Metadata Applied')
+            ->title(__('TMDB Metadata Applied'))
             ->body("Successfully linked \"{$series->name}\" to TMDB: {$metadata['tmdb_id']} with full metadata.")
             ->send();
 
@@ -683,8 +687,8 @@ class ListSeries extends ListRecords
         if (! $metadata) {
             Notification::make()
                 ->danger()
-                ->title('Error')
-                ->body('Failed to fetch TMDB data for this movie.')
+                ->title(__('Error'))
+                ->body(__('Failed to fetch TMDB data for this movie.'))
                 ->send();
 
             return;
@@ -814,7 +818,7 @@ class ListSeries extends ListRecords
 
         Notification::make()
             ->success()
-            ->title('TMDB Metadata Applied')
+            ->title(__('TMDB Metadata Applied'))
             ->body("Successfully linked \"{$vodName}\" to \"{$tmdbTitle}\" (TMDB: {$metadata['tmdb_id']}) with full metadata.")
             ->send();
 

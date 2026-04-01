@@ -29,9 +29,25 @@ class PlaylistViewerResource extends Resource
 {
     protected static ?string $model = PlaylistViewer::class;
 
-    protected static ?string $navigationLabel = 'Playlist Viewers';
+    public static function getNavigationLabel(): string
+    {
+        return __('Playlist Viewers');
+    }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Playlist Viewer');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Playlist Viewers');
+    }
 
     protected static ?int $navigationSort = 5;
 
@@ -54,7 +70,7 @@ class PlaylistViewerResource extends Resource
         return $table->persistFiltersInSession()
             ->persistSortInSession()
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->deferLoading()
             ->paginated([10, 25, 50, 100])
@@ -65,13 +81,13 @@ class PlaylistViewerResource extends Resource
                     ->sortable(),
 
                 IconColumn::make('is_admin')
-                    ->label('Admin')
+                    ->label(__('Admin'))
                     ->boolean()
                     ->trueIcon('heroicon-o-shield-check')
                     ->falseIcon('heroicon-o-user'),
 
                 TextColumn::make('viewerable_type')
-                    ->label('Playlist Type')
+                    ->label(__('Playlist Type'))
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         Playlist::class => 'Playlist',
                         CustomPlaylist::class => 'Custom Playlist',
@@ -89,24 +105,24 @@ class PlaylistViewerResource extends Resource
                     }),
 
                 TextColumn::make('viewerable.name')
-                    ->label('Playlist')
+                    ->label(__('Playlist'))
                     ->searchable()
                     ->sortable()
                     ->wrap(),
 
                 TextColumn::make('watch_progress_count')
-                    ->label('Watch Records')
+                    ->label(__('Watch Records'))
                     ->counts('watchProgress')
                     ->sortable(),
 
                 TextColumn::make('ulid')
-                    ->label('Viewer ID')
+                    ->label(__('Viewer ID'))
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('viewerable_type')
-                    ->label('Playlist Type')
+                    ->label(__('Playlist Type'))
                     ->options([
                         Playlist::class => 'Playlist',
                         CustomPlaylist::class => 'Custom Playlist',
@@ -117,10 +133,10 @@ class PlaylistViewerResource extends Resource
             ->recordActions([
                 DeleteAction::make()
                     ->disabled(fn (PlaylistViewer $record) => $record->is_admin)
-                    ->tooltip('Admin viewers cannot be deleted')
+                    ->tooltip(__('Admin viewers cannot be deleted'))
                     ->button()->hiddenLabel()->size('sm'),
                 Action::make('clear_watch_progress')
-                    ->label('Clear Watch Progress')
+                    ->label(__('Clear Watch Progress'))
                     ->icon('heroicon-o-eye-slash')
                     ->color('warning')
                     ->action(function (PlaylistViewer $record) {
@@ -136,9 +152,9 @@ class PlaylistViewerResource extends Resource
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
                         ->disabled(fn ($records) => $records->contains('is_admin', true))
-                        ->tooltip('Admin viewers cannot be deleted'),
+                        ->tooltip(__('Admin viewers cannot be deleted')),
                     BulkAction::make('clear_watch_progress')
-                        ->label('Clear Watch Progress')
+                        ->label(__('Clear Watch Progress'))
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
                         ->action(function ($records) {

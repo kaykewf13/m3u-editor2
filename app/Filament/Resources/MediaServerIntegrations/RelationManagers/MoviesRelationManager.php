@@ -21,7 +21,10 @@ class MoviesRelationManager extends RelationManager
 
     protected static ?string $title = 'Movies';
 
-    protected static ?string $navigationLabel = 'Movies';
+    public static function getNavigationLabel(): string
+    {
+        return __('Movies');
+    }
 
     public function isReadOnly(): bool
     {
@@ -30,7 +33,7 @@ class MoviesRelationManager extends RelationManager
 
     public static function getTabComponent(Model $ownerRecord, string $pageClass): Tab
     {
-        return Tab::make('Movies')
+        return Tab::make(__('Movies'))
             ->badge($ownerRecord->channels()->where('is_vod', true)->count())
             ->icon('heroicon-m-film');
     }
@@ -52,7 +55,7 @@ class MoviesRelationManager extends RelationManager
             ->persistSortInSession()
             ->recordTitleAttribute('title')
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->modifyQueryUsing(function (Builder $query) {
                 $query->with(['tags', 'epgChannel', 'playlist'])

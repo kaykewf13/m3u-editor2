@@ -50,7 +50,7 @@ class EpisodesRelationManager extends RelationManager
             ->defaultPaginationPageOption(25)
             ->columns([
                 ImageColumn::make('info.movie_image')
-                    ->label('Cover')
+                    ->label(__('Cover'))
                     ->height(60)
                     ->width(40)
                     ->getStateUsing(function ($record) {
@@ -65,10 +65,10 @@ class EpisodesRelationManager extends RelationManager
                     ->tooltip(fn ($record) => $record->title),
 
                 ToggleColumn::make('enabled')
-                    ->label('Enabled'),
+                    ->label(__('Enabled')),
 
                 TextColumn::make('info.plot')
-                    ->label('Plot')
+                    ->label(__('Plot'))
                     ->limit(50)
                     ->tooltip(fn ($record) => $record->plot ?? $record->info['plot'] ?? null)
                     ->getStateUsing(function ($record) {
@@ -80,26 +80,26 @@ class EpisodesRelationManager extends RelationManager
 
                         return $info['plot'] ?? null;
                     })
-                    ->placeholder('No description available'),
+                    ->placeholder(__('No description available')),
 
                 TextColumn::make('series.category.name')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->searchable()
                     ->toggleable()
                     ->sortable(),
 
                 TextColumn::make('season')
-                    ->label('Season #')
+                    ->label(__('Season #'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('episode_num')
-                    ->label('Ep #')
+                    ->label(__('Ep #'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('info.duration')
-                    ->label('Duration')
+                    ->label(__('Duration'))
                     ->badge()
                     ->color('primary')
                     ->icon('heroicon-m-clock')
@@ -110,7 +110,7 @@ class EpisodesRelationManager extends RelationManager
                     }),
 
                 TextColumn::make('info.rating')
-                    ->label('Rating')
+                    ->label(__('Rating'))
                     ->badge()
                     ->color('success')
                     ->icon('heroicon-m-star')
@@ -121,7 +121,7 @@ class EpisodesRelationManager extends RelationManager
                     }),
 
                 TextColumn::make('info.release_date')
-                    ->label('Release Date')
+                    ->label(__('Release Date'))
                     ->date()
                     ->color('gray')
                     ->prefix('Released: ')
@@ -140,7 +140,7 @@ class EpisodesRelationManager extends RelationManager
             ])
             ->recordActions([
                 Action::make('play')
-                    ->tooltip('Play Episode')
+                    ->tooltip(__('Play Episode'))
                     ->action(function ($record, $livewire) {
                         $livewire->dispatch('openFloatingStream', $record->getFloatingPlayerAttributes());
                     })
@@ -152,7 +152,7 @@ class EpisodesRelationManager extends RelationManager
                     ->hiddenLabel()
                     ->icon('heroicon-m-information-circle')
                     ->button()
-                    ->tooltip('Episode Details'),
+                    ->tooltip(__('Episode Details')),
             ], position: RecordActionsPosition::BeforeCells)
             ->toolbarActions([
                 // @TODO - add download? Would need to generate streamlink files and compress then download...
@@ -160,7 +160,7 @@ class EpisodesRelationManager extends RelationManager
                 // Enable/disable bulk options
                 Actions\BulkActionGroup::make([
                     Actions\BulkAction::make('enable')
-                        ->label('Enable selected')
+                        ->label(__('Enable selected'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -170,8 +170,8 @@ class EpisodesRelationManager extends RelationManager
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected episodes enabled')
-                                ->body('The selected episodes have been enabled.')
+                                ->title(__('Selected episodes enabled'))
+                                ->body(__('The selected episodes have been enabled.'))
                                 ->send();
                         })
                         ->color('success')
@@ -179,10 +179,10 @@ class EpisodesRelationManager extends RelationManager
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected channel(s) now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected channel(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     Actions\BulkAction::make('disable')
-                        ->label('Disable selected')
+                        ->label(__('Disable selected'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -192,8 +192,8 @@ class EpisodesRelationManager extends RelationManager
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Selected episodes disabled')
-                                ->body('The selected episodes have been disabled.')
+                                ->title(__('Selected episodes disabled'))
+                                ->body(__('The selected episodes have been disabled.'))
                                 ->send();
                         })
                         ->color('warning')
@@ -201,8 +201,8 @@ class EpisodesRelationManager extends RelationManager
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected channel(s) now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected channel(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                 ]),
             ]);
     }
@@ -211,21 +211,21 @@ class EpisodesRelationManager extends RelationManager
     {
         return $schema
             ->components([
-                Section::make('Episode Details')
+                Section::make(__('Episode Details'))
                     ->collapsible()
                     ->columns(2)
                     ->schema([
                         TextEntry::make('series.name')
-                            ->label('Series'),
+                            ->label(__('Series')),
                         TextEntry::make('season.name')
-                            ->label('Season'),
+                            ->label(__('Season')),
                         TextEntry::make('title')
-                            ->label('Title')
+                            ->label(__('Title'))
                             ->columnSpanFull(),
                         TextEntry::make('episode_num')
-                            ->label('Episode Number'),
+                            ->label(__('Episode Number')),
                         TextEntry::make('info.release_date')
-                            ->label('Release Date')
+                            ->label(__('Release Date'))
                             ->date()
                             ->getStateUsing(function ($record) {
                                 $info = $record->info ?? [];
@@ -234,12 +234,12 @@ class EpisodesRelationManager extends RelationManager
                             }),
                     ]),
 
-                Section::make('Episode Metadata')
+                Section::make(__('Episode Metadata'))
                     ->collapsible()
                     ->columns(3)
                     ->schema([
                         ImageEntry::make('info.movie_image')
-                            ->label('Episode Image')
+                            ->label(__('Episode Image'))
                             ->size(200, 300)
                             ->columnSpan(1)
                             ->getStateUsing(function ($record) {
@@ -253,14 +253,14 @@ class EpisodesRelationManager extends RelationManager
                             ->columnSpan(2)
                             ->schema([
                                 TextEntry::make('info.duration')
-                                    ->label('Duration')
+                                    ->label(__('Duration'))
                                     ->getStateUsing(function ($record) {
                                         $info = $record->info ?? [];
 
                                         return $info['duration'] ?? null;
                                     }),
                                 TextEntry::make('info.rating')
-                                    ->label('Rating')
+                                    ->label(__('Rating'))
                                     ->badge()
                                     ->color('success')
                                     ->icon('heroicon-m-star')
@@ -270,7 +270,7 @@ class EpisodesRelationManager extends RelationManager
                                         return $info['rating'] ?? null;
                                     }),
                                 TextEntry::make('info.bitrate')
-                                    ->label('Bitrate')
+                                    ->label(__('Bitrate'))
                                     ->getStateUsing(function ($record) {
                                         $info = $record->info ?? [];
                                         $bitrate = $info['bitrate'] ?? null;
@@ -278,14 +278,14 @@ class EpisodesRelationManager extends RelationManager
                                         return $bitrate ? "{$bitrate} kbps" : null;
                                     }),
                                 TextEntry::make('info.season')
-                                    ->label('Season (Metadata)')
+                                    ->label(__('Season (Metadata)'))
                                     ->getStateUsing(function ($record) {
                                         $info = $record->info ?? [];
 
                                         return $info['season'] ?? null;
                                     }),
                                 TextEntry::make('info.tmdb_id')
-                                    ->label('TMDB ID')
+                                    ->label(__('TMDB ID'))
                                     ->getStateUsing(function ($record) {
                                         $info = $record->info ?? [];
 
@@ -300,7 +300,7 @@ class EpisodesRelationManager extends RelationManager
                             ]),
 
                         TextEntry::make('info.plot')
-                            ->label('Plot')
+                            ->label(__('Plot'))
                             ->columnSpanFull()
                             ->getStateUsing(function ($record) {
                                 $info = $record->info ?? [];
@@ -309,7 +309,7 @@ class EpisodesRelationManager extends RelationManager
                             }),
 
                         TextEntry::make('url')
-                            ->label('Stream URL')
+                            ->label(__('Stream URL'))
                             ->columnSpanFull()
                             ->copyable()
                             ->url(fn ($record) => $record->url)

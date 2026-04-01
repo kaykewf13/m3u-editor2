@@ -11,13 +11,17 @@ use Filament\Actions;
 use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListAssets extends ListRecords
 {
     protected static string $resource = AssetResource::class;
 
-    protected ?string $subheading = 'Manage cached logos and uploaded media assets. Placeholder images can be updated in Settings > Assets.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Manage cached logos and uploaded media assets. Placeholder images can be updated in Settings > Assets.');
+    }
 
     public function mount(): void
     {
@@ -32,11 +36,11 @@ class ListAssets extends ListRecords
 
         return [
             Actions\Action::make('uploadAsset')
-                ->label('Upload Asset')
+                ->label(__('Upload Asset'))
                 ->icon('heroicon-o-arrow-up-tray')
                 ->schema([
                     FileUpload::make('file')
-                        ->label('Asset file')
+                        ->label(__('Asset file'))
                         ->required()
                         ->disk('public')
                         ->directory('assets/library')
@@ -46,26 +50,26 @@ class ListAssets extends ListRecords
                     $asset = app(AssetInventoryService::class)->indexFile('public', $data['file'], 'upload');
 
                     Notification::make()
-                        ->title('Asset uploaded')
+                        ->title(__('Asset uploaded'))
                         ->body("Stored {$asset->name}.")
                         ->success()
                         ->send();
                 }),
             Actions\ActionGroup::make([
                 Actions\Action::make('rescanAssets')
-                    ->label('Rescan storage')
+                    ->label(__('Rescan storage'))
                     ->icon('heroicon-o-arrow-path')
                     ->action(function (): void {
                         $count = app(AssetInventoryService::class)->sync();
 
                         Notification::make()
-                            ->title('Asset scan complete')
+                            ->title(__('Asset scan complete'))
                             ->body("Indexed {$count} files.")
                             ->success()
                             ->send();
                     }),
                 Actions\Action::make('refreshLogoRepositoryCache')
-                    ->label('Refresh Logo Repository')
+                    ->label(__('Refresh Logo Repository'))
                     ->icon('heroicon-o-arrow-path-rounded-square')
                     ->visible($isRepositoryEnabled)
                     ->action(function (): void {
@@ -73,18 +77,18 @@ class ListAssets extends ListRecords
                         $count = count(app(LogoRepositoryService::class)->getIndex());
 
                         Notification::make()
-                            ->title('Logo repository refreshed')
+                            ->title(__('Logo repository refreshed'))
                             ->body("Indexed {$count} repository entries.")
                             ->success()
                             ->send();
                     }),
                 Actions\Action::make('openLogoRepository')
-                    ->label('View Logo Repository')
+                    ->label(__('View Logo Repository'))
                     ->icon('heroicon-o-eye')
                     ->visible($isRepositoryEnabled)
                     ->url(route('logo.repository'), shouldOpenInNewTab: true),
                 Actions\Action::make('clearLogoCache')
-                    ->label('Clear all cached logos')
+                    ->label(__('Clear all cached logos'))
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -97,11 +101,11 @@ class ListAssets extends ListRecords
                             ->each(fn (Asset $asset) => $service->deleteAsset($asset));
 
                         Notification::make()
-                            ->title('Cached logos removed')
+                            ->title(__('Cached logos removed'))
                             ->success()
                             ->send();
                     }),
-            ])->button()->color('gray')->label('Actions'),
+            ])->button()->color('gray')->label(__('Actions')),
         ];
     }
 

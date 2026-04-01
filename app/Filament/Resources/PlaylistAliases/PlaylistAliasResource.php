@@ -42,7 +42,20 @@ class PlaylistAliasResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Playlist Alias');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Playlist Aliases');
+    }
 
     public static function getRecordTitle(?Model $record): string|null|Htmlable
     {
@@ -99,7 +112,7 @@ class PlaylistAliasResource extends Resource
                     }),
                 // Tables\Columns\ToggleColumn::make('enabled'),
                 Tables\Columns\TextColumn::make('user_info')
-                    ->label('Provider Streams')
+                    ->label(__('Provider Streams'))
                     ->getStateUsing(function ($record) {
                         try {
                             if ($record->xtream_status['user_info'] ?? false) {
@@ -113,10 +126,10 @@ class PlaylistAliasResource extends Resource
                     ->description(fn ($record): string => 'Active: '.($record->xtream_status['user_info']['active_cons'] ?? 0))
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('available_streams')
-                    ->label('Proxy Streams')
+                    ->label(__('Proxy Streams'))
                     ->toggleable()
                     ->formatStateUsing(fn (int $state): string => $state === 0 ? '∞' : (string) $state)
-                    ->tooltip('Total streams available for this playlist (∞ indicates no limit)')
+                    ->tooltip(__('Total streams available for this playlist (∞ indicates no limit)'))
                     ->description(function (PlaylistAlias $record): string {
                         // Cache active streams count for 5 seconds to reduce load
                         $count = Cache::remember(
@@ -128,27 +141,27 @@ class PlaylistAliasResource extends Resource
                         return "Active: {$count}";
                     }),
                 Tables\Columns\TextColumn::make('live_count')
-                    ->label('Live')
+                    ->label(__('Live'))
                     ->description(fn (PlaylistAlias $record): string => "Enabled: {$record->enabled_live_channels()->count()}")
                     ->toggleable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('vod_count')
-                    ->label('VOD')
+                    ->label(__('VOD'))
                     ->description(fn (PlaylistAlias $record): string => "Enabled: {$record->enabled_vod_channels()->count()}")
                     ->toggleable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('series_count')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->description(fn (PlaylistAlias $record): string => "Enabled: {$record->enabled_series()->count()}")
                     ->toggleable()
                     ->sortable(),
                 Tables\Columns\ToggleColumn::make('enable_proxy')
-                    ->label('Proxy')
+                    ->label(__('Proxy'))
                     ->toggleable()
-                    ->tooltip('Toggle proxy status')
+                    ->tooltip(__('Toggle proxy status'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('exp_date')
-                    ->label('Expiry Date')
+                    ->label(__('Expiry Date'))
                     ->getStateUsing(function ($record) {
                         try {
                             if ($record->xtream_status['user_info']['exp_date'] ?? false) {
@@ -177,18 +190,18 @@ class PlaylistAliasResource extends Resource
             ->recordActions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('Download M3U')
-                        ->label('Download M3U')
+                        ->label(__('Download M3U'))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn ($record) => PlaylistFacade::getUrls($record)['m3u'])
                         ->openUrlInNewTab(),
                     EpgCacheService::getEpgTableAction(),
                     Actions\Action::make('HDHomeRun URL')
-                        ->label('HDHomeRun URL')
+                        ->label(__('HDHomeRun URL'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->url(fn ($record) => PlaylistFacade::getUrls($record)['hdhr'])
                         ->openUrlInNewTab(),
                     Actions\Action::make('Public URL')
-                        ->label('Public URL')
+                        ->label(__('Public URL'))
                         ->icon('heroicon-o-arrow-top-right-on-square')
                         ->url(fn ($record) => '/playlist/v/'.$record->uuid)
                         ->openUrlInNewTab(),
@@ -230,9 +243,9 @@ class PlaylistAliasResource extends Resource
                 ->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
-                        ->helperText('Enter the name of the alias. Internal use only.'),
+                        ->helperText(__('Enter the name of the alias. Internal use only.')),
                     Forms\Components\TextInput::make('user_agent')
-                        ->helperText('User agent string to use for making requests.')
+                        ->helperText(__('User agent string to use for making requests.'))
                         ->default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
                         ->required(),
                 ]),
@@ -242,9 +255,9 @@ class PlaylistAliasResource extends Resource
                 ->columnSpan('full')
                 ->schema([
                     Forms\Components\Textarea::make('description')
-                        ->helperText('Optional description for your reference.'),
+                        ->helperText(__('Optional description for your reference.')),
                     Forms\Components\Toggle::make('edit_uuid')
-                        ->label('View/Update Unique Identifier')
+                        ->label(__('View/Update Unique Identifier'))
                         ->inline(false)
                         ->live()
                         ->dehydrated(false)
@@ -252,7 +265,7 @@ class PlaylistAliasResource extends Resource
                         ->hiddenOn('create'),
                 ]),
             Forms\Components\TextInput::make('uuid')
-                ->label('Unique Identifier')
+                ->label(__('Unique Identifier'))
                 ->columnSpanFull()
                 ->rules(function ($record) {
                     return [
@@ -263,7 +276,7 @@ class PlaylistAliasResource extends Resource
                         Rule::unique('playlist_aliases', 'uuid')->ignore($record?->id),
                     ];
                 })
-                ->helperText('Value must be between 3 and 36 characters.')
+                ->helperText(__('Value must be between 3 and 36 characters.'))
                 ->hintIcon(
                     'heroicon-m-exclamation-triangle',
                     tooltip: 'Be careful changing this value as this will change the URLs for the Playlist, its EPG, and HDHR.'
@@ -271,10 +284,10 @@ class PlaylistAliasResource extends Resource
                 ->hidden(fn ($get): bool => ! $get('edit_uuid'))
                 ->required(),
 
-            Schemas\Components\Fieldset::make('Source Playlist')
+            Schemas\Components\Fieldset::make(__('Source Playlist'))
                 ->schema([
                     Forms\Components\Select::make('playlist_id')
-                        ->label('Standard Playlist')
+                        ->label(__('Standard Playlist'))
                         ->options(fn () => Playlist::where('user_id', auth()->id())->pluck('name', 'id'))
                         ->searchable()
                         ->live()
@@ -291,10 +304,10 @@ class PlaylistAliasResource extends Resource
                         ->validationMessages([
                             'required_without' => 'Playlist is required if not using a custom playlist.',
                         ])
-                        ->helperText('Select a standard Playlist (only one set of alternative credentials can be configured).')
+                        ->helperText(__('Select a standard Playlist (only one set of alternative credentials can be configured).'))
                         ->rules(['exists:playlists,id']),
                     Forms\Components\Select::make('custom_playlist_id')
-                        ->label('Custom Playlist')
+                        ->label(__('Custom Playlist'))
                         ->options(fn () => CustomPlaylist::where('user_id', auth()->id())->pluck('name', 'id'))
                         ->searchable()
                         ->live()
@@ -311,17 +324,17 @@ class PlaylistAliasResource extends Resource
                         ->validationMessages([
                             'required_without' => 'Custom Playlist is required if not using a standard playlist.',
                         ])
-                        ->helperText('Select a Custom Playlist (multiple provider credentials can be configured to match source providers).')
+                        ->helperText(__('Select a Custom Playlist (multiple provider credentials can be configured to match source providers).'))
                         ->dehydrated(true)
                         ->rules(['exists:custom_playlists,id']),
                 ]),
 
-            Schemas\Components\Fieldset::make('Provider Credentials')
+            Schemas\Components\Fieldset::make(__('Provider Credentials'))
                 ->columnSpanFull()
                 ->schema([
                     Forms\Components\Repeater::make('xtream_config')
-                        ->label('Credentials')
-                        ->helperText('Provider credentials to use for this alias. At least one set of credentials is required.')
+                        ->label(__('Credentials'))
+                        ->helperText(__('Provider credentials to use for this alias. At least one set of credentials is required.'))
                         ->columns(2)
                         ->defaultItems(0)
                         ->hintIcon(
@@ -334,7 +347,7 @@ class PlaylistAliasResource extends Resource
                         ->itemLabel(fn (array $state): ?string => 'Provider: '.parse_url($state['url'] ?? '', PHP_URL_HOST))
                         ->schema([
                             Forms\Components\TextInput::make('url')
-                                ->label('Xtream API URL')
+                                ->label(__('Xtream API URL'))
                                 ->live()
                                 ->helperText(text: 'Enter the full URL using <url>:<port> format - without trailing slash (/).')
                                 ->prefixIcon('heroicon-m-globe-alt')
@@ -344,39 +357,39 @@ class PlaylistAliasResource extends Resource
                                 ->columnSpan(2)
                                 ->required(),
                             Forms\Components\TextInput::make('username')
-                                ->label('Xtream API Username')
+                                ->label(__('Xtream API Username'))
                                 ->required(),
                             Forms\Components\TextInput::make('password')
-                                ->label('Xtream API Password')
+                                ->label(__('Xtream API Password'))
                                 ->required()
                                 ->password()
                                 ->revealable(),
                         ])->columnSpanFull(),
                 ]),
 
-            Schemas\Components\Fieldset::make('Proxy Options')
+            Schemas\Components\Fieldset::make(__('Proxy Options'))
                 ->columns(2)
                 ->hidden(fn () => ! auth()->user()->canUseProxy())
                 ->schema([
                     Forms\Components\Toggle::make('enable_proxy')
-                        ->label('Enable Stream Proxy')
+                        ->label(__('Enable Stream Proxy'))
                         ->hint(fn (Get $get): string => $get('enable_proxy') ? 'Proxied' : 'Not proxied')
                         ->hintIcon(fn (Get $get): string => ! $get('enable_proxy') ? 'heroicon-m-lock-open' : 'heroicon-m-lock-closed')
                         ->live()
-                        ->helperText('When enabled, all streams will be proxied through the application. This allows for better compatibility with various clients and enables features such as stream limiting and output format selection.')
+                        ->helperText(__('When enabled, all streams will be proxied through the application. This allows for better compatibility with various clients and enables features such as stream limiting and output format selection.'))
                         ->inline(false)
                         ->default(false),
                     Forms\Components\Toggle::make('enable_logo_proxy')
-                        ->label('Enable Logo Proxy')
+                        ->label(__('Enable Logo Proxy'))
                         ->hint(fn (Get $get): string => $get('enable_logo_proxy') ? 'Proxied' : 'Not proxied')
                         ->hintIcon(fn (Get $get): string => ! $get('enable_logo_proxy') ? 'heroicon-m-lock-open' : 'heroicon-m-lock-closed')
                         ->live()
-                        ->helperText('When enabled, channel logos will be proxied through the application. Logos will be cached for up to 30 days to reduce bandwidth and speed up loading times.')
+                        ->helperText(__('When enabled, channel logos will be proxied through the application. Logos will be cached for up to 30 days to reduce bandwidth and speed up loading times.'))
                         ->inline(false)
                         ->default(false),
                     Forms\Components\TextInput::make('streams')
-                        ->label('HDHR/Xtream API Streams')
-                        ->helperText('Number of streams available for HDHR and Xtream API service (if using).')
+                        ->label(__('HDHR/Xtream API Streams'))
+                        ->helperText(__('Number of streams available for HDHR and Xtream API service (if using).'))
                         ->columnSpan(1)
                         ->hintIcon(
                             'heroicon-m-question-mark-circle',
@@ -387,19 +400,19 @@ class PlaylistAliasResource extends Resource
                         ->default(0) // Default to 0 streams (unlimited)
                         ->required(),
                     Forms\Components\TextInput::make('server_timezone')
-                        ->label('Provider Timezone')
-                        ->helperText('The portal/provider timezone (DST-aware). Needed to correctly use timeshift functionality.')
-                        ->placeholder('Etc/UTC')
+                        ->label(__('Provider Timezone'))
+                        ->helperText(__('The portal/provider timezone (DST-aware). Needed to correctly use timeshift functionality.'))
+                        ->placeholder(__('Etc/UTC'))
                         ->hintAction(
                             Actions\Action::make('get_provider_value')
-                                ->label('Get from playlist status')
+                                ->label(__('Get from playlist status'))
                                 ->icon('heroicon-o-clock')
                                 ->action(action: function ($record, Set $set) {
                                     $value = $record->getEffectivePlaylist()?->xtream_status['server_info']['timezone'] ?? null;
                                     if ($value) {
                                         $set('server_timezone', $value);
                                         Notification::make()
-                                            ->title('Current Provider Timezone')
+                                            ->title(__('Current Provider Timezone'))
                                             ->body("Provider timezone retrieved from playlist status: {$value}. Press save changes to apply this value, or you can manually enter a different timezone if needed.")
                                             ->success()
                                             ->send();
@@ -407,8 +420,8 @@ class PlaylistAliasResource extends Resource
                                         return;
                                     }
                                     Notification::make()
-                                        ->title('Provider Timezone Not Found')
-                                        ->body('Provider timezone not found in playlist status. Make sure the playlist is connected and has synced at least once to retrieve this information.')
+                                        ->title(__('Provider Timezone Not Found'))
+                                        ->body(__('Provider timezone not found in playlist status. Make sure the playlist is connected and has synced at least once to retrieve this information.'))
                                         ->danger()
                                         ->send();
                                 })->hidden(fn ($record) => $record?->playlist_id === null)
@@ -418,33 +431,33 @@ class PlaylistAliasResource extends Resource
                         ->columns(1)
                         ->schema([
                             Forms\Components\TextInput::make('available_streams')
-                                ->label('Available Streams')
-                                ->hint('Set to 0 for unlimited streams.')
-                                ->helperText('Number of streams available for this provider. If set to a value other than 0, will prevent any streams from starting if the number of active streams exceeds this value.')
+                                ->label(__('Available Streams'))
+                                ->hint(__('Set to 0 for unlimited streams.'))
+                                ->helperText(__('Number of streams available for this provider. If set to a value other than 0, will prevent any streams from starting if the number of active streams exceeds this value.'))
                                 ->columnSpan(1)
                                 ->rules(['min:1'])
                                 ->type('number')
                                 ->default(0) // Default to 0 streams (for unlimted)
                                 ->required(),
                             Forms\Components\Toggle::make('strict_live_ts')
-                                ->label('Enable Strict Live TS Handling')
+                                ->label(__('Enable Strict Live TS Handling'))
                                 ->hintAction(
                                     Actions\Action::make('learn_more_strict_live_ts')
-                                        ->label('Learn More')
+                                        ->label(__('Learn More'))
                                         ->icon('heroicon-o-arrow-top-right-on-square')
                                         ->iconPosition('after')
                                         ->size('sm')
                                         ->url('https://m3ue.sparkison.dev/docs/proxy/strict-live-ts')
                                         ->openUrlInNewTab(true)
                                 )
-                                ->helperText('Enhanced stability for live MPEG-TS streams with PVR clients like Kodi and HDHomeRun (only used when not using transcoding profiles).')
+                                ->helperText(__('Enhanced stability for live MPEG-TS streams with PVR clients like Kodi and HDHomeRun (only used when not using transcoding profiles).'))
                                 ->inline(false)
                                 ->default(false),
                             Forms\Components\Toggle::make('use_sticky_session')
-                                ->label('Enable Sticky Session Handler')
+                                ->label(__('Enable Sticky Session Handler'))
                                 ->hintAction(
                                     Actions\Action::make('learn_more_sticky_session')
-                                        ->label('Learn More')
+                                        ->label(__('Learn More'))
                                         ->icon('heroicon-o-arrow-top-right-on-square')
                                         ->iconPosition('after')
                                         ->size('sm')
@@ -454,14 +467,14 @@ class PlaylistAliasResource extends Resource
                                 ->helperText('')
                                 ->inline(false)
                                 ->default(false)
-                                ->helperText('Lock clients to specific backend origins after redirects to prevent playback loops when load balancers bounce between origins. Disable if your provider doesn\'t use load balancing.'),
+                                ->helperText(__('Lock clients to specific backend origins after redirects to prevent playback loops when load balancers bounce between origins. Disable if your provider doesn\\\'t use load balancing.')),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
 
-                    Schemas\Components\Fieldset::make('Transcoding Settings (optional)')
+                    Schemas\Components\Fieldset::make(__('Transcoding Settings (optional)'))
                         ->columnSpanFull()
                         ->schema([
                             Forms\Components\Select::make('stream_profile_id')
-                                ->label('Live Streaming Profile')
+                                ->label(__('Live Streaming Profile'))
                                 ->relationship('streamProfile', 'name')
                                 ->options(function () {
                                     return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
@@ -469,10 +482,10 @@ class PlaylistAliasResource extends Resource
                                 ->searchable()
                                 ->preload()
                                 ->nullable()
-                                ->helperText('Select a transcoding profile to apply to Live streams from this playlist. Leave empty for direct stream proxying.')
-                                ->placeholder('Leave empty for direct stream proxying'),
+                                ->helperText(__('Select a transcoding profile to apply to Live streams from this playlist. Leave empty for direct stream proxying.'))
+                                ->placeholder(__('Leave empty for direct stream proxying')),
                             Forms\Components\Select::make('vod_stream_profile_id')
-                                ->label('VOD and Series Streaming Profile')
+                                ->label(__('VOD and Series Streaming Profile'))
                                 ->relationship('vodStreamProfile', 'name')
                                 ->options(function () {
                                     return StreamProfile::where('user_id', auth()->id())->pluck('name', 'id');
@@ -484,37 +497,37 @@ class PlaylistAliasResource extends Resource
                                     'heroicon-m-question-mark-circle',
                                     tooltip: 'Time seeking is not supported when transcoding VOD or Series streams. This is a limitation of live-transcoding. Leave empty to allow time seeking.'
                                 )
-                                ->helperText('Select a transcoding profile to apply to VOD and Series streams from this playlist. Leave empty for direct stream proxying.')
-                                ->placeholder('Leave empty for direct stream proxying'),
+                                ->helperText(__('Select a transcoding profile to apply to VOD and Series streams from this playlist. Leave empty for direct stream proxying.'))
+                                ->placeholder(__('Leave empty for direct stream proxying')),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
-                    Schemas\Components\Fieldset::make('HTTP Headers (optional)')
+                    Schemas\Components\Fieldset::make(__('HTTP Headers (optional)'))
                         ->columnSpanFull()
                         ->schema([
                             Forms\Components\Repeater::make('custom_headers')
                                 ->hiddenLabel()
-                                ->helperText('Add any custom headers to include when streaming a channel/episode.')
+                                ->helperText(__('Add any custom headers to include when streaming a channel/episode.'))
                                 ->columnSpanFull()
                                 ->columns(2)
                                 ->default([])
                                 ->schema([
                                     Forms\Components\TextInput::make('header')
-                                        ->label('Header')
+                                        ->label(__('Header'))
                                         ->required()
-                                        ->placeholder('e.g. Authorization'),
+                                        ->placeholder(__('e.g. Authorization')),
                                     Forms\Components\TextInput::make('value')
-                                        ->label('Value')
+                                        ->label(__('Value'))
                                         ->required()
-                                        ->placeholder('e.g. Bearer abc123'),
+                                        ->placeholder(__('e.g. Bearer abc123')),
                                 ]),
                         ])->hidden(fn (Get $get): bool => ! $get('enable_proxy')),
                 ])->columnSpanFull(),
 
-            Schemas\Components\Fieldset::make('Auth (optional)')
+            Schemas\Components\Fieldset::make(__('Auth (optional)'))
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('username')
-                        ->label('Username')
-                        ->helperText('Optional: Set credentials to access this alias via Xtream API. Must be unique across all aliases and playlist auths.')
+                        ->label(__('Username'))
+                        ->helperText(__('Optional: Set credentials to access this alias via Xtream API. Must be unique across all aliases and playlist auths.'))
                         ->rules(function ($record) {
                             return [
                                 'nullable',
@@ -524,15 +537,15 @@ class PlaylistAliasResource extends Resource
                         })
                         ->columnSpan(1),
                     Forms\Components\TextInput::make('password')
-                        ->label('Password')
+                        ->label(__('Password'))
                         ->columnSpan(1)
                         ->password()
                         ->revealable(),
                     Forms\Components\DateTimePicker::make('expires_at')
-                        ->label('Expiration (date & time)')
+                        ->label(__('Expiration (date & time)'))
                         ->seconds(false)
                         ->native(false)
-                        ->helperText('If set, this alias credentials will stop working at that exact time.')
+                        ->helperText(__('If set, this alias credentials will stop working at that exact time.'))
                         ->nullable()
                         ->columnSpan(2),
                 ]),

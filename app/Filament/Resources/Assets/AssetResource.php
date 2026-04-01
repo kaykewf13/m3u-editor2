@@ -24,9 +24,25 @@ class AssetResource extends Resource
 {
     protected static ?string $model = Asset::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Tools';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Tools');
+    }
 
-    protected static ?string $navigationLabel = 'Assets';
+    public static function getModelLabel(): string
+    {
+        return __('Asset');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Assets');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Assets');
+    }
 
     protected static ?int $navigationSort = 2;
 
@@ -42,20 +58,20 @@ class AssetResource extends Resource
         return $table->persistFiltersInSession()
             ->persistSortInSession()
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(25)
             ->defaultSort('last_modified_at', 'desc')
             ->columns([
                 ImageColumn::make('preview')
-                    ->label('Preview')
+                    ->label(__('Preview'))
                     ->getStateUsing(fn (Asset $record): ?string => $record->is_image ? $record->preview_url : null)
                     ->square()
                     ->extraImgAttributes(fn ($record): array => ['style' => 'height:2.5rem; width:auto; border-radius:4px;'])
                     ->defaultImageUrl(url('/placeholder.png')),
                 IconColumn::make('is_image')
-                    ->label('Img')
+                    ->label(__('Img'))
                     ->boolean()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('name')
@@ -77,11 +93,11 @@ class AssetResource extends Resource
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('size_bytes')
-                    ->label('Size')
+                    ->label(__('Size'))
                     ->sortable()
                     ->formatStateUsing(fn (?int $state): string => $state ? number_format($state / 1024, 2).' KB' : '—'),
                 TextColumn::make('last_modified_at')
-                    ->label('Modified')
+                    ->label(__('Modified'))
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
                     ->sortable(),
             ])
@@ -98,16 +114,16 @@ class AssetResource extends Resource
                         'public' => 'public',
                     ]),
                 TernaryFilter::make('is_image')
-                    ->label('Images only'),
+                    ->label(__('Images only')),
             ])
             ->recordActions([
                 Actions\Action::make('preview')
-                    ->label('Preview')
+                    ->label(__('Preview'))
                     ->icon('heroicon-o-eye')
                     ->slideOver()
                     ->modalHeading(fn (Asset $record): string => $record->name)
                     ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Close')
+                    ->modalCancelActionLabel(__('Close'))
                     ->modalContent(function (Asset $record) {
                         return view('filament.assets.preview', [
                             'asset' => $record,
@@ -119,7 +135,7 @@ class AssetResource extends Resource
                     ->hiddenLabel()
                     ->size('sm'),
                 Actions\Action::make('delete')
-                    ->label('Delete')
+                    ->label(__('Delete'))
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -127,7 +143,7 @@ class AssetResource extends Resource
                         app(AssetInventoryService::class)->deleteAsset($record);
 
                         Notification::make()
-                            ->title('Asset deleted')
+                            ->title(__('Asset deleted'))
                             ->success()
                             ->send();
                     })
@@ -138,7 +154,7 @@ class AssetResource extends Resource
             ->toolbarActions([
                 Actions\BulkActionGroup::make([
                     Actions\BulkAction::make('deleteSelectedFiles')
-                        ->label('Delete selected files')
+                        ->label(__('Delete selected files'))
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
@@ -148,7 +164,7 @@ class AssetResource extends Resource
                             $records->each(fn (Asset $asset) => $service->deleteAsset($asset));
 
                             Notification::make()
-                                ->title('Selected assets deleted')
+                                ->title(__('Selected assets deleted'))
                                 ->success()
                                 ->send();
                         }),

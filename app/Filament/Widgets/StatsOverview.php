@@ -73,19 +73,19 @@ class StatsOverview extends BaseWidget
         $lastEpgSynced = $stats->last_epg_sync ? Carbon::parse($stats->last_epg_sync)->diffForHumans() : null;
 
         return [
-            Stat::make('Playlists', $stats->playlists_count)
-                ->description($lastSynced ? "Last sync $lastSynced" : 'No syncs yet')
+            Stat::make(__('Playlists'), $stats->playlists_count)
+                ->description($lastSynced ? __('Last sync :date', ['date' => $lastSynced]) : __('No syncs yet'))
                 ->descriptionIcon('heroicon-m-calendar-days'),
-            Stat::make('Groups', $stats->groups_count),
-            Stat::make('Total Channels', $stats->total_channels),
-            Stat::make('Enabled Channels', $stats->enabled_channels),
-            Stat::make('EPGs', $stats->epgs_count)
-                ->description($lastEpgSynced ? "Last sync $lastEpgSynced" : 'No syncs yet')
+            Stat::make(__('Groups'), $stats->groups_count),
+            Stat::make(__('Total Channels'), $stats->total_channels),
+            Stat::make(__('Enabled Channels'), $stats->enabled_channels),
+            Stat::make(__('EPGs'), $stats->epgs_count)
+                ->description($lastEpgSynced ? __('Last sync :date', ['date' => $lastEpgSynced]) : __('No syncs yet'))
                 ->descriptionIcon('heroicon-m-calendar-days'),
-            Stat::make('Total EPG Channels', $stats->epg_channels_count),
-            Stat::make('EPG Mapped Channels', $stats->mapped_channels),
-            Stat::make('Series', $stats->series_count),
-            Stat::make('Episodes', $stats->episodes_count),
+            Stat::make(__('Total EPG Channels'), $stats->epg_channels_count),
+            Stat::make(__('EPG Mapped Channels'), $stats->mapped_channels),
+            Stat::make(__('Series'), $stats->series_count),
+            Stat::make(__('Episodes'), $stats->episodes_count),
         ];
     }
 }

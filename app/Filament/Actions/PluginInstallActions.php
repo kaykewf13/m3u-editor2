@@ -21,7 +21,7 @@ class PluginInstallActions
     public static function discover(): Action
     {
         return Action::make('discover')
-            ->label('Discover Plugins')
+            ->label(__('Discover Plugins'))
             ->icon('heroicon-o-arrow-path')
             ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
             ->action(function (): void {
@@ -29,8 +29,8 @@ class PluginInstallActions
 
                 Notification::make()
                     ->success()
-                    ->title('Plugin discovery completed')
-                    ->body('Found and loaded '.count($plugins).' plugin(s).')
+                    ->title(__('Plugin discovery completed'))
+                    ->body(__('Found and loaded :count plugin(s).', ['count' => count($plugins)]))
                     ->send();
             });
     }
@@ -41,7 +41,7 @@ class PluginInstallActions
     public static function pluginInstallsLink(): Action
     {
         return Action::make('plugin_installs')
-            ->label('Plugin Installs')
+            ->label(__('Plugin Installs'))
             ->icon('heroicon-o-archive-box')
             ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
             ->url(PluginInstallReviewResource::getUrl());
@@ -57,18 +57,18 @@ class PluginInstallActions
         return [
             ActionGroup::make([
                 Action::make('stage_directory')
-                    ->label('Stage Local Plugin')
+                    ->label(__('Stage Local Plugin'))
                     ->icon('heroicon-o-folder-open')
                     ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                     ->schema([
                         TextInput::make('path')
-                            ->label('Plugin Directory Path')
+                            ->label(__('Plugin Directory Path'))
                             ->required()
-                            ->helperText('Enter a path on your server. This reads files from the server directly, not from your browser.'),
+                            ->helperText(__('Enter a path on your server. This reads files from the server directly, not from your browser.')),
                         Toggle::make('dev_source')
-                            ->label('This is a development/testing plugin')
+                            ->label(__('This is a development/testing plugin'))
                             ->default(false)
-                            ->helperText('Only check this for plugins you\'re actively developing locally. Don\'t use for production installs.'),
+                            ->helperText(__('Only check this for plugins you\'re actively developing locally. Don\'t use for production installs.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -77,17 +77,17 @@ class PluginInstallActions
                                 auth()->id(),
                                 (bool) ($data['dev_source'] ?? false),
                             ),
-                            successTitle: 'Plugin install staged',
-                            failureTitle: 'Plugin staging failed',
+                            successTitle: __('Plugin install staged'),
+                            failureTitle: __('Plugin staging failed'),
                         );
                     }),
                 Action::make('upload_archive')
-                    ->label('Upload Plugin Archive')
+                    ->label(__('Upload Plugin Archive'))
                     ->icon('heroicon-o-arrow-up-tray')
                     ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                     ->schema([
                         FileUpload::make('archive_upload')
-                            ->label('Plugin Archive')
+                            ->label(__('Plugin Archive'))
                             ->required()
                             ->disk('local')
                             ->visibility('private')
@@ -108,8 +108,8 @@ class PluginInstallActions
                             ])
                             ->maxSize((int) ceil(((int) config('plugins.archive_limits.max_archive_bytes', 50 * 1024 * 1024)) / 1024))
                             ->helperText(config('plugins.clamav.driver', 'fake') === 'fake'
-                                ? 'Upload a plugin zip, tar, or tar.gz archive. The server will stage and validate it through plugin installs.'
-                                : 'Upload a plugin zip, tar, or tar.gz archive. The server will stage, validate, and scan it through plugin installs.'),
+                                ? __('Upload a plugin zip, tar, or tar.gz archive. The server will stage and validate it through plugin installs.')
+                                : __('Upload a plugin zip, tar, or tar.gz archive. The server will stage, validate, and scan it through plugin installs.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -117,19 +117,19 @@ class PluginInstallActions
                                 (string) $data['archive_upload'],
                                 auth()->id(),
                             ),
-                            successTitle: 'Uploaded plugin archive staged',
-                            failureTitle: 'Plugin upload failed',
+                            successTitle: __('Uploaded plugin archive staged'),
+                            failureTitle: __('Plugin upload failed'),
                         );
                     }),
                 Action::make('stage_archive')
-                    ->label('Stage Plugin Archive')
+                    ->label(__('Stage Plugin Archive'))
                     ->icon('heroicon-o-archive-box')
                     ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                     ->schema([
                         TextInput::make('archive')
-                            ->label('Archive Path')
+                            ->label(__('Archive Path'))
                             ->required()
-                            ->helperText('Enter the archive path on your server. This reads the file directly, not from your browser.'),
+                            ->helperText(__('Enter the archive path on your server. This reads the file directly, not from your browser.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -137,23 +137,23 @@ class PluginInstallActions
                                 (string) $data['archive'],
                                 auth()->id(),
                             ),
-                            successTitle: 'Plugin archive staged',
-                            failureTitle: 'Plugin archive staging failed',
+                            successTitle: __('Plugin archive staged'),
+                            failureTitle: __('Plugin archive staging failed'),
                         );
                     }),
                 Action::make('stage_github_release')
-                    ->label('Stage GitHub Release')
+                    ->label(__('Stage GitHub Release'))
                     ->icon('heroicon-o-cloud-arrow-down')
                     ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
                     ->schema([
                         TextInput::make('url')
-                            ->label('Release Asset URL')
+                            ->label(__('Release Asset URL'))
                             ->required()
-                            ->helperText('Use the GitHub release asset URL from the published release.'),
+                            ->helperText(__('Use the GitHub release asset URL from the published release.')),
                         TextInput::make('sha256')
-                            ->label('Security Hash (SHA-256)')
+                            ->label(__('Security Hash (SHA-256)'))
                             ->required()
-                            ->helperText('Copy the file hash from the GitHub release page to verify the download hasn\'t been tampered with.'),
+                            ->helperText(__('Copy the file hash from the GitHub release page to verify the download hasn\'t been tampered with.')),
                     ])
                     ->action(function (array $data): void {
                         self::runStagingAction(
@@ -162,11 +162,11 @@ class PluginInstallActions
                                 (string) $data['sha256'],
                                 auth()->id(),
                             ),
-                            successTitle: 'GitHub release staged',
-                            failureTitle: 'GitHub release staging failed',
+                            successTitle: __('GitHub release staged'),
+                            failureTitle: __('GitHub release staging failed'),
                         );
                     }),
-            ])->label('Actions')->button(),
+            ])->label(__('Actions'))->button(),
         ];
     }
 
@@ -184,8 +184,8 @@ class PluginInstallActions
                 ->success()
                 ->title($successTitle)
                 ->body(config('plugins.clamav.driver', 'fake') === 'fake'
-                    ? "Review #{$review->id} is queued for approval."
-                    : "Review #{$review->id} is queued for security scan and approval.")
+                    ? __('Review #:id is queued for approval.', ['id' => $review->id])
+                    : __('Review #:id is queued for security scan and approval.', ['id' => $review->id]))
                 ->send();
         } catch (Throwable $exception) {
             Notification::make()

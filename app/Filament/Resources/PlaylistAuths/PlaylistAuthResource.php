@@ -42,7 +42,20 @@ class PlaylistAuthResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Playlist Auth');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Playlist Auths');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {
@@ -79,11 +92,11 @@ class PlaylistAuthResource extends Resource
                 //     ->sortable()
                 //     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('assigned_model_name')
-                    ->label('Assigned To')
+                    ->label(__('Assigned To'))
                     ->toggleable(),
                 ToggleColumn::make('enabled')
                     ->toggleable()
-                    ->tooltip('Toggle auth status')
+                    ->tooltip(__('Toggle auth status'))
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
@@ -130,17 +143,17 @@ class PlaylistAuthResource extends Resource
     {
         $schema = [
             TextInput::make('name')
-                ->label('Name')
+                ->label(__('Name'))
                 ->required()
-                ->helperText('Used to reference this auth internally.')
+                ->helperText(__('Used to reference this auth internally.'))
                 ->columnSpan(1),
             Toggle::make('enabled')
-                ->label('Enabled')
+                ->label(__('Enabled'))
                 ->columnSpan(1)
                 ->inline(false)
                 ->default(true),
             TextInput::make('username')
-                ->label('Username')
+                ->label(__('Username'))
                 ->required()
                 ->rules(function ($record) {
                     return [
@@ -150,16 +163,16 @@ class PlaylistAuthResource extends Resource
                 })
                 ->columnSpan(1),
             TextInput::make('password')
-                ->label('Password')
+                ->label(__('Password'))
                 ->password()
                 ->required()
                 ->revealable()
                 ->columnSpan(1),
             DateTimePicker::make('expires_at')
-                ->label('Expiration (date & time)')
+                ->label(__('Expiration (date & time)'))
                 ->seconds(false)
                 ->native(false)
-                ->helperText('If set, this account will stop working at that exact time.')
+                ->helperText(__('If set, this account will stop working at that exact time.'))
                 ->nullable()
                 ->columnSpan(2),
         ];
@@ -174,7 +187,7 @@ class PlaylistAuthResource extends Resource
                 ->schema([
                     ...$schema,
                     Select::make('assigned_playlist')
-                        ->label('Assigned to Playlist')
+                        ->label(__('Assigned to Playlist'))
                         ->options(function ($record) {
                             $options = [];
 
@@ -237,8 +250,8 @@ class PlaylistAuthResource extends Resource
                         })
                         ->searchable()
                         ->nullable()
-                        ->placeholder('Select a playlist or leave empty')
-                        ->helperText('Assign this auth to a specific playlist. Each auth can only be assigned to one playlist at a time.')
+                        ->placeholder(__('Select a playlist or leave empty'))
+                        ->helperText(__('Assign this auth to a specific playlist. Each auth can only be assigned to one playlist at a time.'))
                         ->default(function ($record) {
                             if ($record && $record->isAssigned()) {
                                 $assignedModel = $record->getAssignedModel();

@@ -20,9 +20,10 @@ class ManualScheduleBuilder extends Page
 
     protected static string $resource = NetworkResource::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
-
-    protected static ?string $navigationLabel = 'Schedule Builder';
+    public static function getNavigationLabel(): string
+    {
+        return __('Schedule Builder');
+    }
 
     protected static ?string $title = 'Schedule Builder';
 
@@ -366,7 +367,7 @@ class ManualScheduleBuilder extends Page
             : Channel::find($contentableId);
 
         if (! $content) {
-            Notification::make()->danger()->title('Content not found')->send();
+            Notification::make()->danger()->title(__('Content not found'))->send();
 
             return ['success' => false];
         }
@@ -444,7 +445,7 @@ class ManualScheduleBuilder extends Page
 
         $afterProgramme = $network->programmes()->find($afterProgrammeId);
         if (! $afterProgramme) {
-            Notification::make()->danger()->title('Programme not found')->send();
+            Notification::make()->danger()->title(__('Programme not found'))->send();
 
             return ['success' => false];
         }
@@ -454,7 +455,7 @@ class ManualScheduleBuilder extends Page
             : Channel::find($contentableId);
 
         if (! $content) {
-            Notification::make()->danger()->title('Content not found')->send();
+            Notification::make()->danger()->title(__('Content not found'))->send();
 
             return ['success' => false];
         }
@@ -541,7 +542,7 @@ class ManualScheduleBuilder extends Page
 
         $this->recalculateTimes($network, $date, $tz);
 
-        Notification::make()->success()->title('Programme removed')->send();
+        Notification::make()->success()->title(__('Programme removed'))->send();
 
         return [
             'success' => true,
@@ -597,7 +598,7 @@ class ManualScheduleBuilder extends Page
             ->get();
 
         if ($sourceProgrammes->isEmpty()) {
-            Notification::make()->warning()->title('No programmes to copy from this day')->send();
+            Notification::make()->warning()->title(__('No programmes to copy from this day'))->send();
 
             return ['success' => false];
         }
@@ -649,7 +650,7 @@ class ManualScheduleBuilder extends Page
         $scheduleWindowDays = $network->schedule_window_days ?? 7;
 
         if ($scheduleWindowDays <= 7) {
-            Notification::make()->info()->title('Schedule window is already one week')->send();
+            Notification::make()->info()->title(__('Schedule window is already one week'))->send();
 
             return ['success' => true];
         }
@@ -665,7 +666,7 @@ class ManualScheduleBuilder extends Page
             ->get();
 
         if ($templateProgrammes->isEmpty()) {
-            Notification::make()->warning()->title('No template programmes found in the first week')->send();
+            Notification::make()->warning()->title(__('No template programmes found in the first week'))->send();
 
             return ['success' => false];
         }

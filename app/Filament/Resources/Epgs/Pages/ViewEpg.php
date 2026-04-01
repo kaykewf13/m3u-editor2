@@ -34,7 +34,7 @@ class ViewEpg extends ViewRecord
     {
         return [
             Action::make('refresh')
-                ->label('Process')
+                ->label(__('Process'))
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
                 ->action(function () {
@@ -50,18 +50,18 @@ class ViewEpg extends ViewRecord
                 })->after(function () {
                     Notification::make()
                         ->success()
-                        ->title('EPG is processing')
-                        ->body('EPG is being processed in the background. The view will update when complete.')
+                        ->title(__('EPG is processing'))
+                        ->body(__('EPG is being processed in the background. The view will update when complete.'))
                         ->duration(5000)
                         ->send();
                 })
                 ->disabled(fn () => $this->getRecord()->status === Status::Processing)
                 ->requiresConfirmation()
-                ->modalDescription('Process EPG now? This will reload the EPG data from the source.')
-                ->modalSubmitActionLabel('Yes, refresh now'),
+                ->modalDescription(__('Process EPG now? This will reload the EPG data from the source.'))
+                ->modalSubmitActionLabel(__('Yes, refresh now')),
 
             Action::make('cache')
-                ->label('Generate Cache')
+                ->label(__('Generate Cache'))
                 ->icon('heroicon-o-arrows-pointing-in')
                 ->color('gray')
                 ->action(function () {
@@ -75,18 +75,18 @@ class ViewEpg extends ViewRecord
                 })->after(function () {
                     Notification::make()
                         ->success()
-                        ->title('EPG Cache is being generated')
-                        ->body('EPG Cache is being generated in the background. You will be notified when complete.')
+                        ->title(__('EPG Cache is being generated'))
+                        ->body(__('EPG Cache is being generated in the background. You will be notified when complete.'))
                         ->duration(5000)
                         ->send();
                 })
                 ->disabled(fn () => $this->getRecord()->status === Status::Processing)
                 ->requiresConfirmation()
-                ->modalDescription('Generate EPG Cache now? This will create a cache for the EPG data.')
-                ->modalSubmitActionLabel('Yes, generate cache now'),
+                ->modalDescription(__('Generate EPG Cache now? This will create a cache for the EPG data.'))
+                ->modalSubmitActionLabel(__('Yes, generate cache now')),
 
             Action::make('download')
-                ->label('Download EPG')
+                ->label(__('Download EPG'))
                 ->icon('heroicon-o-arrow-down-tray')
                 ->url(fn () => route('epg.file', ['uuid' => $this->getRecord()->uuid]))
                 ->openUrlInNewTab(),
@@ -104,7 +104,7 @@ class ViewEpg extends ViewRecord
 
         return $schema
             ->schema([
-                Section::make('EPG Information')
+                Section::make(__('EPG Information'))
                     ->collapsible(true)
                     ->compact()
                     ->persistCollapsed(true)
@@ -118,31 +118,31 @@ class ViewEpg extends ViewRecord
                                     ->columns(1)
                                     ->schema([
                                         TextEntry::make('name')
-                                            ->label('Name'),
+                                            ->label(__('Name')),
                                         TextEntry::make('status')
                                             ->badge()
                                             ->color(fn ($state) => $state?->getColor()),
                                         TextEntry::make('synced')
-                                            ->label('Last Synced')
+                                            ->label(__('Last Synced'))
                                             ->since()
-                                            ->placeholder('Never'),
+                                            ->placeholder(__('Never')),
                                     ]),
                                 Grid::make()
                                     ->columnSpan(1)
                                     ->columns(1)
                                     ->schema([
                                         IconEntry::make('is_cached')
-                                            ->label('Cached')
+                                            ->label(__('Cached'))
                                             ->icon(fn (string $state): string => match ($state) {
                                                 '1' => 'heroicon-o-check-circle',
                                                 '0' => 'heroicon-o-x-mark',
                                                 default => 'heroicon-o-x-mark',
                                             }),
                                         TextEntry::make('channel_count')
-                                            ->label('Total Channels')
+                                            ->label(__('Total Channels'))
                                             ->badge(),
                                         TextEntry::make('programme_count')
-                                            ->label('Total Programmes')
+                                            ->label(__('Total Programmes'))
                                             ->badge(),
                                     ]),
                             ]),
@@ -152,7 +152,7 @@ class ViewEpg extends ViewRecord
                             ->schema([
 
                                 KeyValueEntry::make('cached_epg_meta')
-                                    ->label('Cache Metadata'),
+                                    ->label(__('Cache Metadata')),
                             ]),
                     ])
                     ->columns(3),

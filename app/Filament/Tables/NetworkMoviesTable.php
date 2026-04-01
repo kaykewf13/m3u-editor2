@@ -32,32 +32,32 @@ class NetworkMoviesTable
                 return $query;
             })
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->paginated([15, 25, 50, 100])
             ->defaultPaginationPageOption(15)
             ->defaultSort('title', 'asc')
             ->columns([
                 ImageColumn::make('logo')
-                    ->label('Cover')
+                    ->label(__('Cover'))
                     ->height(60)
                     ->width(40)
                     ->defaultImageUrl('/images/placeholder-movie.png'),
 
                 TextColumn::make('title')
-                    ->label('Movie Title')
+                    ->label(__('Movie Title'))
                     ->searchable()
                     ->sortable()
                     ->wrap(),
 
                 TextColumn::make('group')
-                    ->label('Group')
+                    ->label(__('Group'))
                     ->badge()
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('info.duration')
-                    ->label('Duration')
+                    ->label(__('Duration'))
                     ->getStateUsing(function ($record) {
                         $info = $record->info ?? [];
 
@@ -65,7 +65,7 @@ class NetworkMoviesTable
                     }),
 
                 TextColumn::make('info.rating')
-                    ->label('Rating')
+                    ->label(__('Rating'))
                     ->getStateUsing(function ($record) {
                         $info = $record->info ?? [];
 
@@ -74,7 +74,7 @@ class NetworkMoviesTable
             ])
             ->filters([
                 SelectFilter::make('group')
-                    ->label('Group')
+                    ->label(__('Group'))
                     ->attribute('group_id')
                     ->options(fn () => Group::where('playlist_id', $table->getArguments()['playlist_id'] ?? null)->pluck('name', 'id'))
                     ->searchable()

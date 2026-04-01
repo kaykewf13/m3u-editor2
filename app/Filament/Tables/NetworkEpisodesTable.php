@@ -33,7 +33,7 @@ class NetworkEpisodesTable
                 return $query;
             })
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->defaultGroup('series.name')
             ->defaultSort('series.name', 'asc')
@@ -42,7 +42,7 @@ class NetworkEpisodesTable
             ->defaultPaginationPageOption(15)
             ->columns([
                 ImageColumn::make('info.movie_image')
-                    ->label('Cover')
+                    ->label(__('Cover'))
                     ->height(60)
                     ->width(40)
                     ->getStateUsing(function ($record) {
@@ -53,35 +53,35 @@ class NetworkEpisodesTable
                     ->defaultImageUrl('/images/placeholder-episode.png'),
 
                 TextColumn::make('title')
-                    ->label('Episode Title')
+                    ->label(__('Episode Title'))
                     ->searchable()
                     ->sortable()
                     ->wrap(),
 
                 TextColumn::make('series.name')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->searchable()
                     ->toggleable()
                     ->sortable(),
 
                 TextColumn::make('series.category.name')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->searchable()
                     ->toggleable()
                     ->sortable(),
 
                 TextColumn::make('season')
-                    ->label('Season #')
+                    ->label(__('Season #'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('episode_num')
-                    ->label('Ep #')
+                    ->label(__('Ep #'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('info.duration')
-                    ->label('Duration')
+                    ->label(__('Duration'))
                     ->getStateUsing(function ($record) {
                         $info = $record->info ?? [];
 
@@ -90,13 +90,13 @@ class NetworkEpisodesTable
             ])
             ->filters([
                 SelectFilter::make('series')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->attribute('series_id')
                     ->options(fn () => Series::where('playlist_id', $table->getArguments()['playlist_id'] ?? null)->pluck('name', 'id'))
                     ->searchable()
                     ->preload(),
                 SelectFilter::make('category')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->options(fn () => Category::where('playlist_id', $table->getArguments()['playlist_id'] ?? null)->pluck('name', 'id'))
                     ->query(function (Builder $query, array $data): Builder {
                         if (empty($data['value'])) {

@@ -7,20 +7,24 @@ use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListPersonalAccessTokens extends ListRecords
 {
     protected static string $resource = PersonalAccessTokenResource::class;
 
-    protected ?string $subheading = 'Manage your API tokens. Tokens allow you to authenticate API requests for certain API actions.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Manage your API tokens. Tokens allow you to authenticate API requests for certain API actions.');
+    }
 
     protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
                 ->slideOver()
-                ->label('Add new API Token')
+                ->label(__('Add new API Token'))
                 ->schema(PersonalAccessTokenResource::getForm())
                 ->color('primary')
                 ->action(function (array $data) {
@@ -32,7 +36,7 @@ class ListPersonalAccessTokens extends ListRecords
                     );
                     Notification::make()
                         ->success()
-                        ->title('API Token Created')
+                        ->title(__('API Token Created'))
                         ->body("Copy this token and store it in a safe place, it won't be shown again: {$token->plainTextToken}")
                         ->persistent()
                         ->send();
@@ -40,10 +44,10 @@ class ListPersonalAccessTokens extends ListRecords
                 ->requiresConfirmation()
                 ->modalWidth('2xl')
                 ->modalIcon('heroicon-o-key')
-                ->modalDescription('Enter a name for the new API token, and select the permissions it should have. Permissions can be changed later.')
-                ->modalSubmitActionLabel('Create Token'),
+                ->modalDescription(__('Enter a name for the new API token, and select the permissions it should have. Permissions can be changed later.'))
+                ->modalSubmitActionLabel(__('Create Token')),
             Actions\Action::make('view_api_docs')
-                ->label('API Docs')
+                ->label(__('API Docs'))
                 ->icon('heroicon-o-arrow-top-right-on-square')
                 ->iconPosition('after')
                 ->color('gray')

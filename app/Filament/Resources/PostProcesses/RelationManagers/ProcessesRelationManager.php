@@ -32,9 +32,9 @@ class ProcessesRelationManager extends RelationManager
             ->components([
                 Select::make('processable_type')
                     ->required()
-                    ->label('Item type')
+                    ->label(__('Item type'))
                     ->live()
-                    ->helperText('The type of item to assign this post process to.')
+                    ->helperText(__('The type of item to assign this post process to.'))
                     ->options([
                         Playlist::class => 'Playlist',
                         Epg::class => 'EPG',
@@ -44,15 +44,15 @@ class ProcessesRelationManager extends RelationManager
 
                 Select::make('processable_id')
                     ->required()
-                    ->label('Playlist')
-                    ->helperText('Select the Playlist you would like to assign this post process to.')
+                    ->label(__('Playlist'))
+                    ->helperText(__('Select the Playlist you would like to assign this post process to.'))
                     ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                     ->hidden(fn ($get) => $get('processable_type') !== Playlist::class)
                     ->searchable(),
                 Select::make('processable_id')
                     ->required()
-                    ->label('EPG')
-                    ->helperText('Select the EPG you would like to assign this post process to.')
+                    ->label(__('EPG'))
+                    ->helperText(__('Select the EPG you would like to assign this post process to.'))
                     ->options(Epg::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                     ->hidden(fn ($get) => $get('processable_type') !== Epg::class)
                     ->searchable(),
@@ -60,7 +60,7 @@ class ProcessesRelationManager extends RelationManager
                 // @TODO: Add a select for the type of Event
 
                 TextInput::make('post_process_id')
-                    ->label('Post Process ID')
+                    ->label(__('Post Process ID'))
                     ->default($this->ownerRecord->id)
                     ->hidden(),
             ]);
@@ -72,7 +72,7 @@ class ProcessesRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->columns([
                 PivotNameColumn::make('name')
-                    ->label('Model'),
+                    ->label(__('Model')),
                 TextColumn::make('created_at')
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
                     ->sortable()
@@ -83,15 +83,15 @@ class ProcessesRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->label('Assign processing to item')
-                    ->modalHeading('Assign processing to item'),
+                    ->label(__('Assign processing to item'))
+                    ->modalHeading(__('Assign processing to item')),
             ])
             ->recordActions([
                 DeleteAction::make()
-                    ->label('Remove post processing from item')
-                    ->modalHeading('Remove post processing')
-                    ->modalDescription('Remove post processing from item?')
-                    ->modalSubmitActionLabel('Remove post processing')
+                    ->label(__('Remove post processing from item'))
+                    ->modalHeading(__('Remove post processing'))
+                    ->modalDescription(__('Remove post processing from item?'))
+                    ->modalSubmitActionLabel(__('Remove post processing'))
                     ->icon('heroicon-o-x-circle')
                     ->modalIcon('heroicon-o-x-circle')
                     ->button()
@@ -100,10 +100,10 @@ class ProcessesRelationManager extends RelationManager
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
-                        ->label('Remove post processing')
-                        ->modalHeading('Remove post processing')
-                        ->modalDescription('Remove post processing from selected item?')
-                        ->modalSubmitActionLabel('Remove')
+                        ->label(__('Remove post processing'))
+                        ->modalHeading(__('Remove post processing'))
+                        ->modalDescription(__('Remove post processing from selected item?'))
+                        ->modalSubmitActionLabel(__('Remove'))
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle'),
                 ]),

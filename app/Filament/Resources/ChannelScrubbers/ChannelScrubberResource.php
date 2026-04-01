@@ -45,7 +45,20 @@ class ChannelScrubberResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Playlist';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Playlist');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Channel Scrubber');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Channel Scrubbers');
+    }
 
     public static function canAccess(): bool
     {
@@ -81,45 +94,45 @@ class ChannelScrubberResource extends Resource
                     ->poll(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending ? '3s' : null)
                     ->toggleable(),
                 TextColumn::make('playlist.name')
-                    ->label('Playlist')
+                    ->label(__('Playlist'))
                     ->badge()
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('check_method')
-                    ->label('Method')
+                    ->label(__('Method'))
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => strtoupper($state))
                     ->color(fn (string $state): string => $state === 'ffprobe' ? 'warning' : 'info')
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('channel_count')
-                    ->label('Checked')
-                    ->tooltip('Total number of channels checked in the last run.')
+                    ->label(__('Checked'))
+                    ->tooltip(__('Total number of channels checked in the last run.'))
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('dead_count')
-                    ->label('Dead Links')
-                    ->tooltip('Number of channels with dead links found in the last run.')
+                    ->label(__('Dead Links'))
+                    ->tooltip(__('Number of channels with dead links found in the last run.'))
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'danger' : 'success')
                     ->toggleable()
                     ->sortable(),
                 ToggleColumn::make('include_vod')
-                    ->label('VOD')
-                    ->tooltip('Include VOD channels in the scrub.')
+                    ->label(__('VOD'))
+                    ->tooltip(__('Include VOD channels in the scrub.'))
                     ->toggleable()
                     ->sortable(),
                 ToggleColumn::make('recurring')
-                    ->tooltip('Run automatically after each playlist sync.')
+                    ->tooltip(__('Run automatically after each playlist sync.'))
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('sync_time')
-                    ->label('Sync Time')
+                    ->label(__('Sync Time'))
                     ->formatStateUsing(fn ($state): string => $state ? gmdate('H:i:s', (int) $state) : '-')
                     ->toggleable()
                     ->sortable(),
                 TextColumn::make('last_run_at')
-                    ->label('Last Ran')
+                    ->label(__('Last Ran'))
                     ->since()
                     ->sortable()
                     ->toggleable(),
@@ -136,18 +149,18 @@ class ChannelScrubberResource extends Resource
                     ->hiddenLabel(),
                 ViewAction::make()
                     ->button()
-                    ->tooltip('View scrubber logs')
+                    ->tooltip(__('View scrubber logs'))
                     ->icon('heroicon-s-document-text')
                     ->hiddenLabel(),
                 Action::make('run')
-                    ->label('Run Now')
+                    ->label(__('Run Now'))
                     ->icon('heroicon-s-play-circle')
                     ->button()
                     ->hiddenLabel()
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-s-arrow-path')
-                    ->modalDescription('Are you sure you want to manually trigger this scrubber to run? This will not modify the "Recurring" setting.')
-                    ->modalSubmitActionLabel('Run Now')
+                    ->modalDescription(__('Are you sure you want to manually trigger this scrubber to run? This will not modify the "Recurring" setting.'))
+                    ->modalSubmitActionLabel(__('Run Now'))
                     ->action(function ($record) {
                         $record->update([
                             'status' => Status::Processing,
@@ -158,23 +171,23 @@ class ChannelScrubberResource extends Resource
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel scrubber started')
-                            ->body('The scrubber has been initiated and will run in the background.')
+                            ->title(__('Channel scrubber started'))
+                            ->body(__('The scrubber has been initiated and will run in the background.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->hidden(fn ($record) => $record->status === Status::Processing || $record->status === Status::Pending)
-                    ->tooltip('Manually trigger this scrubber to run.'),
+                    ->tooltip(__('Manually trigger this scrubber to run.')),
                 Action::make('cancel')
-                    ->label('Cancel')
+                    ->label(__('Cancel'))
                     ->icon('heroicon-s-x-circle')
                     ->button()
                     ->hiddenLabel()
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-s-x-circle')
-                    ->modalDescription('Cancel this scrubber run? The current run will be abandoned. Any channels already disabled during this run will remain disabled.')
-                    ->modalSubmitActionLabel('Cancel Run')
+                    ->modalDescription(__('Cancel this scrubber run? The current run will be abandoned. Any channels already disabled during this run will remain disabled.'))
+                    ->modalSubmitActionLabel(__('Cancel Run'))
                     ->action(function ($record) {
                         $record->update([
                             'status' => Status::Cancelled,
@@ -184,22 +197,22 @@ class ChannelScrubberResource extends Resource
                     })->after(function () {
                         Notification::make()
                             ->warning()
-                            ->title('Scrubber run cancelled')
-                            ->body('The run has been cancelled. In-progress checks will complete before stopping.')
+                            ->title(__('Scrubber run cancelled'))
+                            ->body(__('The run has been cancelled. In-progress checks will complete before stopping.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->hidden(fn ($record) => ! ($record->status === Status::Processing || $record->status === Status::Pending))
-                    ->tooltip('Cancel the in-progress scrubber run.'),
+                    ->tooltip(__('Cancel the in-progress scrubber run.')),
                 Action::make('restart')
-                    ->label('Restart Now')
+                    ->label(__('Restart Now'))
                     ->icon('heroicon-s-arrow-path')
                     ->button()
                     ->hiddenLabel()
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-s-arrow-path')
-                    ->modalDescription('Restart this scrubber? The existing run will be abandoned and a new one will begin.')
-                    ->modalSubmitActionLabel('Restart Now')
+                    ->modalDescription(__('Restart this scrubber? The existing run will be abandoned and a new one will begin.'))
+                    ->modalSubmitActionLabel(__('Restart Now'))
                     ->action(function ($record) {
                         $record->update([
                             'status' => Status::Processing,
@@ -210,23 +223,23 @@ class ChannelScrubberResource extends Resource
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Channel scrubber restarted')
-                            ->body('The scrubber has been re-initiated.')
+                            ->title(__('Channel scrubber restarted'))
+                            ->body(__('The scrubber has been re-initiated.'))
                             ->duration(10000)
                             ->send();
                     })
                     ->hidden(fn ($record) => ! ($record->status === Status::Processing || $record->status === Status::Pending))
-                    ->tooltip('Restart the in-progress scrubber run.'),
+                    ->tooltip(__('Restart the in-progress scrubber run.')),
             ], position: RecordActionsPosition::BeforeCells)
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('run')
-                        ->label('Run Now')
+                        ->label(__('Run Now'))
                         ->icon('heroicon-s-play-circle')
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-s-arrow-path')
-                        ->modalDescription('Run the selected scrubbers now? This will not modify the "Recurring" setting.')
-                        ->modalSubmitActionLabel('Run Now')
+                        ->modalDescription(__('Run the selected scrubbers now? This will not modify the "Recurring" setting.'))
+                        ->modalSubmitActionLabel(__('Run Now'))
                         ->action(function ($records) {
                             foreach ($records as $record) {
                                 if ($record->status === Status::Processing || $record->status === Status::Pending) {
@@ -242,8 +255,8 @@ class ChannelScrubberResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channel scrubbers started')
-                                ->body('The selected scrubbers have been initiated.')
+                                ->title(__('Channel scrubbers started'))
+                                ->body(__('The selected scrubbers have been initiated.'))
                                 ->duration(10000)
                                 ->send();
                         }),
@@ -276,16 +289,16 @@ class ChannelScrubberResource extends Resource
                 ->columnSpanFull(),
             Select::make('playlist_id')
                 ->required()
-                ->label('Playlist')
-                ->helperText('Select the playlist whose channels you want to scrub.')
+                ->label(__('Playlist'))
+                ->helperText(__('Select the playlist whose channels you want to scrub.'))
                 ->options(Playlist::where('user_id', Auth::id())->get(['name', 'id'])->pluck('name', 'id'))
                 ->searchable(),
             Toggle::make('recurring')
-                ->label('Recurring')
+                ->label(__('Recurring'))
                 ->inline(false)
-                ->helperText('Automatically run this scrubber after each playlist sync.')
+                ->helperText(__('Automatically run this scrubber after each playlist sync.'))
                 ->default(false),
-            Section::make('Check Method')
+            Section::make(__('Check Method'))
                 ->icon('heroicon-s-signal')
                 ->compact()
                 ->columnSpanFull()
@@ -303,7 +316,7 @@ class ChannelScrubberResource extends Resource
                         ->default('http')
                         ->required(),
                 ]),
-            Section::make('Scan Scope')
+            Section::make(__('Scan Scope'))
                 ->icon('heroicon-s-exclamation-triangle')
                 ->compact()
                 ->columnSpanFull()
@@ -313,16 +326,16 @@ class ChannelScrubberResource extends Resource
                         ->columns(2)
                         ->schema([
                             Toggle::make('scan_all')
-                                ->label('Scan all channels (including disabled)')
+                                ->label(__('Scan all channels (including disabled)'))
                                 ->hintIcon(
                                     'heroicon-s-information-circle',
                                     tooltip: 'By default, only enabled channels are checked. Enabling this will also scan disabled channels. ',
                                 )
-                                ->helperText('Warning: this can result in a very large number of connections to the provider and significantly longer run times.')
+                                ->helperText(__('Warning: this can result in a very large number of connections to the provider and significantly longer run times.'))
                                 ->default(false),
                             Toggle::make('include_vod')
-                                ->label('Include VOD')
-                                ->helperText('Also check VOD channel links in addition to live channels.')
+                                ->label(__('Include VOD'))
+                                ->helperText(__('Also check VOD channel links in addition to live channels.'))
                                 ->default(false),
                         ]),
                 ]),

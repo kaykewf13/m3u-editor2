@@ -19,8 +19,8 @@ class ChannelImporter extends Importer
         return [
             Select::make('playlist')
                 ->required()
-                ->label('Playlist')
-                ->helperText('Select the playlist this import is associated with.')
+                ->label(__('Playlist'))
+                ->helperText(__('Select the playlist this import is associated with.'))
                 ->options(Playlist::where(['user_id' => auth()->id()])->get(['name', 'id'])->pluck('name', 'id'))
                 ->preload()
                 ->searchable(),

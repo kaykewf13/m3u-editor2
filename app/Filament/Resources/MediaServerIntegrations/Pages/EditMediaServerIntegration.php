@@ -23,24 +23,24 @@ class EditMediaServerIntegration extends EditRecord
             ActionGroup::make([
                 Action::make('sync')
                     ->disabled(fn ($record) => $record->status === 'processing')
-                    ->label('Sync Now')
+                    ->label(__('Sync Now'))
                     ->icon('heroicon-o-arrow-path')
                     ->requiresConfirmation()
-                    ->modalHeading('Sync Media Server')
-                    ->modalDescription('This will sync all content from the media server. For large libraries, this may take several minutes.')
+                    ->modalHeading(__('Sync Media Server'))
+                    ->modalDescription(__('This will sync all content from the media server. For large libraries, this may take several minutes.'))
                     ->action(function () {
                         app('Illuminate\Contracts\Bus\Dispatcher')
                             ->dispatch(new SyncMediaServer($this->record->id));
 
                         Notification::make()
                             ->success()
-                            ->title('Sync Started')
+                            ->title(__('Sync Started'))
                             ->body("Syncing content from {$this->record->name}. You'll be notified when complete.")
                             ->send();
                     }),
 
                 Action::make('test')
-                    ->label('Test Connection')
+                    ->label(__('Test Connection'))
                     ->icon('heroicon-o-signal')
                     ->action(function () {
                         $service = MediaServerService::make($this->record);
@@ -49,20 +49,20 @@ class EditMediaServerIntegration extends EditRecord
                         if ($result['success']) {
                             Notification::make()
                                 ->success()
-                                ->title('Connection Successful')
+                                ->title(__('Connection Successful'))
                                 ->body("Connected to {$result['server_name']} (v{$result['version']})")
                                 ->send();
                         } else {
                             Notification::make()
                                 ->danger()
-                                ->title('Connection Failed')
+                                ->title(__('Connection Failed'))
                                 ->body($result['message'])
                                 ->send();
                         }
                     }),
 
                 Action::make('viewPlaylist')
-                    ->label('View Playlist')
+                    ->label(__('View Playlist'))
                     ->icon('heroicon-o-eye')
                     ->url(fn () => $this->record->playlist_id
                         ? PlaylistResource::getUrl('view', ['record' => $this->record->playlist_id])
@@ -71,25 +71,25 @@ class EditMediaServerIntegration extends EditRecord
                     ->visible(fn () => $this->record->playlist_id !== null),
 
                 Action::make('cleanupDuplicates')
-                    ->label('Cleanup Duplicates')
+                    ->label(__('Cleanup Duplicates'))
                     ->icon('heroicon-o-trash')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->modalHeading('Cleanup Duplicate Series')
-                    ->modalDescription('This will find and merge duplicate series entries that were created due to sync format changes. Duplicate series without episodes will be removed, and their seasons will be merged into the series that has episodes.')
+                    ->modalHeading(__('Cleanup Duplicate Series'))
+                    ->modalDescription(__('This will find and merge duplicate series entries that were created due to sync format changes. Duplicate series without episodes will be removed, and their seasons will be merged into the series that has episodes.'))
                     ->action(function (MediaServerIntegration $record) {
                         $result = MediaServerIntegrationResource::cleanupDuplicateSeries($record);
 
                         if ($result['duplicates'] === 0) {
                             Notification::make()
                                 ->info()
-                                ->title('No Duplicates Found')
-                                ->body('No duplicate series were found for this media server.')
+                                ->title(__('No Duplicates Found'))
+                                ->body(__('No duplicate series were found for this media server.'))
                                 ->send();
                         } else {
                             Notification::make()
                                 ->success()
-                                ->title('Cleanup Complete')
+                                ->title(__('Cleanup Complete'))
                                 ->body("Merged {$result['duplicates']} duplicate series and deleted {$result['deleted']} orphaned entries.")
                                 ->send();
                         }

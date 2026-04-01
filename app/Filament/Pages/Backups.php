@@ -18,9 +18,15 @@ class Backups extends BaseBackups
 {
     protected static string|\BackedEnum|null $navigationIcon = '';
 
-    protected static ?string $navigationLabel = 'Backup & Restore';
+    public static function getNavigationLabel(): string
+    {
+        return __('Backup & Restore');
+    }
 
-    protected ?string $subheading = 'NOTE: Restoring a backup will overwrite any existing data. Your manually uploaded EPG and Playlist files will NOT be restored. You will need to download the backup and manually re-upload where needed.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('NOTE: Restoring a backup will overwrite any existing data. Your manually uploaded EPG and Playlist files will NOT be restored. You will need to download the backup and manually re-upload where needed.');
+    }
 
     protected static ?int $navigationSort = 3;
 
@@ -52,8 +58,8 @@ class Backups extends BaseBackups
                     ->schema([
                         Select::make('backup')
                             ->required()
-                            ->label('Backup file')
-                            ->helperText('Select the backup you would like to restore.')
+                            ->label(__('Backup file'))
+                            ->helperText(__('Select the backup you would like to restore.'))
                             ->options($data->pluck('path', 'path'))
                             ->searchable(),
                     ])
@@ -63,22 +69,22 @@ class Backups extends BaseBackups
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Backup is being restored')
-                            ->body('Backup is being restored in the background. Depending on the size of the backup, this could take a while.')
+                            ->title(__('Backup is being restored'))
+                            ->body(__('Backup is being restored in the background. Depending on the size of the backup, this could take a while.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->modalIcon('heroicon-o-arrow-path')
-                    ->modalDescription('NOTE: Only the database will be restored, which will overwrite any existing data with the backup data. Files will not be automatically restored, you will need to manually re-upload them where needed.')
-                    ->modalSubmitActionLabel('Restore now'),
+                    ->modalDescription(__('NOTE: Only the database will be restored, which will overwrite any existing data with the backup data. Files will not be automatically restored, you will need to manually re-upload them where needed.'))
+                    ->modalSubmitActionLabel(__('Restore now')),
                 Action::make('Upload Backup')
                     ->schema([
                         FileUpload::make('backup')
                             ->required()
-                            ->label('Backup file (.ZIP files only)')
-                            ->helperText('Select the backup file you would like to upload.')
+                            ->label(__('Backup file (.ZIP files only)'))
+                            ->helperText(__('Select the backup file you would like to upload.'))
                             ->preserveFilenames()
                             ->moveFiles()
                             ->disk('local')
@@ -94,21 +100,21 @@ class Backups extends BaseBackups
                     ->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Backup has been uploaded')
-                            ->body('Backup file has been uploaded, you can now restore it if needed.')
+                            ->title(__('Backup has been uploaded'))
+                            ->body(__('Backup file has been uploaded, you can now restore it if needed.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('gray')
                     ->modalIcon('heroicon-o-arrow-up-tray')
-                    ->modalDescription('NOTE: Only properly formatted backups will be accepted. If the backup is not valid, you will receive an error when attempting to restore.')
-                    ->modalSubmitActionLabel('Upload now'),
+                    ->modalDescription(__('NOTE: Only properly formatted backups will be accepted. If the backup is not valid, you will receive an error when attempting to restore.'))
+                    ->modalSubmitActionLabel(__('Upload now')),
                 Action::make('Create Backup')
                     ->schema([
                         Toggle::make('include_files')
-                            ->label('Include Files')
-                            ->helperText('When enabled, the backup will include your uploaded Playlist and EPG files.'),
+                            ->label(__('Include Files'))
+                            ->helperText(__('When enabled, the backup will include your uploaded Playlist and EPG files.')),
                     ])
                     ->action(function (array $data): void {
                         app('Illuminate\Contracts\Bus\Dispatcher')
@@ -116,28 +122,28 @@ class Backups extends BaseBackups
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Backup is being created')
-                            ->body('Backup is being created in the background. Depending on the size of your database and files, this could take a while.')
+                            ->title(__('Backup is being created'))
+                            ->body(__('Backup is being created in the background. Depending on the size of your database and files, this could take a while.'))
                             ->send();
                     })
                     ->requiresConfirmation()
                     ->icon('heroicon-o-archive-box-arrow-down')
                     ->color('primary')
                     ->modalIcon('heroicon-o-archive-box-arrow-down')
-                    ->modalDescription('NOTE: When restoring a backup, only the database will be restored, files will not be automatically restored. You will need to manually re-upload them where needed.')
-                    ->modalSubmitActionLabel('Create now'),
-            ])->button()->label('Actions'),
+                    ->modalDescription(__('NOTE: When restoring a backup, only the database will be restored, files will not be automatically restored. You will need to manually re-upload them where needed.'))
+                    ->modalSubmitActionLabel(__('Create now')),
+            ])->button()->label(__('Actions')),
         ];
     }
 
     public function getHeading(): string|Htmlable
     {
-        return 'Manage Backups';
+        return __('Manage Backups');
     }
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Tools';
+        return __('Tools');
     }
 
     public function shouldDisplayStatusListRecords(): bool

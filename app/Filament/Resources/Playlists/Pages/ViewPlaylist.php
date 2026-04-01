@@ -24,14 +24,14 @@ class ViewPlaylist extends ViewRecord
     {
         return [
             EditAction::make()
-                ->label('Edit Playlist')
+                ->label(__('Edit Playlist'))
                 ->icon('heroicon-m-pencil')
                 ->color('gray')
                 ->action(function () {
                     $this->redirect($this->getRecord()->getUrl('edit'));
                 }),
             Action::make('view_sync_logs')
-                ->label('View Sync Logs')
+                ->label(__('View Sync Logs'))
                 ->color('gray')
                 ->icon('heroicon-m-arrows-right-left')
                 ->url(function (): string {

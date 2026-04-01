@@ -35,7 +35,7 @@ class ScrubberLogsRelationManager extends RelationManager
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('created_at')
-                    ->label('Ran At')
+                    ->label(__('Ran At'))
                     ->formatStateUsing(fn ($state) => app(DateFormatService::class)->format($state))
                     ->sortable()
                     ->toggleable(),
@@ -50,23 +50,23 @@ class ScrubberLogsRelationManager extends RelationManager
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('channel_count')
-                    ->label('Channels Checked')
+                    ->label(__('Channels Checked'))
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('dead_count')
-                    ->label('Dead Links')
+                    ->label(__('Dead Links'))
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'danger' : 'success')
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('disabled_count')
-                    ->label('Channels Disabled')
+                    ->label(__('Channels Disabled'))
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'warning' : 'success')
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('runtime')
-                    ->label('Runtime')
+                    ->label(__('Runtime'))
                     ->formatStateUsing(fn ($state): string => $state ? gmdate('H:i:s', (int) $state) : '-')
                     ->sortable()
                     ->toggleable(),
@@ -78,7 +78,7 @@ class ScrubberLogsRelationManager extends RelationManager
                 Action::make('view')
                     ->icon('heroicon-s-eye')
                     ->button()->hiddenLabel()->size('sm')
-                    ->tooltip('View log details')
+                    ->tooltip(__('View log details'))
                     ->url(function ($record): string {
                         return "/channel-scrubbers/{$this->getOwnerRecord()->id}/channel-scrubber-logs/{$record->id}";
                     }),

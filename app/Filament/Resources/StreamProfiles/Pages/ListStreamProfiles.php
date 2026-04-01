@@ -7,19 +7,23 @@ use App\Models\StreamProfile;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListStreamProfiles extends ListRecords
 {
     protected static string $resource = StreamProfileResource::class;
 
-    protected ?string $subheading = 'Stream profiles are used to define how streams are transcoded by the proxy. They can be assigned to playlists to enable transcoding for those playlists. If a playlist does not have a stream profile assigned, direct stream proxying will be used.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Stream profiles are used to define how streams are transcoded by the proxy. They can be assigned to playlists to enable transcoding for those playlists. If a playlist does not have a stream profile assigned, direct stream proxying will be used.');
+    }
 
     protected function getHeaderActions(): array
     {
         return [
             Actions\Action::make('generate_default_profiles')
-                ->label('Generate Default Profiles')
+                ->label(__('Generate Default Profiles'))
                 ->requiresConfirmation()
                 ->action(function () {
                     $defaultProfiles = [
@@ -45,14 +49,14 @@ class ListStreamProfiles extends ListRecords
                 })
                 ->after(function () {
                     Notification::make()
-                        ->title('Default stream profiles have been generated!')
+                        ->title(__('Default stream profiles have been generated!'))
                         ->success()
                         ->send();
                 })
                 ->color('success')
                 ->icon('heroicon-o-check-badge'),
             Actions\CreateAction::make()
-                ->label('New Profile')
+                ->label(__('New Profile'))
                 ->slideOver(),
         ];
     }

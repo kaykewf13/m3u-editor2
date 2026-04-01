@@ -31,43 +31,43 @@ class ViewChannelScrubber extends ViewRecord
     public function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Scrubber Details')
+            Section::make(__('Scrubber Details'))
                 ->columns(3)
                 ->compact()
                 ->collapsed(true)
                 ->schema([
                     Infolists\Components\TextEntry::make('name'),
                     Infolists\Components\TextEntry::make('playlist.name')
-                        ->label('Playlist')
+                        ->label(__('Playlist'))
                         ->badge(),
                     Infolists\Components\TextEntry::make('status')
                         ->badge()
                         ->color(fn ($state) => $state->getColor()),
                     Infolists\Components\TextEntry::make('check_method')
-                        ->label('Check Method')
+                        ->label(__('Check Method'))
                         ->formatStateUsing(fn (string $state): string => strtoupper($state))
                         ->badge()
                         ->color(fn (string $state): string => $state === 'ffprobe' ? 'warning' : 'info'),
                     Infolists\Components\TextEntry::make('channel_count')
-                        ->label('Last Channels Checked'),
+                        ->label(__('Last Channels Checked')),
                     Infolists\Components\TextEntry::make('dead_count')
-                        ->label('Last Dead Links')
+                        ->label(__('Last Dead Links'))
                         ->badge()
                         ->color(fn ($state) => $state > 0 ? 'danger' : 'success'),
                     Infolists\Components\IconEntry::make('include_vod')
-                        ->label('Includes VOD')
+                        ->label(__('Includes VOD'))
                         ->boolean(),
                     Infolists\Components\IconEntry::make('scan_all')
-                        ->label('Scans All Channels')
+                        ->label(__('Scans All Channels'))
                         ->boolean(),
                     Infolists\Components\IconEntry::make('recurring')
-                        ->label('Recurring')
+                        ->label(__('Recurring'))
                         ->boolean(),
                     Infolists\Components\TextEntry::make('sync_time')
-                        ->label('Last Runtime')
+                        ->label(__('Last Runtime'))
                         ->formatStateUsing(fn ($state): string => $state ? gmdate('H:i:s', (int) $state) : '-'),
                     Infolists\Components\TextEntry::make('last_run_at')
-                        ->label('Last Ran')
+                        ->label(__('Last Ran'))
                         ->since(),
                 ]),
         ]);

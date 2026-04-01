@@ -18,7 +18,10 @@ class VodRelationManager extends RelationManager
 
     protected static ?string $title = 'VOD Channels';
 
-    protected static ?string $navigationLabel = 'VOD Channels';
+    public static function getNavigationLabel(): string
+    {
+        return __('VOD Channels');
+    }
 
     protected $listeners = ['refreshRelation' => '$refresh'];
 
@@ -41,7 +44,7 @@ class VodRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         $table = $table->reorderRecordsTriggerAction(function ($action) {
-            return $action->button()->label('Sort');
+            return $action->button()->label(__('Sort'));
         })->defaultSort('sort', 'asc')->reorderable('sort');
 
         return VodResource::setupTable($table, $this->ownerRecord->id);

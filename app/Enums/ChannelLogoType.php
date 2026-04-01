@@ -18,8 +18,8 @@ enum ChannelLogoType: string
     public function getLabel(): ?string
     {
         return match ($this) {
-            self::Channel => 'Channel',
-            self::Epg => 'EPG',
+            self::Channel => __('Channel'),
+            self::Epg => __('EPG'),
         };
     }
 }

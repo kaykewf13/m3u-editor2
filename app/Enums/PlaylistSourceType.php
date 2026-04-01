@@ -11,4 +11,17 @@ enum PlaylistSourceType: string
     case Jellyfin = 'jellyfin';
     case Plex = 'plex';
     case LocalMedia = 'local_media';
+
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::Xtream => __('Xtream'),
+            self::M3u => __('M3U'),
+            self::Local => __('Local File'),
+            self::Emby => __('Emby'),
+            self::Jellyfin => __('Jellyfin'),
+            self::Plex => __('Plex'),
+            self::LocalMedia => __('Local Media'),
+        };
+    }
 }

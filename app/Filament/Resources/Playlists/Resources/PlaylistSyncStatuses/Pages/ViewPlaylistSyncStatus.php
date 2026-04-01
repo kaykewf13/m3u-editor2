@@ -14,7 +14,7 @@ class ViewPlaylistSyncStatus extends ViewRecord
     {
         return [
             Actions\Action::make('back_to_sync_statuses')
-                ->label('Back to Sync Statuses')
+                ->label(__('Back to Sync Statuses'))
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(function (): string {

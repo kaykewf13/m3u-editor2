@@ -15,7 +15,7 @@ class ListChannelScrubberLogs extends ListRecords
     {
         return [
             Action::make('back')
-                ->label('Back to Scrubbers')
+                ->label(__('Back to Scrubbers'))
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(fn () => ChannelScrubberResource::getIndexUrl()),

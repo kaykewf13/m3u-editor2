@@ -57,7 +57,20 @@ class GroupResource extends Resource
         return ['name', 'name_internal'];
     }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Live Channels';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Live Channels');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Group');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Groups');
+    }
 
     public static function getNavigationSort(): ?int
     {
@@ -80,10 +93,10 @@ class GroupResource extends Resource
                     ->where('type', 'live');
             })
             ->filtersTriggerAction(function ($action) {
-                return $action->button()->label('Filters');
+                return $action->button()->label(__('Filters'));
             })
             ->reorderRecordsTriggerAction(function ($action) {
-                return $action->button()->label('Sort');
+                return $action->button()->label(__('Sort'));
             })
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(25)
@@ -91,7 +104,7 @@ class GroupResource extends Resource
             ->reorderable('sort_order')
             ->columns([
                 TextInputColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->rules(['min:0', 'max:255'])
                     ->placeholder(fn ($record) => $record->name_internal)
                     ->searchable()
@@ -102,32 +115,32 @@ class GroupResource extends Resource
                     })
                     ->toggleable(),
                 TextInputColumn::make('sort_order')
-                    ->label('Sort Order')
+                    ->label(__('Sort Order'))
                     ->rules(['min:0'])
                     ->type('number')
-                    ->placeholder('Sort Order')
+                    ->placeholder(__('Sort Order'))
                     ->sortable()
                     ->tooltip(fn ($record) => $record->playlist->auto_sort ? 'Playlist auto-sort enabled; any changes will be overwritten on next sync' : 'Group sort order')
                     ->toggleable(),
                 ToggleColumn::make('enabled')
-                    ->label('Auto Enable')
+                    ->label(__('Auto Enable'))
                     ->toggleable()
-                    ->tooltip('Auto enable newly added group channels')
+                    ->tooltip(__('Auto enable newly added group channels'))
                     ->tooltip(fn ($record) => $record->playlist?->enable_channels ? 'Playlist auto-enable new channels is enabled, all group channels will automatically be enabled on next sync.' : 'Auto enable newly added group channels')
                     ->disabled(fn ($record) => $record->playlist?->enable_channels)
                     ->getStateUsing(fn ($record) => $record->playlist?->enable_channels ? true : $record->enabled)
                     ->sortable(),
                 TextColumn::make('name_internal')
-                    ->label('Default name')
+                    ->label(__('Default name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('live_channels_count')
-                    ->label('Live Channels')
+                    ->label(__('Live Channels'))
                     ->description(fn (Group $record): string => "Enabled: {$record->enabled_live_channels_count}")
                     ->toggleable()
                     ->sortable(),
                 IconColumn::make('custom')
-                    ->label('Custom')
+                    ->label(__('Custom'))
                     ->icon(fn (string $state): string => match ($state) {
                         '1' => 'heroicon-o-check-circle',
                         '0' => 'heroicon-o-minus-circle',
@@ -159,18 +172,18 @@ class GroupResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Group channels added to custom playlist')
-                                ->body('The groups channels have been added to the chosen custom playlist.')
+                                ->title(__('Group channels added to custom playlist'))
+                                ->body(__('The groups channels have been added to the chosen custom playlist.'))
                                 ->send();
                         }),
                     Action::make('move')
-                        ->label('Move Channels to Group')
+                        ->label(__('Move Channels to Group'))
                         ->schema([
                             Select::make('group')
                                 ->required()
                                 ->live()
-                                ->label('Group')
-                                ->helperText('Select the group you would like to move the channels to.')
+                                ->label(__('Group'))
+                                ->helperText(__('Select the group you would like to move the channels to.'))
                                 ->options(fn (Get $get, $record) => Group::where([
                                     'type' => 'live',
                                     'user_id' => auth()->id(),
@@ -187,22 +200,22 @@ class GroupResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channels moved to group')
-                                ->body('The group channels have been moved to the chosen group.')
+                                ->title(__('Channels moved to group'))
+                                ->body(__('The group channels have been moved to the chosen group.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-right-left')
                         ->modalIcon('heroicon-o-arrows-right-left')
-                        ->modalDescription('Move the group channels to the another group.')
-                        ->modalSubmitActionLabel('Move now'),
+                        ->modalDescription(__('Move the group channels to the another group.'))
+                        ->modalSubmitActionLabel(__('Move now')),
 
                     Action::make('recount')
-                        ->label('Recount Channels')
+                        ->label(__('Recount Channels'))
                         ->icon('heroicon-o-hashtag')
                         ->schema([
                             TextInput::make('start')
-                                ->label('Start Number')
+                                ->label(__('Start Number'))
                                 ->numeric()
                                 ->default(1)
                                 ->required(),
@@ -214,19 +227,19 @@ class GroupResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channels Recounted')
-                                ->body('The channels in this group have been recounted.')
+                                ->title(__('Channels Recounted'))
+                                ->body(__('The channels in this group have been recounted.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-o-hashtag')
-                        ->modalDescription('Recount all channels in this group sequentially? Channel numbers will be assigned based on the current sort order.'),
+                        ->modalDescription(__('Recount all channels in this group sequentially? Channel numbers will be assigned based on the current sort order.')),
                     Action::make('sort_alpha')
-                        ->label('Sort Alpha')
+                        ->label(__('Sort Alpha'))
                         ->icon('heroicon-o-bars-arrow-down')
                         ->schema([
                             Select::make('column')
-                                ->label('Sort By')
+                                ->label(__('Sort By'))
                                 ->options([
                                     'title' => 'Title (or override if set)',
                                     'name' => 'Name (or override if set)',
@@ -236,7 +249,7 @@ class GroupResource extends Resource
                                 ->default('title')
                                 ->required(),
                             Select::make('sort')
-                                ->label('Sort Order')
+                                ->label(__('Sort Order'))
                                 ->options([
                                     'ASC' => 'A to Z or 0 to 9',
                                     'DESC' => 'Z to A or 9 to 0',
@@ -252,33 +265,33 @@ class GroupResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channels Sorted')
-                                ->body('The channels in this group have been sorted alphabetically.')
+                                ->title(__('Channels Sorted'))
+                                ->body(__('The channels in this group have been sorted alphabetically.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-o-bars-arrow-down')
-                        ->modalDescription('Sort all channels in this group alphabetically? This will update the sort order.'),
+                        ->modalDescription(__('Sort all channels in this group alphabetically? This will update the sort order.')),
 
                     PlaylistService::getMergeAction(groupScoped: true)
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channel merge started')
-                                ->body('Merging channels in the background for this group only. You will be notified once the process is complete.')
+                                ->title(__('Channel merge started'))
+                                ->body(__('Merging channels in the background for this group only. You will be notified once the process is complete.'))
                                 ->send();
                         }),
                     PlaylistService::getUnmergeAction(groupScoped: true)
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channel unmerge started')
-                                ->body('Unmerging channels for this group in the background. You will be notified once the process is complete.')
+                                ->title(__('Channel unmerge started'))
+                                ->body(__('Unmerging channels for this group in the background. You will be notified once the process is complete.'))
                                 ->send();
                         }),
 
                     Action::make('enable')
-                        ->label('Enable group channels')
+                        ->label(__('Enable group channels'))
                         ->action(function (Group $record): void {
                             $record->channels()->update([
                                 'enabled' => true,
@@ -295,18 +308,18 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_enable'));
                             Notification::make()
                                 ->success()
-                                ->title('Group channels enabled')
-                                ->body('The group channels have been enabled.')
+                                ->title(__('Group channels enabled'))
+                                ->body(__('The group channels have been enabled.'))
                                 ->send();
                         })
                         ->color('success')
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable group channels now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable group channels now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     Action::make('disable')
-                        ->label('Disable group channels')
+                        ->label(__('Disable group channels'))
                         ->action(function ($record): void {
                             $record->channels()->update([
                                 'enabled' => false,
@@ -315,16 +328,16 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_disable'));
                             Notification::make()
                                 ->success()
-                                ->title('Group channels disabled')
-                                ->body('The groups channels have been disabled.')
+                                ->title(__('Group channels disabled'))
+                                ->body(__('The groups channels have been disabled.'))
                                 ->send();
                         })
                         ->color('warning')
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable group channels now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable group channels now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                     DeleteAction::make()
                         ->hidden(fn ($record) => ! $record->custom)
                         ->using(fn ($record) => $record->forceDelete()),
@@ -339,18 +352,18 @@ class GroupResource extends Resource
                     })->after(function () {
                         Notification::make()
                             ->success()
-                            ->title('Group channels added to custom playlist')
-                            ->body('The groups channels have been added to the chosen custom playlist.')
+                            ->title(__('Group channels added to custom playlist'))
+                            ->body(__('The groups channels have been added to the chosen custom playlist.'))
                             ->send();
                     }),
                     BulkAction::make('move')
-                        ->label('Move Channels to Group')
+                        ->label(__('Move Channels to Group'))
                         ->schema([
                             Select::make('group')
                                 ->required()
                                 ->live()
-                                ->label('Group')
-                                ->helperText('Select the group you would like to move the channels to.')
+                                ->label(__('Group'))
+                                ->helperText(__('Select the group you would like to move the channels to.'))
                                 ->options(
                                     fn () => Group::query()
                                         ->with(['playlist'])
@@ -371,7 +384,7 @@ class GroupResource extends Resource
                                 if ($group->playlist_id !== $record->playlist_id) {
                                     Notification::make()
                                         ->warning()
-                                        ->title('Warning')
+                                        ->title(__('Warning'))
                                         ->body("Cannot move \"{$group->name}\" to \"{$record->name}\" as they belong to different playlists.")
                                         ->persistent()
                                         ->send();
@@ -386,17 +399,17 @@ class GroupResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channels moved to group')
-                                ->body('The group channels have been moved to the chosen group.')
+                                ->title(__('Channels moved to group'))
+                                ->body(__('The group channels have been moved to the chosen group.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrows-right-left')
                         ->modalIcon('heroicon-o-arrows-right-left')
-                        ->modalDescription('Move the group channels to the another group.')
-                        ->modalSubmitActionLabel('Move now'),
+                        ->modalDescription(__('Move the group channels to the another group.'))
+                        ->modalSubmitActionLabel(__('Move now')),
                     BulkAction::make('enable')
-                        ->label('Enable Group Channels')
+                        ->label(__('Enable Group Channels'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->channels()->update([
@@ -415,18 +428,18 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_bulk_enable'));
                             Notification::make()
                                 ->success()
-                                ->title('Selected group channels enabled')
-                                ->body('The selected group channels have been enabled.')
+                                ->title(__('Selected group channels enabled'))
+                                ->body(__('The selected group channels have been enabled.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected group(s) channels now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected group(s) channels now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     BulkAction::make('disable')
-                        ->label('Disable Group Channels')
+                        ->label(__('Disable Group Channels'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->channels()->update([
@@ -437,18 +450,18 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_bulk_disable'));
                             Notification::make()
                                 ->success()
-                                ->title('Selected group channels disabled')
-                                ->body('The selected groups channels have been disabled.')
+                                ->title(__('Selected group channels disabled'))
+                                ->body(__('The selected groups channels have been disabled.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected group(s) channels now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected group(s) channels now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                     BulkAction::make('enable_groups')
-                        ->label('Enable Groups')
+                        ->label(__('Enable Groups'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -459,8 +472,8 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_bulk_enable_groups'));
                             Notification::make()
                                 ->success()
-                                ->title('Selected groups enabled')
-                                ->body('The selected groups have been enabled.')
+                                ->title(__('Selected groups enabled'))
+                                ->body(__('The selected groups have been enabled.'))
                                 ->send();
                         })
                         ->color('success')
@@ -468,10 +481,10 @@ class GroupResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-check-circle')
                         ->modalIcon('heroicon-o-check-circle')
-                        ->modalDescription('Enable the selected group(s) now?')
-                        ->modalSubmitActionLabel('Yes, enable now'),
+                        ->modalDescription(__('Enable the selected group(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, enable now')),
                     BulkAction::make('disable_groups')
-                        ->label('Disable Groups')
+                        ->label(__('Disable Groups'))
                         ->action(function (Collection $records): void {
                             foreach ($records as $record) {
                                 $record->update([
@@ -482,8 +495,8 @@ class GroupResource extends Resource
                             dispatch(new SyncPlexDvrJob(trigger: 'group_bulk_disable_groups'));
                             Notification::make()
                                 ->success()
-                                ->title('Selected groups disabled')
-                                ->body('The selected groups have been disabled.')
+                                ->title(__('Selected groups disabled'))
+                                ->body(__('The selected groups have been disabled.'))
                                 ->send();
                         })
                         ->color('warning')
@@ -491,14 +504,14 @@ class GroupResource extends Resource
                         ->requiresConfirmation()
                         ->icon('heroicon-o-x-circle')
                         ->modalIcon('heroicon-o-x-circle')
-                        ->modalDescription('Disable the selected group(s) now?')
-                        ->modalSubmitActionLabel('Yes, disable now'),
+                        ->modalDescription(__('Disable the selected group(s) now?'))
+                        ->modalSubmitActionLabel(__('Yes, disable now')),
                     BulkAction::make('recount_channels')
-                        ->label('Recount Channels')
+                        ->label(__('Recount Channels'))
                         ->icon('heroicon-o-hashtag')
                         ->form([
                             TextInput::make('start')
-                                ->label('Start Number')
+                                ->label(__('Start Number'))
                                 ->numeric()
                                 ->default(1)
                                 ->required(),
@@ -520,16 +533,16 @@ class GroupResource extends Resource
                         ->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Channels Recounted')
-                                ->body('The channels in the selected groups have been recounted sequentially.')
+                                ->title(__('Channels Recounted'))
+                                ->body(__('The channels in the selected groups have been recounted sequentially.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
                         ->requiresConfirmation()
                         ->modalIcon('heroicon-o-hashtag')
-                        ->modalDescription('Recount channels across selected groups? This will renumber channels sequentially starting from the top-most selected group down to the bottom-most.'),
+                        ->modalDescription(__('Recount channels across selected groups? This will renumber channels sequentially starting from the top-most selected group down to the bottom-most.')),
                     BulkAction::make('find-replace')
-                        ->label('Find & Replace')
+                        ->label(__('Find & Replace'))
                         ->schema(fn () => FindReplaceService::getBulkActionSchema('groups'))
                         ->action(function (Collection $records, array $data): void {
                             app('Illuminate\Contracts\Bus\Dispatcher')
@@ -543,18 +556,18 @@ class GroupResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace started')
-                                ->body('Find & Replace working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace started'))
+                                ->body(__('Find & Replace working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-magnifying-glass')
                         ->color('gray')
                         ->modalIcon('heroicon-o-magnifying-glass')
-                        ->modalDescription('Select what you would like to find and replace in the selected group names.')
-                        ->modalSubmitActionLabel('Replace now'),
+                        ->modalDescription(__('Select what you would like to find and replace in the selected group names.'))
+                        ->modalSubmitActionLabel(__('Replace now')),
                     BulkAction::make('find-replace-reset')
-                        ->label('Undo Find & Replace')
+                        ->label(__('Undo Find & Replace'))
                         ->action(function (Collection $records): void {
                             app('Illuminate\Contracts\Bus\Dispatcher')
                                 ->dispatch(new GroupFindAndReplaceReset(
@@ -564,16 +577,16 @@ class GroupResource extends Resource
                         })->after(function () {
                             Notification::make()
                                 ->success()
-                                ->title('Find & Replace reset started')
-                                ->body('Find & Replace reset working in the background. You will be notified once the process is complete.')
+                                ->title(__('Find & Replace reset started'))
+                                ->body(__('Find & Replace reset working in the background. You will be notified once the process is complete.'))
                                 ->send();
                         })
                         ->requiresConfirmation()
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->modalIcon('heroicon-o-arrow-uturn-left')
-                        ->modalDescription('Reset group names back to their original imported values? This will undo any find & replace changes.')
-                        ->modalSubmitActionLabel('Reset now'),
+                        ->modalDescription(__('Reset group names back to their original imported values? This will undo any find & replace changes.'))
+                        ->modalSubmitActionLabel(__('Reset now')),
                 ]),
             ]);
     }
@@ -602,27 +615,27 @@ class GroupResource extends Resource
                 ->maxLength(255),
             Toggle::make('enabled')
                 ->inline(false)
-                ->label('Auto Enable New Channels')
-                ->helperText('Automatically enable newly added channels to this group.')
+                ->label(__('Auto Enable New Channels'))
+                ->helperText(__('Automatically enable newly added channels to this group.'))
                 ->default(true),
             Select::make('playlist_id')
                 ->required()
-                ->label('Playlist')
+                ->label(__('Playlist'))
                 ->relationship(name: 'playlist', titleAttribute: 'name')
-                ->helperText('Select the playlist you would like to add the group to.')
+                ->helperText(__('Select the playlist you would like to add the group to.'))
                 ->preload()
                 ->hiddenOn(['edit'])
                 ->searchable(),
             TextInput::make('sort_order')
-                ->label('Sort Order')
+                ->label(__('Sort Order'))
                 ->numeric()
                 ->default(9999)
-                ->helperText('Enter a number to define the sort order (e.g., 1, 2, 3). Lower numbers appear first.')
+                ->helperText(__('Enter a number to define the sort order (e.g., 1, 2, 3). Lower numbers appear first.'))
                 ->rules(['integer', 'min:0']),
         ];
 
         return [
-            Section::make('Group Settings')
+            Section::make(__('Group Settings'))
                 ->compact()
                 ->columns(2)
                 ->icon('heroicon-s-cog')

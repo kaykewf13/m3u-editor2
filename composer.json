@@ -12,6 +12,7 @@
         "php": "^8.2",
         "ashallendesign/short-url": "^8.3",
         "calebporzio/sushi": "^2.5",
+        "craft-forge/filament-language-switcher": "^1.2",
         "dedoc/scramble": "^0.13.10",
         "dragonmantank/cron-expression": "^3.4",
         "filament/filament": "^5.0",
@@ -33,6 +34,7 @@
         "spatie/laravel-tags": "^4.10",
         "spatie/temporary-directory": "^2.3",
         "stechstudio/filament-impersonate": "^5.0",
+        "stichoza/google-translate-php": "^5.3",
         "wnx/laravel-backup-restore": "^1.6"
     },
     "require-dev": {

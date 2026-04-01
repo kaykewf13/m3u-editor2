@@ -46,7 +46,20 @@ class PostProcessResource extends Resource
 
     protected static ?string $pluralLabel = 'Post Processing';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Tools';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Tools');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Post Process');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Post Processing');
+    }
 
     protected static ?int $navigationSort = 4;
 
@@ -75,13 +88,13 @@ class PostProcessResource extends Resource
         return $table
             ->columns([
                 // Tables\Columns\TextInputColumn::make('name')
-                //     ->label('Name')
+                //     ->label(__('Name'))
                 //     ->rules(['min:0', 'max:255'])
                 //     ->required()
                 //     ->searchable()
                 //     ->toggleable(),
                 TextColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->searchable()
                     ->toggleable(),
                 ToggleColumn::make('enabled')
@@ -91,7 +104,7 @@ class PostProcessResource extends Resource
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('processes_count')
-                    ->label('Items')
+                    ->label(__('Items'))
                     ->counts('processes')
                     ->toggleable()
                     ->sortable(),
@@ -141,14 +154,14 @@ class PostProcessResource extends Resource
     {
         $schema = [
             Toggle::make('enabled')
-                ->default(true)->helperText('Enable this post process'),
+                ->default(true)->helperText(__('Enable this post process')),
             Toggle::make('metadata.send_failed')
-                ->label('Process failed')
-                ->default(false)->helperText('Process on failed syncs too (default is only successful syncs).'),
+                ->label(__('Process failed'))
+                ->default(false)->helperText(__('Process on failed syncs too (default is only successful syncs).')),
             TextInput::make('name')
                 ->required()
                 ->maxLength(255)
-                ->helperText('A descriptive name for this post process.'),
+                ->helperText(__('A descriptive name for this post process.')),
             Select::make('event')
                 ->required()
                 ->options([
@@ -158,9 +171,9 @@ class PostProcessResource extends Resource
                     'deleted' => 'Deleted',
                 ])
                 ->default('synced')
-                ->helperText('The event that will trigger this post process.'),
+                ->helperText(__('The event that will trigger this post process.')),
             ToggleButtons::make('metadata.local')
-                ->label('Type')
+                ->label(__('Type'))
                 ->grouped()
                 ->required()
                 ->columnSpanFull()
@@ -176,7 +189,7 @@ class PostProcessResource extends Resource
                 ])
                 ->live()
                 ->default('url')
-                ->helperText('Select whether to send a request to a URL, execute a local script, or send an email.'),
+                ->helperText(__('Select whether to send a request to a URL, execute a local script, or send an email.')),
             TextInput::make('metadata.path')
                 ->label(fn (Get $get) => ucfirst($get('metadata.local') ?? 'url'))
                 ->columnSpan(2)
@@ -221,10 +234,10 @@ class PostProcessResource extends Resource
                     ),
                 ])
                 ->maxLength(255),
-            Fieldset::make('Request Options')
+            Fieldset::make(__('Request Options'))
                 ->schema([
                     ToggleButtons::make('metadata.post')
-                        ->label('Request type')
+                        ->label(__('Request type'))
                         ->grouped()
                         ->required()
                         ->boolean()
@@ -242,17 +255,17 @@ class PostProcessResource extends Resource
                         ])
                         ->default(false)
                         ->live()
-                        ->helperText('Send as GET or POST request.'),
+                        ->helperText(__('Send as GET or POST request.')),
 
-                    Fieldset::make('Headers')
+                    Fieldset::make(__('Headers'))
                         ->schema([
                             Repeater::make('metadata.headers')
-                                ->label('Custom Headers')
+                                ->label(__('Custom Headers'))
                                 ->schema([
                                     TextInput::make('header_name')
-                                        ->label('Header name')
-                                        ->placeholder('X-Emby-Token')
-                                        ->helperText('Name of the HTTP header.')
+                                        ->label(__('Header name'))
+                                        ->placeholder(__('X-Emby-Token'))
+                                        ->helperText(__('Name of the HTTP header.'))
                                         ->datalist([
                                             'X-Emby-Token',
                                             'X-Api-Key',
@@ -261,9 +274,9 @@ class PostProcessResource extends Resource
                                         ])
                                         ->required(),
                                     TextInput::make('header_value')
-                                        ->label('Header value')
-                                        ->placeholder('your-api-key-here')
-                                        ->helperText('Value for this header.')
+                                        ->label(__('Header value'))
+                                        ->placeholder(__('your-api-key-here'))
+                                        ->helperText(__('Value for this header.'))
                                         ->required(),
                                 ])
                                 ->columns(2)
@@ -272,30 +285,30 @@ class PostProcessResource extends Resource
                                 ->addActionLabel('Add header'),
                         ]),
 
-                    Fieldset::make('Body')
+                    Fieldset::make(__('Body'))
                         ->schema([
                             Toggle::make('metadata.no_body')
-                                ->label('Send without body')
+                                ->label(__('Send without body'))
                                 ->default(false)
                                 ->inline(false)
-                                ->helperText('When enabled, the POST request will be sent without any body content. Useful for APIs that only need a POST trigger (e.g., Emby/Jellyfin scheduled tasks).')
+                                ->helperText(__('When enabled, the POST request will be sent without any body content. Useful for APIs that only need a POST trigger (e.g., Emby/Jellyfin scheduled tasks).'))
                                 ->hidden(fn (Get $get) => ! $get('metadata.post'))
                                 ->live(),
                             Toggle::make('metadata.json_body')
-                                ->label('Send as JSON body')
+                                ->label(__('Send as JSON body'))
                                 ->default(false)
                                 ->inline(false)
                                 ->live()
-                                ->helperText('When enabled, variables will be sent as a JSON body instead of form data. Only applies to POST requests.')
+                                ->helperText(__('When enabled, variables will be sent as a JSON body instead of form data. Only applies to POST requests.'))
                                 ->hidden(fn (Get $get) => ! $get('metadata.post') || $get('metadata.no_body')),
 
                             Repeater::make('metadata.post_vars')
-                                ->label('GET/POST variables')
+                                ->label(__('GET/POST variables'))
                                 ->schema([
                                     TextInput::make('variable_name')
-                                        ->label('Variable name')
-                                        ->placeholder('variable_name')
-                                        ->helperText('Name of the variable to send as GET/POST variable to your webhook URL.')
+                                        ->label(__('Variable name'))
+                                        ->placeholder(__('variable_name'))
+                                        ->helperText(__('Name of the variable to send as GET/POST variable to your webhook URL.'))
                                         ->datalist([
                                             'name',
                                             'uuid',
@@ -305,7 +318,7 @@ class PostProcessResource extends Resource
                                         ->ascii()
                                         ->required(),
                                     Select::make('value')
-                                        ->label('Value')
+                                        ->label(__('Value'))
                                         ->required()
                                         ->options([
                                             // Shared fields
@@ -325,7 +338,7 @@ class PostProcessResource extends Resource
                                             'removed_group_names' => 'Group names removed (Playlist only)',
                                             'added_channel_names' => 'Channel names added (Playlist only)',
                                             'removed_channel_names' => 'Channel names removed (Playlist only)',
-                                        ])->helperText('Value to use for this variable.'),
+                                        ])->helperText(__('Value to use for this variable.')),
                                 ])
                                 ->columns(2)
                                 ->columnSpanFull()
@@ -333,14 +346,14 @@ class PostProcessResource extends Resource
                                 ->hidden(fn (Get $get) => $get('metadata.post') && $get('metadata.no_body')),
                         ]),
                 ])->hidden(fn (Get $get) => $get('metadata.local') !== 'url'),
-            Fieldset::make('Script Options')
+            Fieldset::make(__('Script Options'))
                 ->schema([
                     Repeater::make('metadata.script_vars')
-                        ->label('Export variables')
+                        ->label(__('Export variables'))
                         ->schema([
                             TextInput::make('export_name')
-                                ->label('Export name')
-                                ->placeholder('VARIABLE_NAME')
+                                ->label(__('Export name'))
+                                ->placeholder(__('VARIABLE_NAME'))
                                 ->helperText('Name of the variable to export. Example: VARIABLE_NAME can be used as $VARIABLE_NAME in your script.')
                                 ->datalist([
                                     'NAME',
@@ -354,7 +367,7 @@ class PostProcessResource extends Resource
                                 ->ascii()
                                 ->required(),
                             Select::make('value')
-                                ->label('Value')
+                                ->label(__('Value'))
                                 ->required()
                                 ->options([
                                     // Shared fields
@@ -374,29 +387,29 @@ class PostProcessResource extends Resource
                                     'removed_group_names' => 'Group names removed (Playlist only)',
                                     'added_channel_names' => 'Channel names added (Playlist only)',
                                     'removed_channel_names' => 'Channel names removed (Playlist only)',
-                                ])->helperText('Value to use for this variable.'),
+                                ])->helperText(__('Value to use for this variable.')),
                         ])
                         ->columns(2)
                         ->columnSpanFull()
                         ->addActionLabel('Add named export'),
                 ])->hidden(fn (Get $get) => $get('metadata.local') !== 'path'),
 
-            Fieldset::make('Email Options')
+            Fieldset::make(__('Email Options'))
                 ->schema([
                     TextInput::make('metadata.subject')
-                        ->label('Email Subject')
+                        ->label(__('Email Subject'))
                         ->columnSpan(2)
                         ->maxLength(255)
-                        ->helperText('Subject line for the email (optional).'),
+                        ->helperText(__('Subject line for the email (optional).')),
                     Textarea::make('metadata.body')
-                        ->label('Email Body')
+                        ->label(__('Email Body'))
                         ->columnSpan(2)
-                        ->helperText('Body content for the email (optional).'),
+                        ->helperText(__('Body content for the email (optional).')),
                     Repeater::make('metadata.email_vars')
-                        ->label('Email variables')
+                        ->label(__('Email variables'))
                         ->schema([
                             Select::make('value')
-                                ->label('Value')
+                                ->label(__('Value'))
                                 ->required()
                                 ->columnSpanFull()
                                 ->options([
@@ -417,19 +430,19 @@ class PostProcessResource extends Resource
                                     'removed_group_names' => 'Group names removed (Playlist only)',
                                     'added_channel_names' => 'Channel names added (Playlist only)',
                                     'removed_channel_names' => 'Channel names removed (Playlist only)',
-                                ])->helperText('Value to include in the email.'),
+                                ])->helperText(__('Value to include in the email.')),
                         ])
                         ->columns(2)
                         ->columnSpanFull()
                         ->addActionLabel('Add variable'),
                 ])->hidden(fn (Get $get) => $get('metadata.local') !== 'email'),
-            Fieldset::make('Conditional Settings')
+            Fieldset::make(__('Conditional Settings'))
                 ->schema([
                     Repeater::make('conditions')
-                        ->label('Conditions')
+                        ->label(__('Conditions'))
                         ->schema([
                             Select::make('field')
-                                ->label('Field')
+                                ->label(__('Field'))
                                 ->required()
                                 ->options([
                                     // Shared fields
@@ -450,9 +463,9 @@ class PostProcessResource extends Resource
                                     'added_channel_names' => 'Channel names added (Playlist only)',
                                     'removed_channel_names' => 'Channel names removed (Playlist only)',
                                 ])
-                                ->helperText('Field to check condition against.'),
+                                ->helperText(__('Field to check condition against.')),
                             Select::make('operator')
-                                ->label('Condition')
+                                ->label(__('Condition'))
                                 ->required()
                                 ->options([
                                     'equals' => 'Equals',
@@ -470,25 +483,25 @@ class PostProcessResource extends Resource
                                     'is_empty' => 'Is empty',
                                     'is_not_empty' => 'Is not empty',
                                 ])
-                                ->helperText('Condition to check.')
+                                ->helperText(__('Condition to check.'))
                                 ->live(),
                             TextInput::make('value')
-                                ->label('Value')
-                                ->helperText('Value to compare against (not needed for true/false/empty conditions).')
+                                ->label(__('Value'))
+                                ->helperText(__('Value to compare against (not needed for true/false/empty conditions).'))
                                 ->hidden(fn (Get $get) => in_array($get('operator'), ['is_true', 'is_false', 'is_empty', 'is_not_empty']))
                                 ->required(fn (Get $get) => ! in_array($get('operator'), ['is_true', 'is_false', 'is_empty', 'is_not_empty'])),
                         ])
                         ->columns(3)
                         ->columnSpanFull()
                         ->addActionLabel('Add condition')
-                        ->helperText('Add conditions that must be met for this post process to execute. All conditions must be true for execution.'),
+                        ->helperText(__('Add conditions that must be met for this post process to execute. All conditions must be true for execution.')),
                 ]),
         ];
 
         return [
             $operation === 'create'
                 ? Grid::make()->schema($schema)->columns(2)
-                : Section::make('Configuration')
+                : Section::make(__('Configuration'))
                     ->icon('heroicon-s-pencil-square')
                     ->collapsible()
                     ->collapsed(true)

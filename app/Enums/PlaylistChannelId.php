@@ -24,11 +24,11 @@ enum PlaylistChannelId: string
     public function getLabel(): ?string
     {
         return match ($this) {
-            self::TvgId => 'TVG ID/Stream ID (default)',
-            self::ChannelId => 'Channel ID',
-            self::Name => 'Channel Name',
-            self::Number => 'Channel Number',
-            self::Title => 'Channel Title',
+            self::TvgId => __('TVG ID/Stream ID (default)'),
+            self::ChannelId => __('Channel ID'),
+            self::Name => __('Channel Name'),
+            self::Number => __('Channel Number'),
+            self::Title => __('Channel Title'),
         };
     }
 }

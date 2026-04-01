@@ -29,7 +29,7 @@ class SourceGroupsTable
             ->defaultSort('name', 'asc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('Group Name')
+                    ->label(__('Group Name'))
                     ->searchable()
                     ->sortable(),
             ])

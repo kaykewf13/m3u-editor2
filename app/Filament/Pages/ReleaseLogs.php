@@ -11,11 +11,20 @@ use Illuminate\Support\Str;
 
 class ReleaseLogs extends Page
 {
-    protected static ?string $navigationLabel = 'Release Logs';
+    public static function getNavigationLabel(): string
+    {
+        return __('Release Logs');
+    }
 
-    protected static ?string $title = 'Release Logs';
+    public function getTitle(): string
+    {
+        return __('Release Logs');
+    }
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Tools';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Tools');
+    }
 
     protected static ?int $navigationSort = 6;
 
@@ -41,7 +50,7 @@ class ReleaseLogs extends Page
     {
         return [
             Action::make('refresh')
-                ->label('Refresh')
+                ->label(__('Refresh'))
                 ->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     try {
@@ -49,14 +58,14 @@ class ReleaseLogs extends Page
                         $this->loadReleases();
                     } catch (\Exception $e) {
                         Notification::make()
-                            ->title('Failed to refresh release logs')
+                            ->title(__('Failed to refresh release logs'))
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
                     }
                 })->after(function () {
                     Notification::make()
-                        ->title('Release logs refreshed')
+                        ->title(__('Release logs refreshed'))
                         ->success()
                         ->send();
                 }),

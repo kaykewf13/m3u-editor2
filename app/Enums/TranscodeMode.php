@@ -11,9 +11,9 @@ enum TranscodeMode: string
     public function getLabel(): string
     {
         return match ($this) {
-            self::Direct => 'Direct',
-            self::Server => 'Server',
-            self::Local => 'Local',
+            self::Direct => __('Direct'),
+            self::Server => __('Server'),
+            self::Local => __('Local'),
         };
     }
 

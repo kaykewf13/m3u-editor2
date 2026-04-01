@@ -26,7 +26,7 @@ class SourceCategoriesTable
             ->defaultSort('name', 'asc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('Category Name')
+                    ->label(__('Category Name'))
                     ->searchable()
                     ->sortable(),
             ])

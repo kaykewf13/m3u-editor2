@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f9fcdde94a24c5f53c9b600c0facb6c4",
+    "content-hash": "32d0d75ca9317a73dd4a8a616adc114a",
     "packages": [
         {
             "name": "ashallendesign/laravel-config-validator",
@@ -782,6 +782,71 @@
                 }
             ],
             "time": "2025-01-03T16:18:33+00:00"
+        },
+        {
+            "name": "craft-forge/filament-language-switcher",
+            "version": "v1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/craft-forge/filament-language-switcher.git",
+                "reference": "235421f4b8ce7cd89b3c16af3c9f54e464c3ca53"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/craft-forge/filament-language-switcher/zipball/235421f4b8ce7cd89b3c16af3c9f54e464c3ca53",
+                "reference": "235421f4b8ce7cd89b3c16af3c9f54e464c3ca53",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^3.0|^4.0|^5.0",
+                "php": "^8.1",
+                "spatie/laravel-package-tools": "^1.16",
+                "stijnvanouplines/blade-country-flags": "^1.0.6"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0",
+                "phpunit/phpunit": "^11.5.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "CraftForge\\FilamentLanguageSwitcher\\FilamentLanguageSwitcherServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "CraftForge\\FilamentLanguageSwitcher\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taras Koval",
+                    "email": "taraskovaldev@gmail.com",
+                    "homepage": "https://github.com/taras-koval"
+                }
+            ],
+            "description": "Zero-config language switcher for Filament admin panels. Automatically scans available translations, renders dropdown with country flags, persists selection via sessions.",
+            "homepage": "https://github.com/craft-forge/filament-language-switcher",
+            "keywords": [
+                "admin",
+                "filament",
+                "i18n",
+                "language",
+                "laravel",
+                "localization",
+                "switcher"
+            ],
+            "support": {
+                "issues": "https://github.com/craft-forge/filament-language-switcher/issues",
+                "source": "https://github.com/craft-forge/filament-language-switcher"
+            },
+            "time": "2026-03-04T15:40:02+00:00"
         },
         {
             "name": "danharrin/date-format-converter",
@@ -8582,6 +8647,141 @@
                 "source": "https://github.com/stechstudio/filament-impersonate/tree/v5.1.0"
             },
             "time": "2026-02-22T15:57:37+00:00"
+        },
+        {
+            "name": "stichoza/google-translate-php",
+            "version": "v5.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Stichoza/google-translate-php.git",
+                "reference": "4d9a267ac063c16967df67dcba30a71fbfb5f550"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Stichoza/google-translate-php/zipball/4d9a267ac063c16967df67dcba30a71fbfb5f550",
+                "reference": "4d9a267ac063c16967df67dcba30a71fbfb5f550",
+                "shasum": ""
+            },
+            "require": {
+                "ext-dom": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "guzzlehttp/guzzle": "^7.0",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5.10"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Stichoza\\GoogleTranslate\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Levan Velijanashvili",
+                    "email": "me@stichoza.com"
+                }
+            ],
+            "description": "Free Google Translate API PHP Package",
+            "homepage": "https://github.com/Stichoza/google-translate-php",
+            "keywords": [
+                "google",
+                "php",
+                "translate",
+                "translating",
+                "translator"
+            ],
+            "support": {
+                "issues": "https://github.com/Stichoza/google-translate-php/issues",
+                "source": "https://github.com/Stichoza/google-translate-php/tree/v5.3.1"
+            },
+            "funding": [
+                {
+                    "url": "https://btc.com/bc1qc25j4x7yahghm8nnn6lypnw59nptylsw32nkfl",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://www.paypal.me/stichoza",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://ko-fi.com/stichoza",
+                    "type": "ko_fi"
+                },
+                {
+                    "url": "https://liberapay.com/stichoza",
+                    "type": "liberapay"
+                },
+                {
+                    "url": "https://opencollective.com/stichoza",
+                    "type": "open_collective"
+                },
+                {
+                    "url": "https://www.patreon.com/stichoza",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2025-11-01T22:45:28+00:00"
+        },
+        {
+            "name": "stijnvanouplines/blade-country-flags",
+            "version": "1.0.9",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stijnvanouplines/blade-country-flags.git",
+                "reference": "06b53f8ae58238c30a5eaa35fd199ffd772a83f8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stijnvanouplines/blade-country-flags/zipball/06b53f8ae58238c30a5eaa35fd199ffd772a83f8",
+                "reference": "06b53f8ae58238c30a5eaa35fd199ffd772a83f8",
+                "shasum": ""
+            },
+            "require": {
+                "blade-ui-kit/blade-icons": "^1.0",
+                "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0|^13.0",
+                "php": "^7.4|^8.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^6.18|^8.0|^9.0|^10.0|^11.0",
+                "pestphp/pest": "^1.4|^2.34|^3.0|^4.4",
+                "spatie/pest-plugin-snapshots": "^1.0|^2.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "StijnVanouplines\\BladeCountryFlags\\BladeCountryFlagsServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "StijnVanouplines\\BladeCountryFlags\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "A package to easily make use of country flags in your Laravel Blade views.",
+            "homepage": "https://github.com/stijnvanouplines/blade-country-flags",
+            "keywords": [
+                "blade",
+                "country flags",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/stijnvanouplines/blade-country-flags/issues",
+                "source": "https://github.com/stijnvanouplines/blade-country-flags/tree/1.0.9"
+            },
+            "time": "2026-03-03T13:15:47+00:00"
         },
         {
             "name": "symfony/clock",

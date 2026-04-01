@@ -7,6 +7,7 @@ use Filament\Actions;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,7 +15,10 @@ class ListPostProcesses extends ListRecords
 {
     protected static string $resource = PostProcessResource::class;
 
-    protected ?string $subheading = 'Call webhooks, or run local scripts, after playlist sync completion.';
+    public function getSubheading(): string|Htmlable|null
+    {
+        return __('Call webhooks, or run local scripts, after playlist sync completion.');
+    }
 
     protected function getHeaderActions(): array
     {
@@ -30,8 +34,8 @@ class ListPostProcesses extends ListRecords
                 ->successNotification(
                     Notification::make()
                         ->success()
-                        ->title('Post Process created')
-                        ->body('You can now assign Playlists or EPGs.'),
+                        ->title(__('Post Process created'))
+                        ->body(__('You can now assign Playlists or EPGs.')),
                 )->successRedirectUrl(fn ($record): string => EditPostProcess::getUrl(['record' => $record])),
 
         ];

@@ -21,7 +21,10 @@ class ChannelsRelationManager extends RelationManager
 
     protected static ?string $title = 'Live Channels';
 
-    protected static ?string $navigationLabel = 'Live Channels';
+    public static function getNavigationLabel(): string
+    {
+        return __('Live Channels');
+    }
 
     protected $listeners = ['refreshRelation' => '$refresh'];
 
@@ -44,7 +47,7 @@ class ChannelsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         $table = $table->reorderRecordsTriggerAction(function ($action) {
-            return $action->button()->label('Sort');
+            return $action->button()->label(__('Sort'));
         })->defaultSort('sort', 'asc')->reorderable('sort');
 
         return ChannelResource::setupTable($table, $this->ownerRecord->id);

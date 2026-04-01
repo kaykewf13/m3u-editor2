@@ -46,22 +46,37 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
 
+    public static function getNavigationGroup(): ?string
+    {
+        return null;
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('User');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Users');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Username')
+                    ->label(__('Username'))
                     ->required(),
                 TextInput::make('email')
-                    ->label('Email address')
+                    ->label(__('Email address'))
                     ->email()
                     ->required(),
-                Fieldset::make('User Permissions')
+                Fieldset::make(__('User Permissions'))
                     ->columns(1)
                     ->schema([
                         Forms\Components\CheckboxList::make('permissions')
-                            ->label('Select Permissions')
+                            ->label(__('Select Permissions'))
                             ->options(User::getAvailablePermissions())
                             ->bulkToggleable()
                             ->descriptions([
@@ -77,11 +92,11 @@ class UserResource extends Resource
                             ->columns(2),
                     ]),
                 Toggle::make('must_change_password')
-                    ->label('Force password change on next login')
-                    ->helperText('When enabled, the user will be prompted to set a new password before they can use the application.')
+                    ->label(__('Force password change on next login'))
+                    ->helperText(__('When enabled, the user will be prompted to set a new password before they can use the application.'))
                     ->columnSpanFull(),
                 Toggle::make('update_password')
-                    ->label('Update Password')
+                    ->label(__('Update Password'))
                     ->default(false)
                     ->live()
                     ->hiddenOn('create')
@@ -108,18 +123,18 @@ class UserResource extends Resource
         return $table
             ->columns([
                 // Tables\Columns\ImageColumn::make('avatar_url')
-                //     ->label('Avatar')
+                //     ->label(__('Avatar'))
                 //     ->circular()
                 //     ->imageHeight(40)
                 //     ->circular(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Username')
+                    ->label(__('Username'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->label('Email address')
+                    ->label(__('Email address'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('permissions')
-                    ->label('Permissions')
+                    ->label(__('Permissions'))
                     ->badge()
                     ->toggleable(),
                 // Tables\Columns\TextColumn::make('email_verified_at')
@@ -142,7 +157,7 @@ class UserResource extends Resource
             ->recordActions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('notify')
-                        ->label('Notify User')
+                        ->label(__('Notify User'))
                         ->icon('heroicon-o-bell-alert')
                         ->modalIcon('heroicon-o-bell-alert')
                         ->schema(self::getNotifySchema())
@@ -167,13 +182,13 @@ class UserResource extends Resource
                         ->after(function (User $record, array $data) {
                             Notification::make()
                                 ->success()
-                                ->title('Notifications Sent')
+                                ->title(__('Notifications Sent'))
                                 ->body("Sent notification to {$record->name}.")
                                 ->send();
                         }),
                     Impersonate::make('Impersonate User')
                         ->color('warning')
-                        ->tooltip('Login as this user'),
+                        ->tooltip(__('Login as this user')),
                     Actions\DeleteAction::make(),
                 ])->button()->hiddenLabel()->size('sm'),
                 Actions\EditAction::make()
@@ -182,7 +197,7 @@ class UserResource extends Resource
             ->toolbarActions([
                 Actions\BulkActionGroup::make([
                     Actions\BulkAction::make('notify')
-                        ->label('Notify Users')
+                        ->label(__('Notify Users'))
                         ->icon('heroicon-o-bell-alert')
                         ->modalIcon('heroicon-o-bell-alert')
                         ->schema(self::getNotifySchema())
@@ -209,7 +224,7 @@ class UserResource extends Resource
                         ->after(function (Collection $records, array $data) {
                             Notification::make()
                                 ->success()
-                                ->title('Notifications Sent')
+                                ->title(__('Notifications Sent'))
                                 ->body("Sent notification to {$records->count()} users.")
                                 ->send();
                         }),
@@ -238,15 +253,15 @@ class UserResource extends Resource
     {
         return [
             TextInput::make('subject')
-                ->label('Notification Subject')
+                ->label(__('Notification Subject'))
                 ->required()
                 ->maxLength(255),
             Textarea::make('message')
-                ->label('Notification Message')
+                ->label(__('Notification Message'))
                 ->required()
                 ->maxLength(255),
             Select::make('type')
-                ->label('Notification Type')
+                ->label(__('Notification Type'))
                 ->options([
                     'info' => 'Info',
                     'success' => 'Success',
@@ -257,8 +272,8 @@ class UserResource extends Resource
                 ->default('info')
                 ->required(),
             Toggle::make('notify_self')
-                ->label('Notify Myself')
-                ->helperText('Send the notification to yourself as well (for testing purposes)'),
+                ->label(__('Notify Myself'))
+                ->helperText(__('Send the notification to yourself as well (for testing purposes)')),
         ];
     }
 }

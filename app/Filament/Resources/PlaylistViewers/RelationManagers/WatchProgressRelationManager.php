@@ -34,17 +34,17 @@ class WatchProgressRelationManager extends RelationManager
     public function getTabs(): array
     {
         return [
-            'live' => Tab::make('Live TV')
+            'live' => Tab::make(__('Live TV'))
                 ->icon('heroicon-s-tv')
                 ->badge(fn () => $this->ownerRecord->watchProgress()->where('content_type', 'live')->count())
                 ->query(fn ($query) => $query->where('content_type', 'live')),
 
-            'vod' => Tab::make('VOD')
+            'vod' => Tab::make(__('VOD'))
                 ->icon('heroicon-s-film')
                 ->badge(fn () => $this->ownerRecord->watchProgress()->where('content_type', 'vod')->count())
                 ->query(fn ($query) => $query->where('content_type', 'vod')),
 
-            'episode' => Tab::make('Series')
+            'episode' => Tab::make(__('Series'))
                 ->icon('heroicon-s-play')
                 ->badge(fn () => $this->ownerRecord->watchProgress()->where('content_type', 'episode')->count())
                 ->query(fn ($query) => $query->where('content_type', 'episode')),
@@ -60,7 +60,7 @@ class WatchProgressRelationManager extends RelationManager
     {
         return $table
             ->persistSortInSession()
-            ->filtersTriggerAction(fn ($action) => $action->button()->label('Filters'))
+            ->filtersTriggerAction(fn ($action) => $action->button()->label(__('Filters')))
             ->deferLoading()
             ->modifyQueryUsing(fn ($query) => match ($this->activeTab ?? 'live') {
                 'episode' => $query->with(['episode', 'episode.series', 'episode.playlist']),
@@ -97,7 +97,7 @@ class WatchProgressRelationManager extends RelationManager
 
                 // ── Live TV ───────────────────────────────────────────────
                 TextColumn::make('live_channel_name')
-                    ->label('Channel')
+                    ->label(__('Channel'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): string => $record->channel?->title ?? $record->channel?->name ?? "Stream #{$record->stream_id}")
                     ->wrap()
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -111,14 +111,14 @@ class WatchProgressRelationManager extends RelationManager
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'live'),
 
                 TextColumn::make('live_watch_count')
-                    ->label('Tunes In')
+                    ->label(__('Tunes In'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): int => $record->watch_count)
                     ->sortable(false)
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'live'),
 
                 // ── VOD ───────────────────────────────────────────────────
                 TextColumn::make('vod_title')
-                    ->label('Movie')
+                    ->label(__('Movie'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): string => $record->channel?->title ?? $record->channel?->name ?? "Stream #{$record->stream_id}")
                     ->wrap()
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -132,7 +132,7 @@ class WatchProgressRelationManager extends RelationManager
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'vod'),
 
                 TextColumn::make('vod_rating')
-                    ->label('Rating')
+                    ->label(__('Rating'))
                     ->getStateUsing(function (ViewerWatchProgress $record): ?string {
                         $info = $record->channel?->info ?? [];
 
@@ -143,7 +143,7 @@ class WatchProgressRelationManager extends RelationManager
 
                 // ── Series / Episodes ──────────────────────────────────────
                 TextColumn::make('series_name')
-                    ->label('Series')
+                    ->label(__('Series'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): ?string => $record->episode?->series?->name)
                     ->wrap()
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -157,19 +157,19 @@ class WatchProgressRelationManager extends RelationManager
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'episode'),
 
                 TextColumn::make('season_number')
-                    ->label('Season')
+                    ->label(__('Season'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): ?int => $record->episode?->season)
                     ->sortable(false)
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'episode'),
 
                 TextColumn::make('episode_number')
-                    ->label('Ep #')
+                    ->label(__('Ep #'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): ?int => $record->episode?->episode_num)
                     ->sortable(false)
                     ->visible(fn () => ($this->activeTab ?? 'live') === 'episode'),
 
                 TextColumn::make('episode_title')
-                    ->label('Episode Title')
+                    ->label(__('Episode Title'))
                     ->getStateUsing(fn (ViewerWatchProgress $record): ?string => $record->episode?->title)
                     ->wrap()
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -185,7 +185,7 @@ class WatchProgressRelationManager extends RelationManager
                 // ── VOD + Series ──────────────────────────────────────────
                 ProgressColumn::make('progress')
                     ->width('120px')
-                    ->label('Progress')
+                    ->label(__('Progress'))
                     ->progress(function (ViewerWatchProgress $record): string {
                         if (! $record->duration_seconds || $record->duration_seconds <= 0) {
                             return 0;
@@ -197,7 +197,7 @@ class WatchProgressRelationManager extends RelationManager
                     ->toggleable(),
 
                 TextColumn::make('duration')
-                    ->label('Position / Duration')
+                    ->label(__('Position / Duration'))
                     ->getStateUsing(function (ViewerWatchProgress $record): string {
                         if (! $record->duration_seconds || $record->duration_seconds <= 0) {
                             return $this->formatSeconds($record->position_seconds);
@@ -209,7 +209,7 @@ class WatchProgressRelationManager extends RelationManager
                     ->visible(fn () => in_array($this->activeTab ?? 'live', ['vod', 'episode'])),
 
                 IconColumn::make('completed')
-                    ->label('Done')
+                    ->label(__('Done'))
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-clock')
@@ -219,13 +219,13 @@ class WatchProgressRelationManager extends RelationManager
                     ->visible(fn () => in_array($this->activeTab ?? 'live', ['vod', 'episode'])),
 
                 TextColumn::make('watch_count')
-                    ->label('Plays')
+                    ->label(__('Plays'))
                     ->sortable()
                     ->visible(fn () => in_array($this->activeTab ?? 'live', ['vod', 'episode'])),
 
                 // ── Shared ────────────────────────────────────────────────
                 TextColumn::make('last_watched_at')
-                    ->label('Last Watched')
+                    ->label(__('Last Watched'))
                     ->dateTime()
                     ->since()
                     ->sortable(),
@@ -234,7 +234,7 @@ class WatchProgressRelationManager extends RelationManager
                 DeleteAction::make()
                     ->button()->hiddenLabel()->size('sm'),
                 Action::make('play')
-                    ->tooltip('Play')
+                    ->tooltip(__('Play'))
                     ->action(function ($record, $livewire) {
                         $livewire->dispatch(
                             'openFloatingStream',
@@ -249,7 +249,7 @@ class WatchProgressRelationManager extends RelationManager
             ], position: RecordActionsPosition::BeforeColumns)
             ->filters([
                 TernaryFilter::make('completed')
-                    ->label('Completed')
+                    ->label(__('Completed'))
                     ->hidden(fn () => ($this->activeTab ?? 'live') === 'live'),
             ])
             ->toolbarActions([
