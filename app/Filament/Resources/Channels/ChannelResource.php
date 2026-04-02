@@ -684,6 +684,16 @@ class ChannelResource extends Resource
                             ->action(function (Collection $records, array $data): void {
                                 $start = (int) $data['start'];
                                 SortFacade::bulkRecountChannels($records, $start);
+
+                                // Clear EPG cache for all affected playlists so EPG channel IDs are regenerated
+                                $records->pluck('playlist_id')->unique()->each(function ($playlistId) {
+                                    $playlist = Playlist::find($playlistId);
+                                    if ($playlist) {
+                                        EpgCacheService::clearPlaylistEpgCacheFile($playlist);
+                                    }
+                                });
+
+                                dispatch(new SyncPlexDvrJob(trigger: 'channel_recount'));
                             })
                             ->after(function ($livewire) {
                                 Notification::make()

@@ -103,6 +103,10 @@ class EpgGenerateController extends Controller
         $proxyEnabled = $playlist->enable_proxy;
         $logoProxyEnabled = $playlist->enable_logo_proxy;
 
+        // Detect custom playlist context (custom playlists store channel numbers in pivot table)
+        $isCustomContext = ($playlist instanceof CustomPlaylist)
+            || ($playlist instanceof PlaylistAlias && ! empty($playlist->custom_playlist_id));
+
         // Track network channels for programme output later
         $networkChannelIds = [];
 
@@ -113,8 +117,10 @@ class EpgGenerateController extends Controller
                 $networkChannelIds[$channel->network_id] = $channel->stream_id ?? 'network-'.$channel->network_id;
             }
 
-            // Get/set the channel number
-            $channelNo = $channel->channel;
+            // Get/set the channel number (use pivot channel_number for custom playlists)
+            $channelNo = ($isCustomContext && ! empty($channel->pivot?->channel_number))
+                ? (int) $channel->pivot->channel_number
+                : $channel->channel;
             if (! $channelNo && ($playlist->auto_channel_increment || $idChannelBy === PlaylistChannelId::Number)) {
                 $channelNo = ++$channelNumber;
             }
@@ -496,6 +502,7 @@ class EpgGenerateController extends Controller
             200,
             [
                 'Access-Control-Allow-Origin' => '*',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
                 'Content-Disposition' => "attachment; filename=\"$filename\"",
                 'Content-Type' => $contentType,
                 'X-EPG-Cache' => 'HIT',
@@ -532,9 +539,10 @@ class EpgGenerateController extends Controller
             $disk->put($cacheFilePath, $compressedContent);
 
             return response($compressedContent, 200, [
-                'Content-Type' => $contentType,
-                'Content-Disposition' => "attachment; filename=\"$filename\"",
                 'Access-Control-Allow-Origin' => '*',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                'Content-Disposition' => "attachment; filename=\"$filename\"",
+                'Content-Type' => $contentType,
                 'X-EPG-Cache' => 'MISS',
             ]);
         }
@@ -621,6 +629,7 @@ class EpgGenerateController extends Controller
             }
         }, 200, [
             'Access-Control-Allow-Origin' => '*',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
             'Content-Type' => $contentType,
             'X-EPG-Cache' => 'MISS',

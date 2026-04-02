@@ -577,7 +577,11 @@ class PlexManagementService
                 ]);
             }
 
-            // Sync channel map immediately after registration
+            // Sync channel map after registration.
+            // Plex needs time to download and parse the XMLTV guide after
+            // the DVR/lineup is created — without this wait the lineup
+            // channels endpoint returns empty or stale data.
+            sleep(8);
             $syncResult = $this->syncDvrChannelsForTuner($deviceKey, $playlistUuid);
             $channelInfo = $syncResult['success'] ? " ({$syncResult['mapped_channels']} channels mapped)" : '';
 
@@ -687,11 +691,8 @@ class PlexManagementService
     }
 
     /**
-     * Ensure EPG guide auto-refresh is enabled in DVR preferences.
-     *
-     * Plex manages EPG refresh internally via the butler scheduler.
-     * There is no manual trigger endpoint — we configure the DVR prefs
-     * to enable the refresh task and set the desired interval.
+     * Refresh EPG guides: ensure auto-refresh is enabled and trigger an
+     * immediate re-fetch so Plex picks up changed channel IDs / programmes.
      */
     public function refreshGuides(): array
     {
@@ -711,11 +712,18 @@ class PlexManagementService
                 'success' => $prefsResult['success'],
             ]);
 
-            if ($prefsResult['success']) {
-                return ['success' => true, 'message' => 'EPG auto-refresh enabled (every 12 hours). Plex will re-fetch the guide data on its next scheduled run.'];
+            if (! $prefsResult['success']) {
+                return $prefsResult;
             }
 
-            return $prefsResult;
+            // Trigger an immediate EPG refresh via butler task
+            try {
+                $this->client()->withBody('')->post('/butler/RefreshEPGGuides');
+            } catch (Exception) {
+                // Non-critical: will refresh on next scheduled cycle
+            }
+
+            return ['success' => true, 'message' => 'EPG guide refresh triggered. Plex will re-fetch the guide data shortly.'];
         } catch (Exception $e) {
             Log::error('PlexManagementService: refreshGuides exception', ['error' => $e->getMessage()]);
 
@@ -1039,6 +1047,25 @@ class PlexManagementService
             return ['success' => false, 'message' => 'DVR no longer exists in Plex. Local state has been cleaned up. Please re-register the DVR tuner.'];
         }
 
+        // Trigger EPG refresh FIRST so Plex re-fetches the XMLTV guide before we
+        // try to match HDHR channels to lineup channels.  Without this, Plex may
+        // still have stale guide data (e.g. old channel IDs from before a recount)
+        // and the channel map will reference non-existent lineup entries.
+        $epgRefreshed = false;
+        try {
+            $response = $this->client()->withBody('')->post('/butler/RefreshEPGGuides');
+            $epgRefreshed = $response->successful();
+        } catch (Exception) {
+            // Non-critical: will proceed with possibly stale guide data
+        }
+
+        // Give Plex time to re-download and parse the XMLTV guide.
+        // The butler task is async — without this delay, lineup channels
+        // would still reflect the old guide content.
+        if ($epgRefreshed) {
+            sleep(8);
+        }
+
         $totalMapped = 0;
         $anyChanged = false;
         $errors = [];
@@ -1068,15 +1095,8 @@ class PlexManagementService
             ? "{$totalMapped} channels synced across {$tunerCount} tuner(s)"
             : "{$totalMapped} channels in sync across {$tunerCount} tuner(s)";
 
-        // Trigger EPG refresh after channel sync so Plex re-fetches the guide
-        // and discovers lineup identifiers for newly added channels
-        if ($anyChanged) {
-            try {
-                $this->client()->withBody('')->post('/butler/RefreshEPGGuides');
-                $message .= ' — EPG refresh triggered';
-            } catch (Exception) {
-                // Non-critical: EPG will refresh on next scheduled cycle
-            }
+        if ($epgRefreshed) {
+            $message .= ' — EPG refresh triggered';
         }
 
         return [
@@ -1563,6 +1583,7 @@ class PlexManagementService
         $enabledIds = [];
         $unmatched = [];
         $seen = [];
+        $matched = 0;
 
         foreach ($hdhrLineup as $channel) {
             if (! is_array($channel)) {
@@ -1573,12 +1594,33 @@ class PlexManagementService
                 continue;
             }
 
-            $matchedId = $numberMap[$guideNumber] ?? $guideNumber;
+            if (isset($numberMap[$guideNumber])) {
+                $matchedId = $numberMap[$guideNumber];
+                $matched++;
+            } else {
+                $matchedId = $guideNumber;
+                $unmatched[] = $guideNumber;
+            }
+
             if (isset($seen[$matchedId])) {
                 continue;
             }
             $seen[$matchedId] = true;
             $enabledIds[] = (string) $matchedId;
+        }
+
+        // Warn when HDHR channel numbers don't match Plex's lineup channels.
+        // This usually means Plex has stale XMLTV guide data and needs an EPG refresh.
+        if (! empty($unmatched) && ! empty($numberMap)) {
+            $plexSample = array_slice(array_keys($numberMap), 0, 5);
+            $hdhrSample = array_slice($unmatched, 0, 5);
+            Log::warning('PlexManagementService: HDHR/lineup channel number mismatch — Plex may have stale EPG guide data', [
+                'integration_id' => $this->integration->id,
+                'matched' => $matched,
+                'unmatched' => count($unmatched),
+                'plex_lineup_numbers_sample' => $plexSample,
+                'hdhr_unmatched_numbers_sample' => $hdhrSample,
+            ]);
         }
 
         $payload = ['channelsEnabled' => implode(',', $enabledIds)];
