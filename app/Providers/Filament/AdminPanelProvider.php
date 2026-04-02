@@ -151,8 +151,13 @@ class AdminPanelProvider extends PanelProvider
                     ->authorize(fn (): bool => auth()->user()->isAdmin())
                     ->usingPage(Backups::class),
                 FilamentLanguageSwitcherPlugin::make()
-                    ->locales(['en', 'de', 'fr', 'es'])
-                    ->showFlags(true)
+                    ->locales([
+                        ['code' => 'en', 'name' => 'English', 'flag' => 'us'],
+                        ['code' => 'fr', 'name' => 'Français', 'flag' => 'fr'],
+                        ['code' => 'de', 'name' => 'Deutsch', 'flag' => 'de'],
+                        ['code' => 'es', 'name' => 'Español', 'flag' => 'es'],
+                    ])
+                    ->showFlags(false)
                     ->rememberLocale()
                     ->showOnAuthPages(false),
             ])
