@@ -684,6 +684,7 @@ class ChannelResource extends Resource
                             ->action(function (Collection $records, array $data): void {
                                 $start = (int) $data['start'];
                                 SortFacade::bulkRecountChannels($records, $start);
+                                dispatch(new SyncPlexDvrJob(trigger: 'channel_recount'));
                             })
                             ->after(function ($livewire) {
                                 Notification::make()

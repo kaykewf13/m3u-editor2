@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CustomPlaylists\RelationManagers;
 
 use App\Facades\SortFacade;
 use App\Filament\Resources\Channels\ChannelResource;
+use App\Jobs\SyncPlexDvrJob;
 use App\Models\Channel;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkAction;
@@ -301,6 +302,7 @@ class ChannelsRelationManager extends RelationManager
                     ->action(function (Collection $records, array $data) use ($ownerRecord): void {
                         $start = (int) $data['start'];
                         SortFacade::bulkRecountCustomPlaylistChannels($ownerRecord, $records, $start);
+                        dispatch(new SyncPlexDvrJob(trigger: 'custom_playlist_recount'));
                     })
                     ->after(function () {
                         Notification::make()

@@ -78,39 +78,31 @@ class SortService
 
         if ($driver === 'mysql') {
             DB::statement('UPDATE channels c JOIN (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE group_id = ?) t ON c.id = t.id SET c.channel = t.rn + ?', [$record->id, $offset]);
-
-            return;
-        }
-
-        if (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
+        } elseif (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
             DB::statement('UPDATE channels SET channel = t.rn + ? FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE group_id = ?) t WHERE channels.id = t.id', [$offset, $record->id]);
-
-            return;
-        }
-
-        if ($driver === 'sqlite') {
+        } elseif ($driver === 'sqlite') {
             DB::statement('WITH ranked AS (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE group_id = ?) UPDATE channels SET channel = (SELECT rn FROM ranked WHERE ranked.id = channels.id) + ? WHERE group_id = ?', [$record->id, $offset, $record->id]);
+        } else {
+            // Fallback: CASE update
+            $ids = $record->channels()->orderBy('sort')->pluck('id')->all();
+            if (empty($ids)) {
+                return;
+            }
 
-            return;
+            $cases = [];
+            $i = $start;
+            foreach ($ids as $id) {
+                $cases[] = "WHEN {$id} THEN {$i}";
+                $i++;
+            }
+
+            $casesSql = implode(' ', $cases);
+            $idsSql = implode(',', $ids);
+
+            DB::statement("UPDATE channels SET channel = CASE id {$casesSql} END WHERE id IN ({$idsSql})");
         }
 
-        // Fallback: CASE update
-        $ids = $record->channels()->orderBy('sort')->pluck('id')->all();
-        if (empty($ids)) {
-            return;
-        }
-
-        $cases = [];
-        $i = $start;
-        foreach ($ids as $id) {
-            $cases[] = "WHEN {$id} THEN {$i}";
-            $i++;
-        }
-
-        $casesSql = implode(' ', $cases);
-        $idsSql = implode(',', $ids);
-
-        DB::statement("UPDATE channels SET channel = CASE id {$casesSql} END WHERE id IN ({$idsSql})");
+        EpgCacheService::clearForGroup($record->id, $record->playlist_id);
     }
 
     public function bulkRecountChannels(Collection $channels, $start = 1): void
@@ -128,33 +120,24 @@ class SortService
 
         if ($driver === 'mysql') {
             DB::statement("UPDATE channels c JOIN (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE id IN ({$idsSql})) t ON c.id = t.id SET c.channel = t.rn + ?", [$offset]);
-
-            return;
-        }
-
-        if (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
+        } elseif (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
             DB::statement("UPDATE channels SET channel = t.rn + ? FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE id IN ({$idsSql})) t WHERE channels.id = t.id", [$offset]);
-
-            return;
-        }
-
-        if ($driver === 'sqlite') {
+        } elseif ($driver === 'sqlite') {
             DB::statement("WITH ranked AS (SELECT id, ROW_NUMBER() OVER (ORDER BY sort) AS rn FROM channels WHERE id IN ({$idsSql})) UPDATE channels SET channel = (SELECT rn FROM ranked WHERE ranked.id = channels.id) + ? WHERE id IN ({$idsSql})", [$offset]);
+        } else {
+            // Fallback: CASE update
+            $cases = [];
+            $i = $start;
+            foreach ($ids as $id) {
+                $cases[] = "WHEN {$id} THEN {$i}";
+                $i++;
+            }
 
-            return;
+            $casesSql = implode(' ', $cases);
+            DB::statement("UPDATE channels SET channel = CASE id {$casesSql} END WHERE id IN ({$idsSql})");
         }
 
-        // Fallback: CASE update
-        $cases = [];
-        $i = $start;
-        foreach ($ids as $id) {
-            $cases[] = "WHEN {$id} THEN {$i}";
-            $i++;
-        }
-
-        $casesSql = implode(' ', $cases);
-
-        DB::statement("UPDATE channels SET channel = CASE id {$casesSql} END WHERE id IN ({$idsSql})");
+        EpgCacheService::clearForChannelIds($ids);
     }
 
     /**
@@ -190,12 +173,8 @@ class SortService
                    AND ccp.channel_id IN ({$idsSql})",
                 [$playlist->id, $offset, $playlist->id]
             );
-
-            return;
-        }
-
-        // Postgres
-        if (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
+        } elseif (str_starts_with($driver, 'pgsql') || $driver === 'postgresql' || $driver === 'postgres') {
+            // Postgres
             DB::statement(
                 "UPDATE channel_custom_playlist ccp
                  SET channel_number = t.rn + ?
@@ -212,12 +191,8 @@ class SortService
                    AND ccp.channel_id IN ({$idsSql})",
                 [$offset, $playlist->id, $playlist->id]
             );
-
-            return;
-        }
-
-        // SQLite
-        if ($driver === 'sqlite') {
+        } elseif ($driver === 'sqlite') {
+            // SQLite
             DB::statement(
                 "WITH ranked AS (
                     SELECT ccp2.channel_id AS channel_id,
@@ -233,41 +208,41 @@ class SortService
                    AND channel_id IN ({$idsSql})",
                 [$playlist->id, $offset, $playlist->id]
             );
+        } else {
+            // Fallback: CASE update (other DB drivers)
+            $orderedIds = DB::table('channel_custom_playlist as ccp')
+                ->join('channels as c', 'c.id', '=', 'ccp.channel_id')
+                ->where('ccp.custom_playlist_id', $playlist->id)
+                ->whereIn('ccp.channel_id', $ids)
+                ->orderBy('c.sort')
+                ->orderBy('c.channel')
+                ->orderBy('c.id')
+                ->pluck('ccp.channel_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            return;
+            if (empty($orderedIds)) {
+                return;
+            }
+
+            $cases = [];
+            $i = $start;
+            foreach ($orderedIds as $id) {
+                $cases[] = "WHEN {$id} THEN {$i}";
+                $i++;
+            }
+
+            $casesSql = implode(' ', $cases);
+            $orderedIdsSql = implode(',', $orderedIds);
+
+            DB::statement(
+                "UPDATE channel_custom_playlist
+                 SET channel_number = CASE channel_id {$casesSql} END
+                 WHERE custom_playlist_id = {$playlist->id}
+                   AND channel_id IN ({$orderedIdsSql})"
+            );
         }
 
-        // Fallback: CASE update (other DB drivers)
-        $orderedIds = DB::table('channel_custom_playlist as ccp')
-            ->join('channels as c', 'c.id', '=', 'ccp.channel_id')
-            ->where('ccp.custom_playlist_id', $playlist->id)
-            ->whereIn('ccp.channel_id', $ids)
-            ->orderBy('c.sort')
-            ->orderBy('c.channel')
-            ->orderBy('c.id')
-            ->pluck('ccp.channel_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        if (empty($orderedIds)) {
-            return;
-        }
-
-        $cases = [];
-        $i = $start;
-        foreach ($orderedIds as $id) {
-            $cases[] = "WHEN {$id} THEN {$i}";
-            $i++;
-        }
-
-        $casesSql = implode(' ', $cases);
-        $orderedIdsSql = implode(',', $orderedIds);
-
-        DB::statement(
-            "UPDATE channel_custom_playlist
-             SET channel_number = CASE channel_id {$casesSql} END
-             WHERE custom_playlist_id = {$playlist->id}
-               AND channel_id IN ({$orderedIdsSql})"
-        );
+        EpgCacheService::clearForCustomPlaylistId($playlist->id);
     }
 }

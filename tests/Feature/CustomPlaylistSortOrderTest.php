@@ -13,6 +13,7 @@
  * - The pivot channel_number is used in Xtream API get_vod_streams
  */
 
+use App\Enums\PlaylistChannelId;
 use App\Http\Controllers\PlaylistGenerateController;
 use App\Models\Channel;
 use App\Models\CustomPlaylist;
@@ -21,6 +22,7 @@ use App\Models\Playlist;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Tags\Tag;
 
 uses(RefreshDatabase::class);
@@ -31,6 +33,9 @@ beforeEach(function () {
     $this->playlist = Playlist::factory()->for($this->user)->create();
     $this->group = Group::factory()->for($this->playlist)->for($this->user)->create(['sort_order' => 1]);
     $this->customPlaylist = CustomPlaylist::factory()->for($this->user)->create();
+
+    // Clear any stale EPG cache files so tests don't serve cached results from previous runs
+    Storage::disk('local')->deleteDirectory('playlist-epg-files');
 });
 
 // ---------------------------------------------------------------------------
@@ -245,4 +250,88 @@ it('Xtream API get_vod_streams falls back to global channel number when pivot is
 
     expect($streams)->toBeArray()->toHaveCount(1)
         ->and($streams[0]['num'])->toBe(22);
+});
+
+// ---------------------------------------------------------------------------
+// EPG XML: channel id uses pivot channel_number (must match HDHR lineup GuideNumber)
+// ---------------------------------------------------------------------------
+
+it('EPG XML uses pivot channel_number for channel id when id_channel_by is Number', function () {
+    $channel = Channel::factory()->for($this->user)->for($this->playlist)->for($this->group)->create([
+        'enabled' => true,
+        'is_vod' => false,
+        'channel' => 99,
+        'title' => 'Das Erste HDraw',
+        'url' => 'http://example.com/stream/1',
+    ]);
+
+    $this->customPlaylist->update(['id_channel_by' => PlaylistChannelId::Number, 'dummy_epg' => true]);
+    $this->customPlaylist->channels()->attach($channel->id, ['channel_number' => 42]);
+
+    // Use compressed endpoint — returns a regular (non-streamed) response, avoiding ob_start conflicts
+    $response = $this->get("/{$this->customPlaylist->uuid}/epg.xml.gz");
+    $response->assertStatus(200);
+
+    $content = gzdecode($response->getContent());
+
+    // EPG channel id must be pivot channel_number (42), not global channel (99)
+    expect($content)->toContain('<channel id="42">')
+        ->not->toContain('<channel id="99">');
+});
+
+it('EPG XML falls back to global channel number when pivot channel_number is null for Number mode', function () {
+    $channel = Channel::factory()->for($this->user)->for($this->playlist)->for($this->group)->create([
+        'enabled' => true,
+        'is_vod' => false,
+        'channel' => 77,
+        'title' => 'ZDF HDraw',
+        'url' => 'http://example.com/stream/1',
+    ]);
+
+    $this->customPlaylist->update(['id_channel_by' => PlaylistChannelId::Number, 'dummy_epg' => true]);
+    $this->customPlaylist->channels()->attach($channel->id);
+
+    $response = $this->get("/{$this->customPlaylist->uuid}/epg.xml.gz");
+    $response->assertStatus(200);
+
+    $content = gzdecode($response->getContent());
+
+    expect($content)->toContain('<channel id="77">');
+});
+
+it('EPG channel ids match HDHR lineup GuideNumbers for custom playlists', function () {
+    $channels = collect();
+    for ($i = 1; $i <= 3; $i++) {
+        $ch = Channel::factory()->for($this->user)->for($this->playlist)->for($this->group)->create([
+            'enabled' => true,
+            'is_vod' => false,
+            'channel' => 100 + $i,
+            'title' => "Channel {$i}",
+            'url' => "http://example.com/stream/{$i}",
+        ]);
+        $channels->push($ch);
+        $this->customPlaylist->channels()->attach($ch->id, ['channel_number' => $i * 10]);
+    }
+
+    $this->customPlaylist->update(['id_channel_by' => PlaylistChannelId::Number, 'dummy_epg' => true]);
+
+    // Get EPG XML (compressed — avoids streamed response ob_start conflicts)
+    $epgResponse = $this->get("/{$this->customPlaylist->uuid}/epg.xml.gz");
+    $epgContent = gzdecode($epgResponse->getContent());
+
+    // Get HDHR lineup
+    $hdhrResponse = $this->get("/{$this->customPlaylist->uuid}/hdhr/lineup.json");
+    $hdhrContent = json_decode($hdhrResponse->streamedContent(), true);
+
+    // Both should use pivot channel_number values (10, 20, 30)
+    foreach ($hdhrContent as $idx => $entry) {
+        $guideNumber = $entry['GuideNumber'];
+        expect($epgContent)->toContain("<channel id=\"{$guideNumber}\">");
+    }
+
+    // Must NOT contain global channel numbers
+    expect($epgContent)
+        ->not->toContain('<channel id="101">')
+        ->not->toContain('<channel id="102">')
+        ->not->toContain('<channel id="103">');
 });
