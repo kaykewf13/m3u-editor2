@@ -4,6 +4,7 @@ namespace App\Filament\Resources\MergedEpgs;
 
 use App\Enums\EpgSourceType;
 use App\Enums\Status;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\MergedEpgs\Pages\EditMergedEpg;
 use App\Filament\Resources\MergedEpgs\Pages\ListMergedEpgs;
 use App\Jobs\ProcessEpgImport;
@@ -12,6 +13,7 @@ use App\Rules\Cron;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Cron\CronExpression;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -38,8 +40,9 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
-class MergedEpgResource extends Resource
+class MergedEpgResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Epg::class;

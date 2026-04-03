@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Series;
 use App\Facades\LogoFacade;
 use App\Filament\Actions\AssetPickerAction;
 use App\Filament\Actions\BulkModalActionGroup;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\Playlists\PlaylistResource;
 use App\Filament\Resources\Series\Pages\CreateSeries;
 use App\Filament\Resources\Series\Pages\EditSeries;
@@ -28,6 +29,7 @@ use App\Services\XtreamService;
 use App\Settings\GeneralSettings;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -66,8 +68,9 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
-class SeriesResource extends Resource
+class SeriesResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Series::class;

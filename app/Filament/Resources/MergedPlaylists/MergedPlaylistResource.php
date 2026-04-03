@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MergedPlaylists;
 
 use App\Facades\PlaylistFacade;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\MergedPlaylistResource\Pages;
 use App\Filament\Resources\MergedPlaylists\Pages\EditMergedPlaylist;
 use App\Filament\Resources\MergedPlaylists\Pages\ListMergedPlaylists;
@@ -17,6 +18,7 @@ use App\Models\StreamProfile;
 use App\Services\DateFormatService;
 use App\Services\EpgCacheService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -43,8 +45,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 
-class MergedPlaylistResource extends Resource
+class MergedPlaylistResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = MergedPlaylist::class;

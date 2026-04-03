@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PlaylistAuths;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\PlaylistAuthResource\Pages;
 use App\Filament\Resources\PlaylistAuthResource\RelationManagers;
 use App\Filament\Resources\PlaylistAuths\Pages\ListPlaylistAuths;
@@ -12,6 +13,7 @@ use App\Models\PlaylistAlias;
 use App\Models\PlaylistAuth;
 use App\Services\DateFormatService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -34,8 +36,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
-class PlaylistAuthResource extends Resource
+class PlaylistAuthResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = PlaylistAuth::class;

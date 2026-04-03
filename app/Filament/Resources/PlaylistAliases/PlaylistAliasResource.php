@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PlaylistAliases;
 
 use App\Facades\PlaylistFacade;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\CustomPlaylists\CustomPlaylistResource;
 use App\Filament\Resources\Playlists\PlaylistResource;
 use App\Models\CustomPlaylist;
@@ -15,6 +16,7 @@ use App\Services\EpgCacheService;
 use App\Services\M3uProxyService;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions;
 use Filament\Forms;
@@ -34,8 +36,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
-class PlaylistAliasResource extends Resource
+class PlaylistAliasResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = PlaylistAlias::class;

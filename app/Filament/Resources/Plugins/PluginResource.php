@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Plugins;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\Plugins\Pages\EditPlugin;
 use App\Filament\Resources\Plugins\Pages\ListPlugins;
 use App\Filament\Resources\Plugins\Pages\ViewPluginRun;
@@ -14,6 +15,7 @@ use App\Models\PluginRun;
 use App\Plugins\PluginManager;
 use App\Plugins\PluginSchemaMapper;
 use App\Services\DateFormatService;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Placeholder;
@@ -34,8 +36,10 @@ use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
-class PluginResource extends Resource
+class PluginResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = Plugin::class;
 
     protected static ?string $recordTitleAttribute = 'name';

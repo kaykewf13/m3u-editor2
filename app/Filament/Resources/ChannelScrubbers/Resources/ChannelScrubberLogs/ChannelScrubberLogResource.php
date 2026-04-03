@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\ChannelScrubbers\Resources\ChannelScrubberLogs;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\ChannelScrubbers\ChannelScrubberResource;
 use App\Filament\Resources\ChannelScrubbers\Resources\ChannelScrubberLogs\Pages\ViewChannelScrubberLog;
 use App\Filament\Resources\ChannelScrubbers\Resources\ChannelScrubberLogs\RelationManagers\DeadChannelsRelationManager;
 use App\Models\ChannelScrubberLog;
 use App\Services\DateFormatService;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
@@ -19,8 +21,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
-class ChannelScrubberLogResource extends Resource
+class ChannelScrubberLogResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = ChannelScrubberLog::class;
 
     protected static ?string $parentResource = ChannelScrubberResource::class;

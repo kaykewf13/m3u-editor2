@@ -17,6 +17,7 @@
 @source '../../resources/js/vendor';
 
 /* Filament plugins */
+@source '../../vendor/eslam-reda-div/filament-copilot/resources/views';
 
 
 /* EPG Viewer Mobile Optimizations */

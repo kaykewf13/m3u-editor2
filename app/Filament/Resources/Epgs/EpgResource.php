@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Epgs;
 
 use App\Enums\EpgSourceType;
 use App\Enums\Status;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\EpgResource\Pages;
 use App\Filament\Resources\Epgs\Pages\ListEpgs;
 use App\Filament\Resources\Epgs\Pages\ViewEpg;
@@ -17,6 +18,7 @@ use App\Services\SchedulesDirectService;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Cron\CronExpression;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -48,8 +50,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class EpgResource extends Resource
+class EpgResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Epg::class;

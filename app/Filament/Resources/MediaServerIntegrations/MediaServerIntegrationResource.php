@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MediaServerIntegrations;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\MediaServerIntegrations\Pages\CreateMediaServerIntegration;
 use App\Filament\Resources\MediaServerIntegrations\Pages\EditMediaServerIntegration;
 use App\Filament\Resources\MediaServerIntegrations\Pages\ListMediaServerIntegrations;
@@ -18,6 +19,7 @@ use App\Services\PlexManagementService;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -56,8 +58,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 
-class MediaServerIntegrationResource extends Resource
+class MediaServerIntegrationResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = MediaServerIntegration::class;

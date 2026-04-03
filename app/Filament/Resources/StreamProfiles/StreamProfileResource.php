@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\StreamProfiles;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Models\StreamProfile;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -14,8 +16,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
-class StreamProfileResource extends Resource
+class StreamProfileResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = StreamProfile::class;
 
     public static function getNavigationGroup(): ?string

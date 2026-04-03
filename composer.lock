@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "32d0d75ca9317a73dd4a8a616adc114a",
+    "content-hash": "c4334baa2eaa14646cca1e559cfc3ad7",
     "packages": [
         {
             "name": "ashallendesign/laravel-config-validator",
@@ -1453,6 +1453,65 @@
                 }
             ],
             "time": "2025-03-06T22:45:56+00:00"
+        },
+        {
+            "name": "eslam-reda-div/filament-copilot",
+            "version": "v1.0.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eslam-reda-div/filament-copilot.git",
+                "reference": "eaa8b671a647e9ad3751cea6995b7434ada9ce3f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eslam-reda-div/filament-copilot/zipball/eaa8b671a647e9ad3751cea6995b7434ada9ce3f",
+                "reference": "eaa8b671a647e9ad3751cea6995b7434ada9ce3f",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^5.0",
+                "laravel/ai": "^0.4.0",
+                "laravel/prompts": "^0.3.14",
+                "php": "^8.2",
+                "spatie/laravel-package-tools": "^1.16"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.28",
+                "nunomaduro/collision": "^8.0",
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "EslamRedaDiv\\FilamentCopilot\\FilamentCopilotServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "EslamRedaDiv\\FilamentCopilot\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "A Filament plugin for AI-powered copilot features.",
+            "homepage": "https://github.com/eslam-reda-div/filament-copilot",
+            "keywords": [
+                "copilot",
+                "filament",
+                "laravel",
+                "plugin"
+            ],
+            "support": {
+                "issues": "https://github.com/eslam-reda-div/filament-copilot/issues",
+                "source": "https://github.com/eslam-reda-div/filament-copilot/tree/v1.0.3"
+            },
+            "time": "2026-03-30T17:21:48+00:00"
         },
         {
             "name": "evenement/evenement",
@@ -2936,6 +2995,72 @@
                 }
             ],
             "time": "2026-03-18T10:06:36+00:00"
+        },
+        {
+            "name": "laravel/ai",
+            "version": "v0.4.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/ai.git",
+                "reference": "48fbf714458f93f22ec39ed3d4bb65a4bdfd163b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/48fbf714458f93f22ec39ed3d4bb65a4bdfd163b",
+                "reference": "48fbf714458f93f22ec39ed3d4bb65a4bdfd163b",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/console": "^12.0|^13.0",
+                "illuminate/container": "^12.0|^13.0",
+                "illuminate/contracts": "^12.0|^13.0",
+                "illuminate/filesystem": "^12.0|^13.0",
+                "illuminate/json-schema": "^12.0|^13.0",
+                "illuminate/support": "^12.0|^13.0",
+                "laravel/prompts": "^0.3.6",
+                "laravel/serializable-closure": "^2.0",
+                "php": "^8.3",
+                "prism-php/prism": "^0.99.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.26",
+                "mockery/mockery": "^1.6.12",
+                "orchestra/testbench": "^10.6|^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Laravel\\Ai\\AiServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "functions.php"
+                ],
+                "psr-4": {
+                    "Laravel\\Ai\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "The official AI SDK for Laravel.",
+            "homepage": "https://github.com/laravel/ai",
+            "keywords": [
+                "ai",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/ai/issues",
+                "source": "https://github.com/laravel/ai"
+            },
+            "time": "2026-04-01T07:35:26+00:00"
         },
         {
             "name": "laravel/framework",
@@ -6135,6 +6260,85 @@
                 }
             ],
             "time": "2025-11-12T18:00:11+00:00"
+        },
+        {
+            "name": "prism-php/prism",
+            "version": "v0.99.22",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/prism-php/prism.git",
+                "reference": "989f67567aef69c613eae6e932d615fb96e2f5d7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/989f67567aef69c613eae6e932d615fb96e2f5d7",
+                "reference": "989f67567aef69c613eae6e932d615fb96e2f5d7",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "laravel/framework": "^11.0|^12.0|^13.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "brianium/paratest": "^7.8.4",
+                "laravel/mcp": "^0.6.0",
+                "laravel/pint": "^1.14",
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^10",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-arch": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0",
+                "phpstan/extension-installer": "^1.3",
+                "phpstan/phpdoc-parser": "^2.0",
+                "phpstan/phpstan": "2.1.34",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "projektgopher/whisky": "^0.7.0",
+                "rector/rector": "2.3.3",
+                "spatie/laravel-ray": "^1.39",
+                "symplify/rule-doc-generator-contracts": "^11.2"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "PrismServer": "Prism\\Prism\\Facades\\PrismServer"
+                    },
+                    "providers": [
+                        "Prism\\Prism\\PrismServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "Prism\\Prism\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "TJ Miller",
+                    "email": "hello@echolabs.dev"
+                }
+            ],
+            "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
+            "support": {
+                "issues": "https://github.com/prism-php/prism/issues",
+                "source": "https://github.com/prism-php/prism/tree/v0.99.22"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sixlive",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-12T17:55:23+00:00"
         },
         {
             "name": "psr/cache",

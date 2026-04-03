@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\AI\PatchedAiManager;
 use App\Console\Commands\NetworkBroadcastEnsure;
 use App\Console\Commands\NetworkBroadcastHeal;
 use App\Enums\Status;
@@ -71,6 +72,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Ai\AiManager;
 use Livewire\Livewire;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\OIDC\OIDCExtendSocialite;
@@ -84,6 +86,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Override the Laravel AI manager to fix a strict-mode tool schema bug
+        // where tools with no parameters are missing the required `parameters`
+        // object, causing OpenAI to return a 400 invalid_function_parameters error.
+        $this->app->scoped(AiManager::class, fn ($app) => new PatchedAiManager($app));
+
         $this->app->singleton(GitInfoService::class);
 
         // Register Artisan commands for HLS maintenance
@@ -148,6 +155,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Apply user-defined timezone (when TZ env var is not set)
         $this->applyTimezoneFromSettings();
+
+        // Inject Copilot API key from settings into the Laravel AI config
+        $this->applyCopilotApiKeyFromSettings();
 
         // Register the OIDC Socialite driver (when enabled)
         $this->registerOidcProvider();
@@ -811,6 +821,25 @@ class AppServiceProvider extends ServiceProvider
                     SecurityScheme::http('bearer')
                 );
             });
+    }
+
+    /**
+     * Inject the Copilot API key stored in GeneralSettings into the Laravel AI
+     * provider config so it takes effect at request time without requiring an
+     * env var to be set. This runs after settings are available and before any
+     * AI requests are made.
+     */
+    private function applyCopilotApiKeyFromSettings(): void
+    {
+        try {
+            $settings = app(GeneralSettings::class);
+
+            if (! empty($settings->copilot_api_key) && ! empty($settings->copilot_provider)) {
+                config(["ai.providers.{$settings->copilot_provider}.key" => $settings->copilot_api_key]);
+            }
+        } catch (Throwable) {
+            // Settings may not be available during fresh installs / migrations
+        }
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PostProcesses;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\PostProcesses\Pages\EditPostProcess;
 use App\Filament\Resources\PostProcesses\Pages\ListPostProcesses;
 use App\Filament\Resources\PostProcesses\RelationManagers\LogsRelationManager;
@@ -11,6 +12,7 @@ use App\Models\PostProcess;
 use App\Rules\CheckIfUrlOrLocalPath;
 use App\Services\DateFormatService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -34,8 +36,9 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
-class PostProcessResource extends Resource
+class PostProcessResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = PostProcess::class;

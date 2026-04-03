@@ -6,6 +6,7 @@ use App\Facades\LogoFacade;
 use App\Facades\SortFacade;
 use App\Filament\Actions\AssetPickerAction;
 use App\Filament\Actions\BulkModalActionGroup;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\VodResource\Pages;
 use App\Filament\Resources\Vods\Pages\ListVod;
 use App\Filament\Resources\Vods\Pages\ViewVod;
@@ -28,6 +29,7 @@ use App\Services\PlaylistService;
 use App\Services\TmdbService;
 use App\Settings\GeneralSettings;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -73,8 +75,9 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-class VodResource extends Resource
+class VodResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Channel::class;

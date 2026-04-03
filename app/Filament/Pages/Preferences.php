@@ -14,10 +14,19 @@ use App\Services\PlaylistService;
 use App\Settings\GeneralSettings;
 use Cron\CronExpression;
 use Dom\Text;
+use EslamRedaDiv\FilamentCopilot\Tools\GetToolsTool;
+use EslamRedaDiv\FilamentCopilot\Tools\ListPagesTool;
+use EslamRedaDiv\FilamentCopilot\Tools\ListResourcesTool;
+use EslamRedaDiv\FilamentCopilot\Tools\ListWidgetsTool;
+use EslamRedaDiv\FilamentCopilot\Tools\RecallTool;
+use EslamRedaDiv\FilamentCopilot\Tools\RememberTool;
+use EslamRedaDiv\FilamentCopilot\Tools\RunToolTool;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
@@ -178,6 +187,11 @@ class Preferences extends SettingsPage
 
         // Remove transient fields that are not in GeneralSettings
         unset($data['date_format_preset'], $data['date_format_custom']);
+
+        // Re-index repeater array (Filament uses string keys internally)
+        if (isset($data['copilot_quick_actions']) && is_array($data['copilot_quick_actions'])) {
+            $data['copilot_quick_actions'] = array_values($data['copilot_quick_actions']);
+        }
 
         return $data;
     }
@@ -1345,6 +1359,124 @@ class Preferences extends SettingsPage
                                         Toggle::make('show_api_docs')
                                             ->label(__('Allow access to API docs'))
                                             ->helperText(__('When enabled you can access the API documentation using the "API Docs" button. When disabled, the docs endpoint will return a 403 (Unauthorized). NOTE: The API will respond regardless of this setting. You do not need to enable it to use the API.')),
+                                    ]),
+                            ]),
+                        Tab::make(__('AI Copilot'))
+                            ->icon('heroicon-o-sparkles')
+                            ->schema([
+                                Section::make(__('AI Copilot'))
+                                    ->description(__('You will need to save and refresh the page after changing settings for them to take effect.'))
+                                    ->schema([
+                                        Toggle::make('copilot_enabled')
+                                            ->label(__('Enable AI Copilot'))
+                                            ->helperText(__('When enabled and configured, the AI Copilot assistant will appear in the top navigation bar.'))
+                                            ->live(),
+                                        Toggle::make('copilot_mgmt_enabled')
+                                            ->label(__('Enable AI Copilot Management'))
+                                            ->helperText(__('Enables audit log, custom rate limits, conversation history, and other management features for the AI Copilot assistant.'))
+                                            ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled')),
+                                    ]),
+                                Section::make(__('AI Provider'))
+                                    ->description(__('Select your AI provider and configure the API credentials.'))
+                                    ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                    ->schema([
+                                        Grid::make()
+                                            ->columns(2)
+                                            ->schema([
+                                                Select::make('copilot_provider')
+                                                    ->label(__('Provider'))
+                                                    ->searchable()
+                                                    ->options([
+                                                        'openai' => 'OpenAI',
+                                                        'anthropic' => 'Anthropic',
+                                                        'gemini' => 'Google Gemini',
+                                                        'mistral' => 'Mistral',
+                                                        'ollama' => 'Ollama (Local)',
+                                                    ])
+                                                    ->live()
+                                                    ->required(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                                    ->helperText(__('The AI provider to use for the Copilot assistant.')),
+                                                TextInput::make('copilot_model')
+                                                    ->label(__('Model'))
+                                                    ->placeholder(fn (Get $get): string => match ($get('copilot_provider')) {
+                                                        'anthropic' => 'claude-sonnet-4',
+                                                        'gemini' => 'gemini-2.0-flash',
+                                                        'mistral' => 'mistral-large-latest',
+                                                        'ollama' => 'llama3',
+                                                        default => 'gpt-4o',
+                                                    })
+                                                    ->required(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                                    ->helperText(__('The model to use. Leave blank to use the provider default.')),
+                                            ]),
+                                        TextInput::make('copilot_api_key')
+                                            ->label(__('API Key'))
+                                            ->password()
+                                            ->revealable()
+                                            ->dehydrated(fn ($state): bool => filled($state))
+                                            ->visible(fn (Get $get): bool => $get('copilot_provider') !== 'ollama')
+                                            ->required(fn (Get $get): bool => (bool) $get('copilot_enabled') && $get('copilot_provider') !== 'ollama')
+                                            ->helperText(__('Your API key for the selected provider. Stored in the database.')),
+                                    ]),
+                                Section::make(__('System Prompt'))
+                                    ->description(__('The system prompt sent to the AI on every conversation to configure its behaviour.'))
+                                    ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                    ->schema([
+                                        Textarea::make('copilot_system_prompt')
+                                            ->label(__('System Prompt'))
+                                            ->placeholder(__('You are a helpful AI assistant integrated into m3u editor. You help users manage playlists, EPG data, streams, channels, and other features. Be concise and accurate.'))
+                                            ->rows(4)
+                                            ->helperText(__('Leave empty to use the default.')),
+                                    ]),
+                                Section::make(__('Global Tools'))
+                                    ->description(__('Tools available to the Copilot assistant across all pages.'))
+                                    ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                    ->schema([
+                                        CheckboxList::make('copilot_global_tools')
+                                            ->label(__('Enabled Tools'))
+                                            ->bulkToggleable()
+                                            ->options([
+                                                GetToolsTool::class => __('Get Available Tools'),
+                                                RunToolTool::class => __('Run Tool'),
+                                                ListResourcesTool::class => __('List Resources'),
+                                                ListPagesTool::class => __('List Pages'),
+                                                ListWidgetsTool::class => __('List Widgets'),
+                                                RememberTool::class => __('Remember'),
+                                                RecallTool::class => __('Recall Memories'),
+                                            ])
+                                            ->columns(2)
+                                            ->default([
+                                                GetToolsTool::class,
+                                                RunToolTool::class,
+                                                ListResourcesTool::class,
+                                                ListPagesTool::class,
+                                                ListWidgetsTool::class,
+                                                RememberTool::class,
+                                                RecallTool::class,
+                                            ])
+                                            ->helperText(__('Select which tools the AI assistant can use.')),
+                                    ]),
+                                Section::make(__('Quick Actions'))
+                                    ->description(__('Pre-defined prompts displayed as buttons in the Copilot chat window.'))
+                                    ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled'))
+                                    ->schema([
+                                        Repeater::make('copilot_quick_actions')
+                                            ->label(__('Quick Actions'))
+                                            ->schema([
+                                                TextInput::make('label')
+                                                    ->label(__('Label'))
+                                                    ->required()
+                                                    ->placeholder(__('e.g. Help me find a channel')),
+                                                Textarea::make('prompt')
+                                                    ->label(__('Prompt'))
+                                                    ->required()
+                                                    ->rows(2)
+                                                    ->placeholder(__('e.g. Help me find a channel by name.')),
+                                            ])
+                                            ->columns(2)
+                                            ->addActionLabel(__('Add Quick Action'))
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->defaultItems(0),
                                     ]),
                             ]),
                         Tab::make(__('Debugging'))

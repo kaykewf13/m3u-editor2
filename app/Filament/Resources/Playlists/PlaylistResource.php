@@ -6,6 +6,7 @@ use App\Enums\PlaylistSourceType;
 use App\Enums\Status;
 use App\Facades\PlaylistFacade;
 use App\Filament\Actions\ModalActionGroup;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\MediaServerIntegrations\MediaServerIntegrationResource;
 use App\Filament\Resources\Playlists\Pages\CreatePlaylist;
 use App\Filament\Resources\Playlists\Pages\EditPlaylist;
@@ -45,6 +46,7 @@ use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
 use Cron\CronExpression;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -91,13 +93,19 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rule;
 
-class PlaylistResource extends Resource
+class PlaylistResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Playlist::class;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function copilotResourceDescription(): ?string
+    {
+        return __('Manages M3U playlists, including live streams, VOD, and series. Supports Xtream API.');
+    }
 
     public static function getNavigationGroup(): ?string
     {

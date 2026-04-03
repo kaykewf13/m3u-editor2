@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\EpgChannels;
 
 use App\Filament\Actions\AssetPickerAction;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\EpgChannelResource\Pages;
 use App\Filament\Resources\EpgChannels\Pages\ListEpgChannels;
 use App\Jobs\EpgChannelFindAndReplace;
@@ -10,6 +11,7 @@ use App\Jobs\EpgChannelFindAndReplaceReset;
 use App\Models\EpgChannel;
 use App\Services\DateFormatService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
@@ -29,8 +31,9 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 
-class EpgChannelResource extends Resource
+class EpgChannelResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = EpgChannel::class;

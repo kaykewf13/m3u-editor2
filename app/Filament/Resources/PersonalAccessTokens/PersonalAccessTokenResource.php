@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\PersonalAccessTokens;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Models\PersonalAccessToken;
 use App\Services\DateFormatService;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -13,8 +15,10 @@ use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class PersonalAccessTokenResource extends Resource
+class PersonalAccessTokenResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = PersonalAccessToken::class;
 
     public static function getNavigationGroup(): ?string

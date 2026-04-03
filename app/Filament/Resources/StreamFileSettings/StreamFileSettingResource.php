@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\StreamFileSettings;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Models\MediaServerIntegration;
 use App\Models\StreamFileSetting;
 use App\Rules\CheckIfUrlOrLocalPath;
 use App\Services\PlaylistService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
@@ -25,8 +27,9 @@ use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
-class StreamFileSettingResource extends Resource
+class StreamFileSettingResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = StreamFileSetting::class;

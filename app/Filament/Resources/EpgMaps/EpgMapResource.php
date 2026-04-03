@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\EpgMaps;
 
 use App\Enums\Status;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\EpgMapResource\Pages;
 use App\Filament\Resources\EpgMaps\Pages\ListEpgMaps;
 use App\Jobs\MapPlaylistChannelsToEpg;
@@ -11,6 +12,7 @@ use App\Models\EpgMap;
 use App\Models\Playlist;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -34,8 +36,9 @@ use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
-class EpgMapResource extends Resource
+class EpgMapResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = EpgMap::class;

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ChannelScrubbers;
 
 use App\Enums\Status;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\ChannelScrubbers\Pages\ListChannelScrubbers;
 use App\Filament\Resources\ChannelScrubbers\Pages\ViewChannelScrubber;
 use App\Filament\Resources\ChannelScrubbers\RelationManagers\ScrubberLogsRelationManager;
@@ -11,6 +12,7 @@ use App\Models\ChannelScrubber;
 use App\Models\Playlist;
 use App\Tables\Columns\ProgressColumn;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -33,8 +35,9 @@ use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
-class ChannelScrubberResource extends Resource
+class ChannelScrubberResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = ChannelScrubber::class;

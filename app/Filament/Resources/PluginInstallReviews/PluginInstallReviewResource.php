@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\PluginInstallReviews;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\PluginInstallReviews\Pages\EditPluginInstallReview;
 use App\Filament\Resources\PluginInstallReviews\Pages\ListPluginInstallReviews;
 use App\Models\PluginInstallReview;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Forms\Components\Placeholder;
@@ -17,8 +19,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
-class PluginInstallReviewResource extends Resource
+class PluginInstallReviewResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = PluginInstallReview::class;
 
     public static function getModelLabel(): string

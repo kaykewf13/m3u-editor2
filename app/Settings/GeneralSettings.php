@@ -228,6 +228,23 @@ class GeneralSettings extends Settings
 
     public ?string $date_format = null;
 
+    // Copilot / AI assistant settings
+    public ?bool $copilot_enabled = false;
+
+    public ?bool $copilot_mgmt_enabled = false;
+
+    public ?string $copilot_provider = null;
+
+    public ?string $copilot_model = null;
+
+    public ?string $copilot_api_key = null;
+
+    public ?string $copilot_system_prompt = null;
+
+    public ?array $copilot_global_tools = null;
+
+    public ?array $copilot_quick_actions = null;
+
     public static function group(): string
     {
         return 'general';

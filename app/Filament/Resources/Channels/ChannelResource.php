@@ -6,6 +6,7 @@ use App\Facades\LogoFacade;
 use App\Facades\SortFacade;
 use App\Filament\Actions\AssetPickerAction;
 use App\Filament\Actions\BulkModalActionGroup;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\ChannelResource\Pages;
 use App\Filament\Resources\Channels\Pages\ListChannels;
 use App\Filament\Resources\EpgMaps\EpgMapResource;
@@ -24,6 +25,7 @@ use App\Services\EpgCacheService;
 use App\Services\LogoCacheService;
 use App\Services\PlaylistService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -67,8 +69,9 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-class ChannelResource extends Resource
+class ChannelResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Channel::class;

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Networks;
 
 use App\Enums\TranscodeMode;
 use App\Filament\Actions\AssetPickerAction;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\Networks\Pages\CreateNetwork;
 use App\Filament\Resources\Networks\Pages\EditNetwork;
 use App\Filament\Resources\Networks\Pages\ListNetworks;
@@ -16,6 +17,7 @@ use App\Services\NetworkBroadcastService;
 use App\Services\NetworkScheduleService;
 use App\Traits\HasUserFiltering;
 use Carbon\Carbon;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -53,8 +55,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
-class NetworkResource extends Resource
+class NetworkResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = Network::class;

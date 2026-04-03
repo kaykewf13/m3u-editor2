@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Playlists\Resources\PlaylistSyncStatuses;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\Playlists\PlaylistResource;
 use App\Models\PlaylistSyncStatus;
 use App\Services\DateFormatService;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Infolists;
 use Filament\Resources\ParentResourceRegistration;
@@ -15,8 +17,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
-class PlaylistSyncStatusResource extends Resource
+class PlaylistSyncStatusResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = PlaylistSyncStatus::class;
 
     protected static ?string $parentResource = PlaylistResource::class;

@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\Assets;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\Assets\Pages\ListAssets;
 use App\Models\Asset;
 use App\Models\User;
 use App\Services\AssetInventoryService;
 use App\Services\DateFormatService;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -20,8 +22,10 @@ use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
-class AssetResource extends Resource
+class AssetResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = Asset::class;
 
     public static function getNavigationGroup(): ?string

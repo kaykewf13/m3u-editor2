@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PlaylistViewers;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\PlaylistViewers\Pages\ListPlaylistViewers;
 use App\Filament\Resources\PlaylistViewers\Pages\ViewPlaylistViewer;
 use App\Filament\Resources\PlaylistViewers\RelationManagers\WatchProgressRelationManager;
@@ -10,6 +11,7 @@ use App\Models\MergedPlaylist;
 use App\Models\Playlist;
 use App\Models\PlaylistAlias;
 use App\Models\PlaylistViewer;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -25,8 +27,10 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class PlaylistViewerResource extends Resource
+class PlaylistViewerResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = PlaylistViewer::class;
 
     public static function getNavigationLabel(): string

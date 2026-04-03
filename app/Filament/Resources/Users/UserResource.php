@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Users;
 
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Models\User;
 use App\Services\DateFormatService;
 use BackedEnum;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
@@ -23,8 +25,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use STS\FilamentImpersonate\Actions\Impersonate;
 
-class UserResource extends Resource
+class UserResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
+
     protected static ?string $model = User::class;
 
     /**

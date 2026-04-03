@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustomPlaylists;
 
 use App\Facades\PlaylistFacade;
+use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\CustomPlaylistResource\Pages;
 use App\Filament\Resources\CustomPlaylists\Pages\EditCustomPlaylist;
 use App\Filament\Resources\CustomPlaylists\Pages\ListCustomPlaylists;
@@ -19,6 +20,7 @@ use App\Services\DateFormatService;
 use App\Services\EpgCacheService;
 use App\Services\M3uProxyService;
 use App\Traits\HasUserFiltering;
+use EslamRedaDiv\FilamentCopilot\Contracts\CopilotResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -45,8 +47,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 
-class CustomPlaylistResource extends Resource
+class CustomPlaylistResource extends Resource implements CopilotResource
 {
+    use HasCopilotSupport;
     use HasUserFiltering;
 
     protected static ?string $model = CustomPlaylist::class;
