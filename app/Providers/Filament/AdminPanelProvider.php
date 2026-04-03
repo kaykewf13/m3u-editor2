@@ -55,6 +55,14 @@ class AdminPanelProvider extends PanelProvider
             'show_breadcrumbs' => true,
             'content_width' => Width::ScreenLarge,
             'output_wan_address' => false,
+            'copilot_enabled' => false,
+            'copilot_mgmt_enabled' => false,
+            'copilot_api_key' => null,
+            'copilot_provider' => null,
+            'copilot_model' => null,
+            'copilot_system_prompt' => '',
+            'copilot_global_tools' => [],
+            'copilot_quick_actions' => [],
         ];
         try {
             $envShowWan = config('dev.show_wan_details', false);
@@ -65,6 +73,14 @@ class AdminPanelProvider extends PanelProvider
                 'output_wan_address' => $envShowWan !== null
                     ? (bool) $envShowWan
                     : (bool) ($userPreferences->output_wan_address ?? $settings['output_wan_address']),
+                'copilot_enabled' => $userPreferences->copilot_enabled ?? $settings['copilot_enabled'],
+                'copilot_mgmt_enabled' => $userPreferences->copilot_mgmt_enabled ?? $settings['copilot_mgmt_enabled'],
+                'copilot_api_key' => $userPreferences->copilot_api_key ?? $settings['copilot_api_key'],
+                'copilot_provider' => $userPreferences->copilot_provider ?? $settings['copilot_provider'],
+                'copilot_model' => $userPreferences->copilot_model ?? $settings['copilot_model'],
+                'copilot_system_prompt' => $userPreferences->copilot_system_prompt ?? $settings['copilot_system_prompt'],
+                'copilot_global_tools' => $userPreferences->copilot_global_tools ?? $settings['copilot_global_tools'],
+                'copilot_quick_actions' => $userPreferences->copilot_quick_actions ?? $settings['copilot_quick_actions'],
             ];
         } catch (Exception $e) {
             // Ignore
@@ -161,7 +177,16 @@ class AdminPanelProvider extends PanelProvider
                     ->showFlags(false)
                     ->rememberLocale()
                     ->showOnAuthPages(false),
-                $this->buildCopilotPlugin(),
+                $this->buildCopilotPlugin([
+                    'copilot_enabled' => $settings['copilot_enabled'],
+                    'copilot_mgmt_enabled' => $settings['copilot_mgmt_enabled'],
+                    'copilot_api_key' => $settings['copilot_api_key'],
+                    'copilot_provider' => $settings['copilot_provider'],
+                    'copilot_model' => $settings['copilot_model'],
+                    'copilot_system_prompt' => $settings['copilot_system_prompt'],
+                    'copilot_global_tools' => $settings['copilot_global_tools'],
+                    'copilot_quick_actions' => $settings['copilot_quick_actions'],
+                ]),
             ]))
             ->maxContentWidth($settings['content_width'])
             ->middleware([
@@ -247,7 +272,7 @@ class AdminPanelProvider extends PanelProvider
      * Build the Copilot plugin from database settings.
      * Returns null when the plugin is disabled or not fully configured.
      */
-    private function buildCopilotPlugin(): ?FilamentCopilotPlugin
+    private function buildCopilotPlugin(array $s): ?FilamentCopilotPlugin
     {
         // Skip during tests — the settings table is not yet created when panel() runs
         // (RefreshDatabase migrations happen after service provider registration).
@@ -256,26 +281,24 @@ class AdminPanelProvider extends PanelProvider
         }
 
         try {
-            $s = app(GeneralSettings::class);
-
-            $isConfigured = $s->copilot_enabled
-                && ! empty($s->copilot_provider)
-                && (! empty($s->copilot_api_key) || $s->copilot_provider === 'ollama');
+            $isConfigured = $s['copilot_enabled']
+                && ! empty($s['copilot_provider'])
+                && (! empty($s['copilot_api_key']) || $s['copilot_provider'] === 'ollama');
 
             if (! $isConfigured) {
                 return null;
             }
 
-            $model = $s->copilot_model
-                ?: (self::COPILOT_DEFAULT_MODELS[$s->copilot_provider] ?? 'gpt-4o');
+            $model = $s['copilot_model']
+                ?: (self::COPILOT_DEFAULT_MODELS[$s['copilot_provider']] ?? 'gpt-4o');
 
             return FilamentCopilotPlugin::make()
-                ->provider($s->copilot_provider)
+                ->provider($s['copilot_provider'])
                 ->model($model)
-                ->systemPrompt($s->copilot_system_prompt ?: 'You are a helpful AI assistant integrated into m3u editor. You help users manage playlists, EPG data, streams, channels, and other media features. Be concise and accurate.')
-                ->globalTools($s->copilot_global_tools ?? [])
-                ->quickActions(array_values($s->copilot_quick_actions ?? []))
-                ->managementEnabled()
+                ->systemPrompt($s['copilot_system_prompt'] ?: 'You are a helpful AI assistant integrated into m3u editor. You help users manage playlists, EPG data, streams, channels, and other media features. Be concise and accurate.')
+                ->globalTools($s['copilot_global_tools'] ?? [])
+                ->quickActions(array_values($s['copilot_quick_actions'] ?? []))
+                ->managementEnabled($s['copilot_mgmt_enabled'] ?? false)
                 ->managementGuard('admin')
                 ->respectAuthorization()
                 ->authorizeUsing(fn ($user) => $user->isAdmin());

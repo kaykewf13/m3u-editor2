@@ -231,6 +231,8 @@ class GeneralSettings extends Settings
     // Copilot / AI assistant settings
     public ?bool $copilot_enabled = false;
 
+    public ?bool $copilot_mgmt_enabled = false;
+
     public ?string $copilot_provider = null;
 
     public ?string $copilot_model = null;

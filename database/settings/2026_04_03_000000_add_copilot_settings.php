@@ -9,6 +9,9 @@ return new class extends SettingsMigration
         if (! $this->migrator->exists('general.copilot_enabled')) {
             $this->migrator->add('general.copilot_enabled', false);
         }
+        if (! $this->migrator->exists('general.copilot_mgmt_enabled')) {
+            $this->migrator->add('general.copilot_mgmt_enabled', false);
+        }
         if (! $this->migrator->exists('general.copilot_provider')) {
             $this->migrator->add('general.copilot_provider', null);
         }

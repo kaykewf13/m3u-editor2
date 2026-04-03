@@ -1365,12 +1365,16 @@ class Preferences extends SettingsPage
                             ->icon('heroicon-o-sparkles')
                             ->schema([
                                 Section::make(__('AI Copilot'))
-                                    ->description(__('The copilot assistant is only activated when enabled and the required provider, model, and API key fields are filled.'))
+                                    ->description(__('You will need to save and refresh the page after changing settings for them to take effect.'))
                                     ->schema([
                                         Toggle::make('copilot_enabled')
                                             ->label(__('Enable AI Copilot'))
-                                            ->helperText(__('When enabled and configured, the AI Copilot assistant will appear in the top navigation bar. You will need to save and refresh the page after changing this setting for it to take effect.'))
+                                            ->helperText(__('When enabled and configured, the AI Copilot assistant will appear in the top navigation bar.'))
                                             ->live(),
+                                        Toggle::make('copilot_mgmt_enabled')
+                                            ->label(__('Enable AI Copilot Management'))
+                                            ->helperText(__('Enables audit log, custom rate limits, conversation history, and other management features for the AI Copilot assistant.'))
+                                            ->visible(fn (Get $get): bool => (bool) $get('copilot_enabled')),
                                     ]),
                                 Section::make(__('AI Provider'))
                                     ->description(__('Select your AI provider and configure the API credentials.'))
