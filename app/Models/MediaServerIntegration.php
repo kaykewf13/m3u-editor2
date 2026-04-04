@@ -13,13 +13,6 @@ class MediaServerIntegration extends Model
     use HasFactory;
 
     /**
-     * The attributes that aren't mass assignable.
-     *
-     * @var array
-     */
-    protected $guarded = [];
-
-    /**
      * The attributes that should have default values.
      *
      * @var array
