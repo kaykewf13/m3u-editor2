@@ -73,6 +73,7 @@ class CheckSeriesImportProgress implements ShouldQueue
                 $postJobs[] = new FetchTmdbIds(
                     seriesPlaylistId: $this->playlist_id,
                     overwriteExisting: $this->overwrite_existing,
+                    user: $this->user_id ? User::find($this->user_id) : null,
                     sendCompletionNotification: false,
                 );
             }

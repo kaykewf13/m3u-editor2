@@ -61,6 +61,7 @@ class ProcessVodChannelsComplete implements ShouldQueue
             Log::info('VOD Complete: Queuing bulk TMDB fetch for playlist ID '.$this->playlist->id);
             $postJobs[] = new FetchTmdbIds(
                 vodPlaylistId: $this->playlist->id,
+                user: $this->playlist->user,
                 sendCompletionNotification: false,
             );
         }
