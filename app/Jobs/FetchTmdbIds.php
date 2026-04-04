@@ -864,9 +864,21 @@ class FetchTmdbIds implements ShouldQueue
                     $updateData['plot'] = $details['overview'];
                 }
 
-                // Populate genre if not already set (treat 'Uncategorized' as empty)
-                if (! empty($details['genres']) && (empty($series->genre) || ($series->genre ?? '') === 'Uncategorized')) {
-                    $updateData['genre'] = $details['genres'];
+                // Populate genre if not already set, or if the current value looks like a
+                // library folder name (not found in the TMDB genre list).
+                if (! empty($details['genres'])) {
+                    $tmdbGenreListForGenre = is_string($details['genres'])
+                        ? array_map('trim', explode(',', $details['genres']))
+                        : (array) $details['genres'];
+
+                    $genreIsLibraryName = ! empty($series->genre)
+                        && ($series->genre ?? '') !== 'Uncategorized'
+                        && ! str_contains($series->genre, ',')
+                        && ! in_array(trim($series->genre), $tmdbGenreListForGenre);
+
+                    if (empty($series->genre) || ($series->genre ?? '') === 'Uncategorized' || $genreIsLibraryName) {
+                        $updateData['genre'] = $details['genres'];
+                    }
                 }
 
                 // Update the series' category when it is missing, Uncategorized, or looks like
