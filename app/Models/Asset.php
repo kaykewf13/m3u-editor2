@@ -9,18 +9,6 @@ class Asset extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'disk',
-        'path',
-        'source',
-        'name',
-        'extension',
-        'mime_type',
-        'size_bytes',
-        'is_image',
-        'last_modified_at',
-    ];
-
     protected $casts = [
         'size_bytes' => 'integer',
         'is_image' => 'boolean',
