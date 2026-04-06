@@ -2,6 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\CopilotTools\EpgChannelMatcherTool;
+use App\Filament\CopilotTools\EpgMappingApplyTool;
+use App\Filament\CopilotTools\EpgMappingStateTool;
 use App\Filament\CopilotTools\SearchDocsTool;
 use App\Filament\Resources\Assets\AssetResource;
 use App\Jobs\RestartQueue;
@@ -1461,6 +1464,9 @@ class Preferences extends SettingsPage
                                                 RememberTool::class => __('Remember'),
                                                 RecallTool::class => __('Recall Memories'),
                                                 SearchDocsTool::class => __('Search Documentation'),
+                                                EpgMappingStateTool::class => __('EPG Mapper: Mapping State'),
+                                                EpgChannelMatcherTool::class => __('EPG Mapper: Channel Matcher'),
+                                                EpgMappingApplyTool::class => __('EPG Mapper: Apply Mappings'),
                                             ])
                                             ->columns(2)
                                             ->default([

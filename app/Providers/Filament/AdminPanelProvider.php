@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Auth\EditProfile;
 use App\Filament\Auth\Login;
+use App\Filament\CopilotTools\EpgMappingStateTool;
 use App\Filament\Pages\Backups;
 use App\Filament\Pages\CustomDashboard;
 use App\Filament\Widgets\DiscordWidget;
@@ -308,7 +309,7 @@ class AdminPanelProvider extends PanelProvider
                 ->model($model)
                 ->systemPrompt($s['copilot_system_prompt'] ?: 'You are a helpful AI assistant integrated into m3u editor. You help users manage playlists, EPG data, streams, channels, and other media features. Be concise and accurate.')
                 ->globalTools($s['copilot_global_tools'] ?? [])
-                ->quickActions(array_values($s['copilot_quick_actions'] ?? []))
+                ->quickActions($this->buildQuickActions($s))
                 ->managementEnabled($s['copilot_mgmt_enabled'] ?? false)
                 ->managementGuard('admin')
                 ->respectAuthorization()
@@ -317,5 +318,27 @@ class AdminPanelProvider extends PanelProvider
 
             return null;
         }
+    }
+
+    /**
+     * Build the quick actions list, automatically prepending the EPG mapper
+     * quick action when that tool is enabled — without exposing it in the
+     * user-editable Preferences UI.
+     *
+     * @param  array<string, mixed>  $s
+     * @return list<array{label: string, prompt: string}>
+     */
+    private function buildQuickActions(array $s): array
+    {
+        $quickActions = array_values($s['copilot_quick_actions'] ?? []);
+
+        if (in_array(EpgMappingStateTool::class, $s['copilot_global_tools'] ?? [], true)) {
+            array_unshift($quickActions, [
+                'label' => 'Map EPG Channels',
+                'prompt' => 'I want to map EPG guide data to my playlist channels. Call the EPG mapping state tool now without a playlist_id to list all available playlists and their mapped/unmapped counts.',
+            ]);
+        }
+
+        return $quickActions;
     }
 }
