@@ -531,9 +531,10 @@ class SyncSeriesStrmFiles implements ShouldQueue
                 // Add TVDB/TMDB/IMDB ID to folder name for Trash Guides compatibility.
                 // TMDB is only included in series folder names when explicitly enabled via tmdb_id_apply_to.
                 // Check dedicated columns first, then fall back to metadata JSON for legacy support
-                $tvdbId = $series->tvdb_id ?? $series->metadata['tvdb_id'] ?? $series->metadata['tvdb'] ?? null;
-                $tmdbId = $series->tmdb_id ?? $series->metadata['tmdb_id'] ?? $series->metadata['tmdb'] ?? null;
-                $imdbId = $series->imdb_id ?? $series->metadata['imdb_id'] ?? $series->metadata['imdb'] ?? null;
+                $ids = $series->getMovieDbIds();
+                $tvdbId = $ids['tvdb'] ?? null;
+                $tmdbId = $ids['tmdb'] ?? null;
+                $imdbId = $ids['imdb'] ?? null;
 
                 // Ensure IDs are scalar values (not arrays)
                 $tvdbId = is_scalar($tvdbId) ? $tvdbId : null;

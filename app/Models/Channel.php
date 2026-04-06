@@ -417,6 +417,29 @@ class Channel extends Model
         return false;
     }
 
+    public function getTmdbId(): ?string
+    {
+        return $this->info['tmdb_id']
+            ?? $this->info['tmdb']
+            ?? $this->movie_data['tmdb_id']
+            ?? $this->movie_data['tmdb']
+            ?? null;
+    }
+
+    public function getImdbId(): ?string
+    {
+        return $this->info['imdb_id']
+            ?? $this->info['imdb']
+            ?? $this->movie_data['imdb_id']
+            ?? $this->movie_data['imdb']
+            ?? null;
+    }
+
+    public function hasMovieId(): bool
+    {
+        return $this->getTmdbId() !== null || $this->getImdbId() !== null;
+    }
+
     /**
      * Get the custom group name for a specific custom playlist
      */

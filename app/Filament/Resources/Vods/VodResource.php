@@ -236,8 +236,8 @@ class VodResource extends Resource
                 ->trueColor('success')
                 ->falseColor('gray')
                 ->tooltip(function ($record): string {
-                    $tmdbId = $record->info['tmdb_id'] ?? $record->movie_data['tmdb_id'] ?? null;
-                    $imdbId = $record->info['imdb_id'] ?? $record->movie_data['imdb_id'] ?? null;
+                    $tmdbId = $record->getTmdbId();
+                    $imdbId = $record->getImdbId();
                     if ($tmdbId || $imdbId) {
                         $ids = [];
                         if ($tmdbId) {
@@ -252,7 +252,7 @@ class VodResource extends Resource
 
                     return 'No TMDB/IMDB ID available';
                 })
-                ->getStateUsing(fn ($record) => ! empty($record->info['tmdb_id'] ?? $record->movie_data['tmdb_id'] ?? null))
+                ->getStateUsing(fn ($record) => $record->hasMovieId())
                 ->toggleable(),
             TextInputColumn::make('stream_id_custom')
                 ->label('ID')
@@ -426,9 +426,13 @@ class VodResource extends Resource
                     return $query->where('is_vod', true)
                         ->where(function ($q) {
                             $q->whereRaw("info::jsonb ?? 'tmdb_id'")
+                                ->orWhereRaw("info::jsonb ?? 'tmdb'")
                                 ->orWhereRaw("movie_data::jsonb ?? 'tmdb_id'")
+                                ->orWhereRaw("movie_data::jsonb ?? 'tmdb'")
                                 ->orWhereRaw("info::jsonb ?? 'imdb_id'")
-                                ->orWhereRaw("movie_data::jsonb ?? 'imdb_id'");
+                                ->orWhereRaw("info::jsonb ?? 'imdb'")
+                                ->orWhereRaw("movie_data::jsonb ?? 'imdb_id'")
+                                ->orWhereRaw("movie_data::jsonb ?? 'imdb'");
                         });
                 }),
             Filter::make('missing_tmdb_id')
@@ -439,19 +443,21 @@ class VodResource extends Resource
                         ->where(function ($q) {
                             $q->where(function ($inner) {
                                 $inner->whereNull('info')
-                                    ->orWhereRaw("NOT (info::jsonb ?? 'tmdb_id')");
+                                    ->orWhere(function ($i) {
+                                        $i->whereRaw("NOT (info::jsonb ?? 'tmdb_id')")
+                                            ->whereRaw("NOT (info::jsonb ?? 'tmdb')")
+                                            ->whereRaw("NOT (info::jsonb ?? 'imdb_id')")
+                                            ->whereRaw("NOT (info::jsonb ?? 'imdb')");
+                                    });
                             })
                                 ->where(function ($inner) {
                                     $inner->whereNull('movie_data')
-                                        ->orWhereRaw("NOT (movie_data::jsonb ?? 'tmdb_id')");
-                                })
-                                ->where(function ($inner) {
-                                    $inner->whereNull('info')
-                                        ->orWhereRaw("NOT (info::jsonb ?? 'imdb_id')");
-                                })
-                                ->where(function ($inner) {
-                                    $inner->whereNull('movie_data')
-                                        ->orWhereRaw("NOT (movie_data::jsonb ?? 'imdb_id')");
+                                        ->orWhere(function ($i) {
+                                            $i->whereRaw("NOT (movie_data::jsonb ?? 'tmdb_id')")
+                                                ->whereRaw("NOT (movie_data::jsonb ?? 'tmdb')")
+                                                ->whereRaw("NOT (movie_data::jsonb ?? 'imdb_id')")
+                                                ->whereRaw("NOT (movie_data::jsonb ?? 'imdb')");
+                                        });
                                 });
                         });
                 }),

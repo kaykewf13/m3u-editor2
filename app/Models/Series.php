@@ -87,6 +87,19 @@ class Series extends Model
         return $this->hasMany(Episode::class)->where('enabled', true);
     }
 
+    public function getMovieDbIds(): array
+    {
+        $tvdbId = $this->tvdb_id ?? $this->metadata['tvdb_id'] ?? $this->metadata['tvdb'] ?? null;
+        $tmdbId = $this->tmdb_id ?? $this->metadata['tmdb_id'] ?? $this->metadata['tmdb'] ?? null;
+        $imdbId = $this->imdb_id ?? $this->metadata['imdb_id'] ?? $this->metadata['imdb'] ?? null;
+
+        return [
+            'tmdb' => $tmdbId,
+            'tvdb' => $tvdbId,
+            'imdb' => $imdbId,
+        ];
+    }
+
     /**
      * Check if the series has TMDB/TVDB/IMDB metadata.
      */
@@ -94,12 +107,9 @@ class Series extends Model
     {
         // Check if the series has TMDB, TVDB, or IMDB IDs
         // Also check metadata array for backward compatibility
-        return ! empty($this->tmdb_id)
-            || ! empty($this->tvdb_id)
-            || ! empty($this->imdb_id)
-            || ! empty($this->metadata['tmdb_id'] ?? null)
-            || ! empty($this->metadata['tvdb_id'] ?? null)
-            || ! empty($this->metadata['imdb_id'] ?? null);
+        $ids = $this->getMovieDbIds();
+
+        return ! empty($ids['tmdb']) || ! empty($ids['tvdb']) || ! empty($ids['imdb']);
     }
 
     public function fetchMetadata($refresh = false, $sync = true, bool $dispatchTmdb = true)

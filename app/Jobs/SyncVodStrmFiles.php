@@ -345,16 +345,9 @@ class SyncVodStrmFiles implements ShouldQueue
 
                 // Add TMDB/IMDB ID to folder name if configured in folder_metadata
                 if (in_array('tmdb_id', $folderMetadata)) {
-                    $tmdbId = $channel->info['tmdb_id']
-                        ?? $channel->info['tmdb']
-                        ?? $channel->movie_data['tmdb_id']
-                        ?? $channel->movie_data['tmdb']
-                        ?? null;
-                    $imdbId = $channel->info['imdb_id']
-                        ?? $channel->info['imdb']
-                        ?? $channel->movie_data['imdb_id']
-                        ?? $channel->movie_data['imdb']
-                        ?? null;
+                    $tmdbId = $channel->getTmdbId();
+                    $imdbId = $channel->getImdbId();
+
                     $tmdbId = is_scalar($tmdbId) ? $tmdbId : null;
                     $imdbId = is_scalar($imdbId) ? $imdbId : null;
 
