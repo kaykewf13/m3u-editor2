@@ -249,7 +249,6 @@ jobs:
 
       - name: Generate changelog
         run: |
-          CURR="${{ steps.prev_tag.outputs.curr_commit }}"
           PREV="${{ steps.prev_tag.outputs.prev_commit }}"
           PREV_PREV="${{ steps.prev_tag.outputs.prev_prev_commit }}"
 
@@ -262,7 +261,9 @@ jobs:
           fi
 
           touch seen.tmp
-          git log "${PREV}..${CURR}" --no-merges --pretty=tformat:"%s|%h" > commits.txt
+          # Use github.sha (current HEAD) as range end so fix commits pushed after the
+          # version bump are included in the changelog, not just the version bump commit.
+          git log "${PREV}..${{ github.sha }}" --no-merges --pretty=tformat:"%s|%h" > commits.txt
 
           declare -A seen_msgs
           while IFS='|' read -r msg hash; do

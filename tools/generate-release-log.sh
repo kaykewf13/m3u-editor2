@@ -102,8 +102,22 @@ if [[ $# -eq 2 ]]; then
     # Explicit: two version strings given
     prev_ver="${1#v}"   # strip leading 'v'
     curr_ver="${2#v}"
-    PREV_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$prev_ver")
-    HEAD_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$curr_ver")
+
+    # Prefer release tags over version map lookups — tags point to the exact SHA used
+    # by the workflow and are immune to rollback/re-bump noise in the version map.
+    prev_tag_commit=$(git rev-parse --verify "v${prev_ver}" 2>/dev/null || true)
+    if [[ -n "$prev_tag_commit" ]]; then
+        PREV_REF="$prev_tag_commit"
+    else
+        PREV_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$prev_ver")
+    fi
+
+    curr_tag_commit=$(git rev-parse --verify "v${curr_ver}" 2>/dev/null || true)
+    if [[ -n "$curr_tag_commit" ]]; then
+        HEAD_REF="$curr_tag_commit"
+    else
+        HEAD_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$curr_ver")
+    fi
 
     # For dedup: find the version entry just after PREV in the map (= older version)
     PREV_PREV_REF=$(awk -v target="$prev_ver" '
@@ -121,27 +135,40 @@ if [[ $# -eq 2 ]]; then
 elif [[ $# -eq 1 ]]; then
     # Reproduce a specific release: find its commit and the previous version's commit
     curr_ver="${1#v}"
-    HEAD_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$curr_ver")
 
-    if [[ -z "$HEAD_REF" ]]; then
+    if [[ -z "$(lookup_version_commit "$VERSION_MAP_FILE" "$curr_ver")" ]]; then
         echo "Error: version $curr_ver not found in $REMOTE_BRANCH history." >&2
         echo "Available versions:" >&2
         awk '{print "  v"$1}' "$VERSION_MAP_FILE" >&2
         exit 1
     fi
 
-    # PREV_REF = oldest commit of the version immediately before curr_ver in the map
-    PREV_REF=$(awk -v target="$curr_ver" '
-        found { print $2; exit }
-        $1 == target { found=1 }
-    ' "$VERSION_MAP_FILE")
-    [[ -z "$PREV_REF" ]] && PREV_REF=$(git rev-list --max-parents=0 HEAD)
+    # HEAD_REF: prefer release tag over version map (includes post-bump fix commits)
+    curr_tag_commit=$(git rev-parse --verify "v${curr_ver}" 2>/dev/null || true)
+    if [[ -n "$curr_tag_commit" ]]; then
+        HEAD_REF="$curr_tag_commit"
+    else
+        HEAD_REF=$(lookup_version_commit "$VERSION_MAP_FILE" "$curr_ver")
+    fi
 
-    # PREV_PREV_REF = version before PREV for dedup
+    # PREV_REF: prefer the previous release's tag to avoid rollback/re-bump confusion
     prev_ver=$(awk -v target="$curr_ver" '
         found { print $1; exit }
         $1 == target { found=1 }
     ' "$VERSION_MAP_FILE")
+    prev_tag_commit=""
+    [[ -n "$prev_ver" ]] && prev_tag_commit=$(git rev-parse --verify "v${prev_ver}" 2>/dev/null || true)
+    if [[ -n "$prev_tag_commit" ]]; then
+        PREV_REF="$prev_tag_commit"
+    else
+        PREV_REF=$(awk -v target="$curr_ver" '
+            found { print $2; exit }
+            $1 == target { found=1 }
+        ' "$VERSION_MAP_FILE")
+        [[ -z "$PREV_REF" ]] && PREV_REF=$(git rev-list --max-parents=0 HEAD)
+    fi
+
+    # PREV_PREV_REF = version before PREV for dedup
     PREV_PREV_REF=$(awk -v target="$prev_ver" '
         found { print $2; exit }
         $1 == target { found=1 }
