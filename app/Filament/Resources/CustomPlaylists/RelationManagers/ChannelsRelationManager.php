@@ -158,7 +158,6 @@ class ChannelsRelationManager extends RelationManager
         return $table->persistFiltersInSession()
             ->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->recordTitleAttribute('title')
             ->filtersTriggerAction(function ($action) {
                 return $action->button()->label(__('Filters'));

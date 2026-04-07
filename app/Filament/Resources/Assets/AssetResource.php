@@ -61,7 +61,6 @@ class AssetResource extends Resource implements CopilotResource
     {
         return $table->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->filtersTriggerAction(function ($action) {
                 return $action->button()->label(__('Filters'));
             })

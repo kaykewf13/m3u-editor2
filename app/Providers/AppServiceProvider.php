@@ -55,6 +55,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Facades\FilamentView;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Table;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -146,6 +147,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Configure Filament v4 to preserve v3 behavior
         $this->configureFilamentV3Compatibility();
+
+        // Configure global Filament defaults (reorderable columns, etc.)
+        $this->configureFilamentGlobalDefaults();
 
         // Setup the API
         $this->setupApi();
@@ -439,7 +443,9 @@ class AppServiceProvider extends ServiceProvider
                         'url' => rtrim($playlist->xtream_config['url'], '/'),
                     ];
                 }
-                $playlist->uuid = Str::orderedUuid()->toString();
+                if (! $playlist->uuid) {
+                    $playlist->uuid = Str::orderedUuid()->toString();
+                }
 
                 return $playlist;
             });
@@ -995,5 +1001,17 @@ class AppServiceProvider extends ServiceProvider
         // Preserve v3 unique validation behavior (not ignoring record by default)
         Field::configureUsing(fn (Field $field) => $field
             ->uniqueValidationIgnoresRecordByDefault(false));
+    }
+
+    /**
+     * Configure global Filament resource defaults.
+     */
+    private function configureFilamentGlobalDefaults(): void
+    {
+        // Enable reorderable columns on all tables by default
+        Table::configureUsing(fn (Table $table) => $table
+            ->reorderableColumns()
+            ->deferColumnManager(false)
+        );
     }
 }

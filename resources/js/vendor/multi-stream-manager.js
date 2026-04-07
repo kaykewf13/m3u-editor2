@@ -210,22 +210,11 @@ function multiStreamManager() {
 
         /**
          * Notify the server to stop the proxy stream for this player.
-         * Uses sendBeacon for reliability during page unload.
+         * Delegates to the shared notifyProxyStreamStop utility in stream-viewer.js.
          */
         notifyServerStreamStop(player) {
-            if (!player.channelId || !player.channelType) {
-                return;
-            }
-            try {
-                const url = '/api/m3u-proxy/player-stream/stop';
-                const data = new Blob(
-                    [JSON.stringify({ id: player.channelId, type: player.channelType })],
-                    { type: 'application/json' }
-                );
-                navigator.sendBeacon(url, data);
-            } catch (e) {
-                // Best-effort: proxy will detect TCP drop as fallback
-                console.warn('Failed to notify server of stream stop:', e);
+            if (window.notifyProxyStreamStop) {
+                window.notifyProxyStreamStop(player.channelId, player.channelType);
             }
         },
 

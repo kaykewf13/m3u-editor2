@@ -30,7 +30,6 @@ class PlaylistsRelationManager extends RelationManager
     {
         return $table->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->recordTitleAttribute('name')
             ->columns([
                 TextColumn::make('name'),

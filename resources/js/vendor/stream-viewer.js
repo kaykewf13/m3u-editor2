@@ -934,3 +934,29 @@ window.retryStream = retryStream;
 
 // Make toggleStreamDetails function globally accessible
 window.toggleStreamDetails = toggleStreamDetails;
+
+/**
+ * Notify the proxy server to stop a player stream (best-effort via sendBeacon).
+ * Shared by the floating player manager and the pop-out player.
+ *
+ * @param {string|number} id   - The stream/channel ID
+ * @param {string}        type - 'channel' or 'episode'
+ */
+function notifyProxyStreamStop(id, type) {
+    if (!id || !type) {
+        return;
+    }
+    try {
+        const data = new Blob(
+            [JSON.stringify({ id, type })],
+            { type: 'application/json' }
+        );
+        navigator.sendBeacon('/api/m3u-proxy/player-stream/stop', data);
+    } catch (e) {
+        // Best-effort: proxy will detect TCP drop as fallback
+        console.warn('Failed to notify server of stream stop:', e);
+    }
+}
+
+// Make notifyProxyStreamStop globally accessible
+window.notifyProxyStreamStop = notifyProxyStreamStop;

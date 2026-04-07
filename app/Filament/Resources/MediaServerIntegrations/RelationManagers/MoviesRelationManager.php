@@ -53,7 +53,6 @@ class MoviesRelationManager extends RelationManager
         return $table
             ->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->recordTitleAttribute('title')
             ->filtersTriggerAction(function ($action) {
                 return $action->button()->label(__('Filters'));

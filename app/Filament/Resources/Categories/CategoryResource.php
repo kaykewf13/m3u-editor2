@@ -120,7 +120,6 @@ class CategoryResource extends Resource implements CopilotResource
     {
         return $table->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->modifyQueryUsing(function (Builder $query) {
                 $query->withCount('series')
                     ->withCount('enabled_series');

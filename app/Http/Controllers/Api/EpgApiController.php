@@ -303,7 +303,7 @@ class EpgApiController extends Controller
                     $dummyEpgChannels[] = [
                         'playlist_channel_id' => $channelKey,
                         'display_name' => $channel->title_custom ?? $channel->title,
-                        'display_title' => $channel->title_custom ?? $channel->title ?? $channel->name_custom ?? $channel->name,
+                        'display_title' => $channel->display_title,
                         'title' => $channel->name_custom ?? $channel->name,
                         'icon' => $icon,
                         'channel_number' => $channelNo,
@@ -365,7 +365,7 @@ class EpgApiController extends Controller
                     'format' => $channelFormat,
                     'tvg_id' => $tvgId,
                     'display_name' => $channel->title_custom ?? $channel->title,
-                    'display_title' => $channelResults['display_title'] ?? $channel->title_custom ?? $channel->title ?? $channel->name_custom ?? $channel->name,
+                    'display_title' => $channelResults['display_title'] ?? $channel->display_title,
                     'title' => $channelResults['title'] ?? $channel->name_custom ?? $channel->name,
                     'channel_number' => $channelNo,
                     'group' => $channel->group ?? $channel->group_internal,

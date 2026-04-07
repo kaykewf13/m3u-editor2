@@ -76,6 +76,15 @@ class Episode extends Model
         return $this->morphMany(StrmFileMapping::class, 'syncable');
     }
 
+    /**
+     * The human-readable display title for the episode.
+     * For episodes the title is the canonical display title.
+     */
+    public function getDisplayTitleAttribute(): string
+    {
+        return $this->title ?? '';
+    }
+
     public function getFloatingPlayerAttributes(?string $username = null, ?string $password = null): array
     {
         $settings = app(GeneralSettings::class);
@@ -112,7 +121,7 @@ class Episode extends Model
             'series_id' => $this->series_id,
             'season_number' => $this->season,
             'title' => $this->title,
-            'display_title' => $this->title,
+            'display_title' => $this->display_title,
             'url' => $url,
             'format' => $episodeFormat,
             'type' => 'episode',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\MediaServerIntegration;
+use App\Models\Playlist;
 use App\Models\User;
 use App\Services\PlexManagementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,12 @@ beforeEach(function () {
             'plex_management_enabled' => true,
         ]);
     });
+
+    // Create playlist fixtures so resolvePlaylistUrls() can resolve them
+    Playlist::factory()->create(['uuid' => 'test-uuid', 'user_id' => $this->user->id]);
+    Playlist::factory()->create(['uuid' => 'test-uuid-2', 'user_id' => $this->user->id]);
+    Playlist::factory()->create(['uuid' => 'playlist-abc', 'user_id' => $this->user->id]);
+    Playlist::factory()->create(['uuid' => 'playlist-uuid-abc', 'user_id' => $this->user->id]);
 });
 
 it('throws exception for non-plex integration', function () {
@@ -277,15 +284,9 @@ it('prefers the provided hdhr url when fetching discover json', function () {
         };
     });
 
-    $service = new class($this->integration) extends PlexManagementService
-    {
-        public function fetchDiscoverPayloadForTest(string $hdhrBaseUrl): array
-        {
-            return $this->fetchDiscoverPayload($hdhrBaseUrl);
-        }
-    };
+    $service = new PlexManagementService($this->integration);
 
-    $result = $service->fetchDiscoverPayloadForTest('https://iptv.chorkley.uk/test-playlist-uuid/hdhr');
+    $result = $service->fetchDiscoverPayload('https://iptv.chorkley.uk/test-playlist-uuid/hdhr');
 
     expect($result['success'])->toBeTrue();
     expect($result['data']['DeviceID'])->toBe('hdhr-device-123');

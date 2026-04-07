@@ -52,7 +52,6 @@ class SeriesRelationManager extends RelationManager
         return $table
             ->persistFiltersInSession()
             ->persistSortInSession()
-            ->reorderableColumns()
             ->recordTitleAttribute('name')
             ->filtersTriggerAction(function ($action) {
                 return $action->button()->label(__('Filters'));

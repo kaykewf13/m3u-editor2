@@ -27,3 +27,9 @@ table {
         }
     }
 }
+
+.fi-ta-col-manager {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}

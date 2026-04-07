@@ -148,6 +148,16 @@ class Channel extends Model
         )->orderBy('channel_failovers.sort');
     }
 
+    /**
+     * The human-readable display title for the channel.
+     * Prefers the custom EPG title, falls back to the raw EPG title,
+     * then the custom stream name, then the raw stream name.
+     */
+    public function getDisplayTitleAttribute(): string
+    {
+        return $this->title_custom ?? $this->title ?? $this->name_custom ?? $this->name ?? '';
+    }
+
     public function getFloatingPlayerAttributes(?string $username = null, ?string $password = null): array
     {
         $settings = app(GeneralSettings::class);
@@ -185,7 +195,7 @@ class Channel extends Model
             'content_type' => $this->is_vod ? 'vod' : 'live',
             'playlist_id' => $this->playlist_id,
             'title' => $this->name_custom ?? $this->name,
-            'display_title' => $this->title_custom ?? $this->title ?? $this->name_custom ?? $this->name,
+            'display_title' => $this->display_title,
             'url' => $url,
             'format' => $format,
             'type' => 'channel',

@@ -406,20 +406,17 @@ class PlexManagementService
     /**
      * Resolve the canonical playlist URLs used across the application.
      *
-     * @return array{hdhr?: string, epg?: string}|null
+     * @return array{hdhr: string, epg: string}|null Returns null when the playlist cannot be found.
      */
     protected function resolvePlaylistUrls(string $playlistUuid): ?array
     {
         $playlist = PlaylistFacade::resolvePlaylistByUuid($playlistUuid);
 
-        if ($playlist) {
-            return PlaylistFacade::getUrls($playlist);
+        if (! $playlist) {
+            return null;
         }
 
-        return [
-            'hdhr' => route('playlist.hdhr.overview', ['uuid' => $playlistUuid]),
-            'epg' => route('epg.generate', ['uuid' => $playlistUuid]),
-        ];
+        return PlaylistFacade::getUrls($playlist);
     }
 
     /**
@@ -427,7 +424,7 @@ class PlexManagementService
      *
      * @return array{success: bool, data?: array, message?: string}
      */
-    protected function fetchDiscoverPayload(string $hdhrBaseUrl): array
+    public function fetchDiscoverPayload(string $hdhrBaseUrl): array
     {
         try {
             $discoverUrl = rtrim($hdhrBaseUrl, '/').'/discover.json';
