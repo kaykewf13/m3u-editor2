@@ -614,43 +614,61 @@ function streamPlayer() {
             const detailsEl = document.getElementById(playerId + '-details');
             if (!detailsEl) return;
 
-            let detailsHtml = '';
+            // Build detail rows safely using textContent (no innerHTML) to
+            // prevent XSS from malicious stream metadata values.
+            const rows = [];
 
-            // Stream Format (always show first)
             if (this.streamMetadata.format) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Stream Format:</span><span class="font-mono font-semibold text-blue-400">${this.streamMetadata.format}</span></div>`;
+                rows.push({ label: 'Stream Format:', value: this.streamMetadata.format, highlight: true });
             }
-
             if (this.streamMetadata.resolution) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Resolution:</span><span class="font-mono">${this.streamMetadata.resolution}</span></div>`;
+                rows.push({ label: 'Resolution:', value: this.streamMetadata.resolution });
             }
             if (this.streamMetadata.codec) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Video Codec:</span><span class="font-mono">${this.streamMetadata.codec}</span></div>`;
+                rows.push({ label: 'Video Codec:', value: this.streamMetadata.codec });
             }
             if (this.streamMetadata.audioCodec) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Audio Codec:</span><span class="font-mono">${this.streamMetadata.audioCodec}</span></div>`;
+                rows.push({ label: 'Audio Codec:', value: this.streamMetadata.audioCodec });
             }
             if (this.streamMetadata.audioChannels) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Audio Channels:</span><span class="font-mono">${this.streamMetadata.audioChannels}</span></div>`;
+                rows.push({ label: 'Audio Channels:', value: this.streamMetadata.audioChannels });
             }
             if (this.streamMetadata.bitrate) {
-                const bitrateKbps = Math.round(this.streamMetadata.bitrate / 1000);
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Bitrate:</span><span class="font-mono">${bitrateKbps} kbps</span></div>`;
+                rows.push({ label: 'Bitrate:', value: Math.round(this.streamMetadata.bitrate / 1000) + ' kbps' });
             }
             if (this.streamMetadata.framerate) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Frame Rate:</span><span class="font-mono">${this.streamMetadata.framerate} fps</span></div>`;
+                rows.push({ label: 'Frame Rate:', value: this.streamMetadata.framerate + ' fps' });
             }
             if (this.streamMetadata.profile) {
-                detailsHtml += `<div class="flex justify-between gap-1"><span>Profile:</span><span class="font-mono">${this.streamMetadata.profile}</span></div>`;
+                rows.push({ label: 'Profile:', value: this.streamMetadata.profile });
             }
 
-            if (detailsHtml) {
-                detailsEl.innerHTML = detailsHtml;
-                detailsEl.style.display = 'block';
+            detailsEl.textContent = '';
+
+            if (rows.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-gray-500 dark:text-gray-400 text-sm';
+                empty.textContent = 'Stream details not available';
+                detailsEl.appendChild(empty);
             } else {
-                detailsEl.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-sm">Stream details not available</div>';
-                detailsEl.style.display = 'block';
+                for (const row of rows) {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between gap-1';
+
+                    const label = document.createElement('span');
+                    label.textContent = row.label;
+
+                    const value = document.createElement('span');
+                    value.className = row.highlight ? 'font-mono font-semibold text-blue-400' : 'font-mono';
+                    value.textContent = row.value;
+
+                    div.appendChild(label);
+                    div.appendChild(value);
+                    detailsEl.appendChild(div);
+                }
             }
+
+            detailsEl.style.display = 'block';
         },
 
         collectVideoMetadata(video, playerId) {
@@ -876,17 +894,27 @@ function streamPlayer() {
     };
 }
 
-// Global retry function
+// Global retry function — works across floating, pop-out, and modal players
 function retryStream(playerId) {
-    const component = document.querySelector(`#${playerId}`).closest('[wire\\:id]');
-    if (component) {
-        // Re-trigger the player initialization
-        const alpineData = Alpine.$data(document.getElementById(playerId));
-        if (alpineData && typeof alpineData.initPlayer === 'function') {
-            const url = document.getElementById(playerId).getAttribute('data-url');
-            const format = document.getElementById(playerId).getAttribute('data-format');
-            alpineData.initPlayer(url, format, playerId);
-        }
+    const video = document.getElementById(playerId);
+    if (!video) return;
+
+    // data-url (pop-out / modal) or data-stream-url (floating player)
+    const url = video.dataset.url || video.dataset.streamUrl || '';
+    const format = video.dataset.format || video.dataset.streamFormat || '';
+
+    if (!url) return;
+
+    // Prefer the _streamPlayer reference that initPlayer() attaches to every video element
+    if (video._streamPlayer && typeof video._streamPlayer.initPlayer === 'function') {
+        video._streamPlayer.initPlayer(url, format, playerId);
+        return;
+    }
+
+    // Fallback: create a fresh streamPlayer instance
+    if (window.streamPlayer) {
+        const player = window.streamPlayer();
+        player.initPlayer(url, format, playerId);
     }
 }
 

@@ -26,14 +26,9 @@
 
         <section class="relative flex-1 overflow-hidden group">
             <video id="popout-player" class="h-full w-full" controls autoplay preload="metadata"
-                data-url="{{ $streamUrl }}"
-                data-format="{{ $streamFormat }}"
-                data-content-type="{{ $contentType }}"
-                data-stream-id="{{ $streamId }}"
-                data-playlist-id="{{ $playlistId }}"
-                data-series-id="{{ $seriesId }}"
-                data-season-number="{{ $seasonNumber }}"
-            >
+                data-url="{{ $streamUrl }}" data-format="{{ $streamFormat }}" data-content-type="{{ $contentType }}"
+                data-stream-id="{{ $streamId }}" data-playlist-id="{{ $playlistId }}" data-series-id="{{ $seriesId }}"
+                data-season-number="{{ $seasonNumber }}">
                 <p class="p-4">Your browser does not support video playback.</p>
             </video>
 
@@ -87,24 +82,18 @@
             </div>
 
             <!-- Resume Prompt (VOD / Episode) -->
-            <div
-                id="popout-player-resume"
-                class="absolute bottom-14 left-0 right-0 flex justify-center px-4 hidden z-20"
-            >
-                <div class="bg-gray-900/95 text-white rounded-lg px-4 py-2 flex items-center gap-3 shadow-xl text-sm max-w-sm">
+            <div id="popout-player-resume"
+                class="absolute bottom-14 left-0 right-0 flex justify-center px-4 hidden z-20">
+                <div
+                    class="bg-gray-900/95 text-white rounded-lg px-4 py-2 flex items-center gap-3 shadow-xl text-sm max-w-sm">
                     <x-heroicon-o-clock class="w-4 h-4 text-blue-400 flex-shrink-0" />
                     <span id="popout-player-resume-time" class="flex-1">Resume from 0:00</span>
-                    <button
-                        type="button"
+                    <button type="button"
                         onclick="document.getElementById('popout-player')._streamPlayer?.resumeFromSaved()"
-                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs transition-colors flex-shrink-0"
-                    >Resume</button>
-                    <button
-                        type="button"
-                        onclick="document.getElementById('popout-player')._streamPlayer?.startOver()"
+                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs transition-colors flex-shrink-0">Resume</button>
+                    <button type="button" onclick="document.getElementById('popout-player')._streamPlayer?.startOver()"
                         class="text-gray-400 hover:text-white transition-colors flex-shrink-0"
-                        title="Start from beginning"
-                    >
+                        title="Start from beginning">
                         <x-heroicon-o-x-mark class="w-4 h-4" />
                     </button>
                 </div>
@@ -129,6 +118,26 @@
             const player = window.streamPlayer();
             player.initPlayer(streamUrl, streamFormat, 'popout-player');
 
+            // Notify the proxy server to stop the stream (best-effort via sendBeacon)
+            function notifyStreamStop() {
+                const contentType = videoElement.dataset.contentType || '';
+                const streamId = videoElement.dataset.streamId || '';
+                if (!contentType || !streamId) return;
+
+                const type = contentType === 'episode' ? 'episode' : 'channel';
+                const id = streamId;
+
+                try {
+                    const data = new Blob(
+                        [JSON.stringify({ id, type })],
+                        { type: 'application/json' }
+                    );
+                    navigator.sendBeacon('/api/m3u-proxy/player-stream/stop', data);
+                } catch (e) {
+                    // Best-effort: proxy will detect TCP drop as fallback
+                }
+            }
+
             window.addEventListener('beforeunload', () => {
                 if (typeof player.cleanup === 'function') {
                     player.cleanup();
@@ -136,6 +145,7 @@
             });
 
             window.addEventListener('pagehide', () => {
+                notifyStreamStop();
                 if (typeof player.cleanup === 'function') {
                     player.cleanup();
                 }
@@ -145,7 +155,7 @@
                 if (document.visibilityState === 'hidden') {
                     videoElement.pause();
                 } else if (document.visibilityState === 'visible') {
-                    videoElement.play().catch(() => {});
+                    videoElement.play().catch(() => { });
                 }
             });
         });

@@ -30,6 +30,14 @@ it('returns 204 for valid channel stop request', function () {
         'id' => 42,
         'type' => 'channel',
     ])->assertNoContent();
+
+    Http::assertSent(function ($request) {
+        parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+
+        return str_contains($request->url(), '/streams/by-metadata')
+            && ($query['field'] ?? null) === 'channel_id'
+            && ($query['value'] ?? null) === '42';
+    });
 });
 
 it('returns 204 for valid episode stop request', function () {
@@ -41,6 +49,14 @@ it('returns 204 for valid episode stop request', function () {
         'id' => 7,
         'type' => 'episode',
     ])->assertNoContent();
+
+    Http::assertSent(function ($request) {
+        parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+
+        return str_contains($request->url(), '/streams/by-metadata')
+            && ($query['field'] ?? null) === 'episode_id'
+            && ($query['value'] ?? null) === '7';
+    });
 });
 
 it('returns 204 even when proxy is not configured', function () {
