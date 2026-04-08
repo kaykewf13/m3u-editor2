@@ -39,7 +39,6 @@ function multiStreamManager() {
                 if (Array.isArray(detail)) {
                     detail = detail[0];
                 }
-                console.log('Received openFloatingStream event:', detail);
                 event.stopPropagation(); // Prevent event bubbling
                 this.openStream(detail);
             }, { signal });
@@ -66,6 +65,9 @@ function multiStreamManager() {
                 }
             }, { signal });
 
+            // Reposition players when viewport shrinks
+            window.addEventListener('resize', () => this.constrainAllToViewport(), { signal });
+
             // Global mouse events for drag and resize
             document.addEventListener('mousemove', (e) => this.handleMouseMove(e), { signal });
             document.addEventListener('mouseup', () => this.handleMouseUp(), { signal });
@@ -86,7 +88,7 @@ function multiStreamManager() {
 
             const player = {
                 id: playerId,
-                channelId: channelData.id || null,
+                channelId: channelData.id ?? null,
                 channelType: channelData.type || 'channel', // default to 'channel' if type not provided
                 title: channelData.title || channelData.name || 'Unknown Channel',
                 display_title: channelData.display_title || channelData.title || channelData.name || 'Unknown Channel',
@@ -94,14 +96,15 @@ function multiStreamManager() {
                 url: channelData.url || '',
                 format: channelData.format || 'ts',
                 content_type: channelData.content_type || '',
-                stream_id: channelData.stream_id || null,
-                playlist_id: channelData.playlist_id || null,
-                series_id: channelData.series_id || null,
-                season_number: channelData.season_number || null,
+                stream_id: channelData.stream_id ?? null,
+                playlist_id: channelData.playlist_id ?? null,
+                series_id: channelData.series_id ?? null,
+                season_number: channelData.season_number ?? null,
                 zIndex: ++this.zIndexCounter,
                 position: this.getRandomPosition(),
                 size: { width: 480, height: 270 }, // 16:9 aspect ratio
                 isMinimized: false,
+                isPiP: false,
                 streamPlayer: null
             };
 
@@ -109,8 +112,8 @@ function multiStreamManager() {
         },
 
         getRandomPosition() {
-            const maxX = window.innerWidth - 500; // Account for player width
-            const maxY = window.innerHeight - 300; // Account for player height
+            const maxX = document.documentElement.clientWidth - 500; // Account for player width
+            const maxY = document.documentElement.clientHeight - 300; // Account for player height
             const padding = 50;
 
             return {
@@ -132,11 +135,14 @@ function multiStreamManager() {
             if (playerIndex !== -1) {
                 const player = this.players[playerIndex];
 
+                // Exit PiP if this player is in PiP mode
+                const videoElement = document.getElementById(player.id + '-video');
+                if (document.pictureInPictureElement === videoElement) {
+                    document.exitPictureInPicture().catch(() => {});
+                }
+
                 // Notify server to stop the proxy stream (best-effort via sendBeacon)
                 this.notifyServerStreamStop(player);
-
-                // Cleanup stream player via video element
-                const videoElement = document.getElementById(player.id + '-video');
                 if (videoElement && videoElement._streamPlayer) {
                     videoElement._streamPlayer.cleanup();
                 }
@@ -233,6 +239,26 @@ function multiStreamManager() {
             }
         },
 
+        togglePiP(playerId) {
+            const videoElement = document.getElementById(playerId + '-video');
+            if (!videoElement) return;
+
+            const player = this.players.find(p => p.id === playerId);
+
+            if (document.pictureInPictureElement === videoElement) {
+                document.exitPictureInPicture().catch(() => {});
+            } else if (document.pictureInPictureEnabled) {
+                videoElement.requestPictureInPicture().then(() => {
+                    if (player) player.isPiP = true;
+                }).catch(() => {});
+
+                // Listen for PiP exit (user closes PiP window or we call exitPiP)
+                videoElement.addEventListener('leavepictureinpicture', () => {
+                    if (player) player.isPiP = false;
+                }, { once: true });
+            }
+        },
+
         openInNewTab(player, popoutRoute) {
             if (!player || !player.url || !popoutRoute) {
                 return;
@@ -294,6 +320,25 @@ function multiStreamManager() {
             };
         },
 
+        constrainAllToViewport() {
+            const vw = document.documentElement.clientWidth;
+            const vh = document.documentElement.clientHeight;
+
+            this.players.forEach(player => {
+                // Shrink player if it's wider/taller than viewport
+                const maxWidth = Math.max(320, vw - 20);
+                const aspectRatio = 16 / 9;
+                if (player.size.width > maxWidth) {
+                    player.size.width = maxWidth;
+                    player.size.height = maxWidth / aspectRatio;
+                }
+
+                // Clamp position so at least the title bar stays visible
+                player.position.x = Math.max(0, Math.min(vw - player.size.width, player.position.x));
+                player.position.y = Math.max(0, Math.min(vh - 50, player.position.y));
+            });
+        },
+
         handleMouseMove(event) {
             if (this.dragState.isDragging) {
                 const player = this.players.find(p => p.id === this.dragState.playerId);
@@ -302,11 +347,11 @@ function multiStreamManager() {
                     const deltaY = event.clientY - this.dragState.startY;
 
                     player.position.x = Math.max(0, Math.min(
-                        window.innerWidth - player.size.width,
+                        document.documentElement.clientWidth - player.size.width,
                         this.dragState.startLeft + deltaX
                     ));
                     player.position.y = Math.max(0, Math.min(
-                        window.innerHeight - 50, // Keep title bar visible
+                        document.documentElement.clientHeight - 50, // Keep title bar visible
                         this.dragState.startTop + deltaY
                     ));
                 }
@@ -318,17 +363,20 @@ function multiStreamManager() {
                     const deltaX = event.clientX - this.resizeState.startX;
                     const deltaY = event.clientY - this.resizeState.startY;
 
-                    const newWidth = Math.max(320, this.resizeState.startWidth + deltaX);
-                    const newHeight = Math.max(180, this.resizeState.startHeight + deltaY);
+                    const maxWidth = document.documentElement.clientWidth - player.position.x;
+                    const maxHeight = document.documentElement.clientHeight - player.position.y - 40; // 40 for title bar
+
+                    const newWidth = Math.min(Math.max(320, this.resizeState.startWidth + deltaX), maxWidth);
+                    const newHeight = Math.min(Math.max(180, this.resizeState.startHeight + deltaY), maxHeight);
 
                     // Maintain 16:9 aspect ratio
                     const aspectRatio = 16 / 9;
                     if (Math.abs(deltaX) > Math.abs(deltaY)) {
                         player.size.width = newWidth;
-                        player.size.height = newWidth / aspectRatio;
+                        player.size.height = Math.min(newWidth / aspectRatio, maxHeight);
                     } else {
                         player.size.height = newHeight;
-                        player.size.width = newHeight * aspectRatio;
+                        player.size.width = Math.min(newHeight * aspectRatio, maxWidth);
                     }
                 }
             }
@@ -344,8 +392,8 @@ function multiStreamManager() {
                 position: 'fixed',
                 left: player.position.x + 'px',
                 top: player.position.y + 'px',
-                width: player.size.width + 'px',
-                height: (player.size.height + 40) + 'px', // Add height for title bar
+                width: player.isPiP ? '280px' : player.size.width + 'px',
+                height: player.isPiP ? 'auto' : (player.size.height + 40) + 'px', // Add height for title bar
                 zIndex: player.zIndex
             };
         },

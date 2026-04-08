@@ -22,7 +22,7 @@ class PluginInstallActions
     {
         return Action::make('discover')
             ->label(__('Discover Plugins'))
-            ->icon('heroicon-o-arrow-path')
+            ->icon('heroicon-o-magnifying-glass')
             ->visible(fn (): bool => auth()->user()?->canManagePlugins() ?? false)
             ->action(function (): void {
                 $plugins = app(PluginManager::class)->discover();

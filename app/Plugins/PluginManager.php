@@ -67,6 +67,7 @@ class PluginManager
                 'schema_definition' => $manifest?->schema ?? Arr::get($result->manifestData, 'schema', []),
                 'settings_schema' => $manifest?->settings ?? Arr::get($result->manifestData, 'settings', []),
                 'data_ownership' => $manifest?->dataOwnership ?? Arr::get($result->manifestData, 'data_ownership', []),
+                'repository' => $manifest?->repository ?? $record->repository,
                 'path' => $pluginPath,
                 'source_type' => $this->determineSourceType($pluginPath, $record),
                 'available' => true,
@@ -132,6 +133,7 @@ class PluginManager
             'schema_definition' => $result->manifest?->schema ?? $plugin->schema_definition,
             'settings_schema' => $result->manifest?->settings ?? $plugin->settings_schema,
             'data_ownership' => $result->manifest?->dataOwnership ?? $plugin->data_ownership,
+            'repository' => $result->manifest?->repository ?? $plugin->repository,
             'validation_status' => $result->valid ? 'valid' : 'invalid',
             'validation_errors' => $result->errors,
             'manifest_hash' => $result->hashes['manifest_hash'] ?? null,
@@ -518,6 +520,7 @@ class PluginManager
             'source_type' => $review->source_type,
             'installation_status' => 'installed',
             'available' => true,
+            'repository' => $plugin->repository ?? $this->repositoryFromReview($review),
         ]);
         $plugin = $this->validate($plugin->fresh());
 
@@ -607,6 +610,23 @@ class PluginManager
         ]);
 
         return $plugin->fresh();
+    }
+
+    /**
+     * Derive a repository shorthand from a GitHub release install review.
+     */
+    private function repositoryFromReview(PluginInstallReview $review): ?string
+    {
+        if ($review->source_type !== 'github_release') {
+            return null;
+        }
+
+        $metadata = $review->source_metadata;
+        if (! is_array($metadata) || ! isset($metadata['owner'], $metadata['repo'])) {
+            return null;
+        }
+
+        return $metadata['owner'].'/'.$metadata['repo'];
     }
 
     public function executeAction(
