@@ -4,7 +4,7 @@
             {{-- Header --}}
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2 text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                    <x-filament::icon icon="heroicon-o-puzzle-piece" class="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <x-filament::icon icon="heroicon-s-puzzle-piece" class="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     {{ __('Plugins') }}
                 </h2>
 
