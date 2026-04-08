@@ -2223,6 +2223,16 @@ class PlaylistResource extends Resource implements CopilotResource
                         ->columns(2)
                         ->hidden(fn (Get $get): bool => ! $get('auto_merge_channels_enabled'))
                         ->schema([
+                            TagsInput::make('auto_merge_config.regex_patterns')
+                                ->label(__('Regex merge patterns'))
+                                ->placeholder('/^BBC\\s*One$/i')
+                                ->hintIcon(
+                                    'heroicon-m-question-mark-circle',
+                                    tooltip: 'Each pattern matches channels by title or name, grouping them as master + failovers. The highest-scoring match becomes the master. Use PHP regex syntax, e.g. /^CCTV[-]?1$/i'
+                                )
+                                ->helperText(__('Regex patterns for failover grouping. Useful when the same channel has different names within and across providers.'))
+                                ->columnSpanFull()
+                                ->splitKeys(['Tab', 'Return']),
                             Toggle::make('auto_merge_config.check_resolution')
                                 ->label(__('Prioritize by resolution'))
                                 ->inline(false)

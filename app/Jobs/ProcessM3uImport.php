@@ -854,7 +854,8 @@ class ProcessM3uImport implements ShouldQueue
                     'tvg_shift' => null,
                     'is_vod' => false, // default false, matches Xtream API path
                     'container_extension' => null,
-                    'source_id' => null, // source ID for the channel
+                    'source_id' => null, // filled by ProcessM3uImportChunk after collision detection
+                    'source_key' => null, // pre-hash composite key; set per-channel below
                     'can_merge' => $this->canMergeEnabled,
                     'epg_map_enabled' => $this->epgMapEnabled,
                     'probe_enabled' => $this->probeEnabled,
@@ -989,8 +990,8 @@ class ProcessM3uImport implements ShouldQueue
                                     continue;
                                 }
 
-                                // Set the source ID based on our composite index
-                                $channel['source_id'] = md5($channel['title'].$channel['name'].$chGroup);
+                                // Set the source key — hashing and collision detection happen in ProcessM3uImportChunk
+                                $channel['source_key'] = $channel['title'].$channel['name'].$chGroup;
 
                                 // Update group name to the singular name and return the channel
                                 $channel['group'] = $chGroup;
@@ -1028,8 +1029,8 @@ class ProcessM3uImport implements ShouldQueue
                                 continue;
                             }
 
-                            // Set the source ID based on our composite index
-                            $channel['source_id'] = md5($channel['title'].$channel['name'].$channel['group']);
+                            // Set the source key — hashing and collision detection happen in ProcessM3uImportChunk
+                            $channel['source_key'] = $channel['title'].$channel['name'].$channel['group'];
 
                             // Set channel number, if auto sort is enabled
                             if ($autoSort) {

@@ -1476,6 +1476,8 @@
     "Refresh media server library after sync": "Aktualisieren Sie die Medienserverbibliothek nach der Synchronisierung",
     "Refresh poster cache (selected)": "Poster-Cache aktualisieren (ausgewählt)",
     "Refresh selected cache": "Ausgewählten Cache aktualisieren",
+    "Regex merge patterns": "Regex-Zusammenführungsmuster",
+    "Regex patterns for failover grouping. Useful when the same channel has different names within and across providers.": "Regex-Muster für die Failover-Gruppierung. Nützlich, wenn derselbe Kanal innerhalb und zwischen Anbietern unterschiedliche Namen hat.",
     "Register HDHomeRun Tuner": "Register HDHomeRun Tuner",
     "Register a DVR tuner first.": "Registrieren Sie zunächst einen DVR-Tuner.",
     "Register this playlist as an HDHomeRun tuner in Plex for Live TV & DVR.": "Registrieren Sie diese Wiedergabeliste als HDHomeRun-Tuner in Plex für Live-TV und DVR.",

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Channel;
 use App\Models\ChannelFailover;
 use App\Models\Group;
+use App\Models\Playlist;
 use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -174,7 +175,86 @@ class MergeChannels implements ShouldQueue
             }
         }
 
+        // Process playlist-level regex merge patterns (second pass)
+        $regexResults = $this->processRegexMerges($playlistIds, $playlistPriority);
+        $processed += $regexResults['processed'];
+        $deactivatedCount += $regexResults['deactivated'];
+
         $this->sendCompletionNotification($processed, $deactivatedCount);
+    }
+
+    /**
+     * Process regex-based merge matching using patterns configured on the primary playlist.
+     * Each pattern groups all matching channels together, picking the highest-scoring as master.
+     *
+     * @param  array<int>  $playlistIds
+     * @param  array<int, int>  $playlistPriority
+     * @return array{processed: int, deactivated: int}
+     */
+    protected function processRegexMerges(array $playlistIds, array $playlistPriority): array
+    {
+        $patterns = Playlist::find($this->playlistId)?->auto_merge_config['regex_patterns'] ?? [];
+
+        if (empty($patterns)) {
+            return ['processed' => 0, 'deactivated' => 0];
+        }
+
+        // Load only the columns needed for matching and scoring to keep memory reasonable
+        $candidates = Channel::where('user_id', $this->user->id)
+            ->where('can_merge', true)
+            ->whereIn('playlist_id', $playlistIds)
+            ->when($this->groupId, fn ($q) => $q->where('group_id', $this->groupId))
+            ->get(['id', 'user_id', 'playlist_id', 'group_id', 'title', 'title_custom',
+                'name', 'name_custom', 'stream_id', 'stream_id_custom', 'sort',
+                'catchup', 'enabled']);
+
+        $processed = 0;
+        $deactivatedCount = 0;
+
+        foreach ($patterns as $pattern) {
+            // Skip invalid patterns silently
+            if (@preg_match($pattern, '') === false) {
+                continue;
+            }
+
+            $matches = $candidates->filter(function ($channel) use ($pattern) {
+                $title = $channel->title_custom ?: $channel->title;
+                $name = $channel->name_custom ?: $channel->name;
+
+                return preg_match($pattern, $title) === 1 || preg_match($pattern, $name) === 1;
+            });
+
+            if ($matches->count() <= 1) {
+                continue;
+            }
+
+            $sorted = $this->sortChannelsByScore($matches, $playlistPriority);
+            $master = $sorted->first();
+            $maxSort = ChannelFailover::where('channel_id', $master->id)->max('sort') ?? 0;
+            $sortOrder = $maxSort + 1;
+
+            foreach ($sorted->skip(1) as $failover) {
+                ChannelFailover::updateOrCreate(
+                    [
+                        'channel_id' => $master->id,
+                        'channel_failover_id' => $failover->id,
+                    ],
+                    [
+                        'user_id' => $this->user->id,
+                        'sort' => $sortOrder++,
+                    ]
+                );
+
+                if ($this->deactivateFailoverChannels && $failover->enabled) {
+                    $failover->update(['enabled' => false]);
+                    $deactivatedCount++;
+                }
+
+                $processed++;
+            }
+        }
+
+        return ['processed' => $processed, 'deactivated' => $deactivatedCount];
     }
 
     /**

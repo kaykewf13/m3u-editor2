@@ -1494,6 +1494,8 @@
     "Releases": "Releases",
     "Remember": "Remember",
     "Remember which provider profile a client was assigned to and prefer it on subsequent requests.": "Remember which provider profile a client was assigned to and prefer it on subsequent requests.",
+    "Regex merge patterns": "Regex merge patterns",
+    "Regex patterns for failover grouping. Useful when the same channel has different names within and across providers.": "Regex patterns for failover grouping. Useful when the same channel has different names within and across providers.",
     "Removal Failed": "Removal Failed",
     "Remove": "Remove",
     "Remove Auth": "Remove Auth",
