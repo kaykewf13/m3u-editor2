@@ -64,7 +64,9 @@ class EpgMappingApplyTool extends BaseTool
         }
 
         // Fetch valid IDs in two queries rather than validating one-by-one.
-        $validChannelIds = Channel::whereIn('id', $channelIds)
+        // Channel IDs are scoped to the current user to prevent cross-user manipulation.
+        $validChannelIds = Channel::where('user_id', auth()->id())
+            ->whereIn('id', $channelIds)
             ->pluck('id')
             ->flip()
             ->all();
@@ -111,6 +113,7 @@ class EpgMappingApplyTool extends BaseTool
         DB::transaction(function () use ($toApply, &$applied): void {
             foreach ($toApply as $mapping) {
                 Channel::where('id', $mapping['channel_id'])
+                    ->where('user_id', auth()->id())
                     ->update(['epg_channel_id' => $mapping['epg_channel_id']]);
 
                 $applied++;

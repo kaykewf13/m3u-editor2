@@ -90,6 +90,7 @@ class UserResource extends Resource implements CopilotResource
                                 'use_stream_file_sync' => 'Allow this user to access stream file sync features',
                                 'use_scrubber' => 'Allow this user to access the Channel Scrubber feature',
                                 'view_release_logs' => 'Allow this user to view release logs and the release logs page',
+                                'use_ai_copilot' => 'Allow this user to access and use the AI Copilot chat assistant',
                             ])
                             ->columnSpanFull()
                             ->gridDirection('row')

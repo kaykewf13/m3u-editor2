@@ -12,6 +12,7 @@ use App\Events\EpgUpdated;
 use App\Events\PlaylistCreated;
 use App\Events\PlaylistDeleted;
 use App\Events\PlaylistUpdated;
+use App\Http\Middleware\EnsureUserCanUseCopilot;
 use App\Jobs\ProcessChannelScrubber;
 use App\Jobs\SyncMediaServer;
 use App\Listeners\PersistUserLocale;
@@ -311,6 +312,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Note: Proxy rate limiting is handled by ProxyRateLimitMiddleware for better performance
+
+        // Gate the copilot stream endpoint behind the use_ai_copilot permission.
+        // Runs after all routes are registered so the vendor route exists.
+        $this->app->booted(function () {
+            $route = app('router')->getRoutes()->getByName('filament-copilot.stream');
+            $route?->middleware(EnsureUserCanUseCopilot::class);
+        });
     }
 
     /**

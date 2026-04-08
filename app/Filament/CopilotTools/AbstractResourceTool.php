@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Filament\CopilotTools;
 
 use EslamRedaDiv\FilamentCopilot\Tools\BaseTool;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class AbstractResourceTool extends BaseTool
 {
     /** @var array<string, list<string>> */
     private static array $columnCache = [];
+
+    /** @var array<string, list<string>> */
+    private static array $rawColumnCache = [];
 
     public function __construct(protected string $resourceClass) {}
 
@@ -30,6 +34,33 @@ abstract class AbstractResourceTool extends BaseTool
     }
 
     /**
+     * Returns a base query scoped through the resource's getEloquentQuery(),
+     * which applies HasUserFiltering (user_id scope) automatically.
+     */
+    protected function getBaseQuery(): Builder
+    {
+        return $this->resourceClass::getEloquentQuery();
+    }
+
+    /**
+     * Returns true when the underlying model table has a user_id column,
+     * indicating records are user-owned and should have user_id auto-assigned.
+     */
+    protected function hasUserScope(): bool
+    {
+        $modelClass = $this->getModelClass();
+
+        if (! isset(self::$rawColumnCache[$modelClass])) {
+            $model = new $modelClass;
+            self::$rawColumnCache[$modelClass] = $model->getConnection()
+                ->getSchemaBuilder()
+                ->getColumnListing($model->getTable());
+        }
+
+        return in_array('user_id', self::$rawColumnCache[$modelClass]);
+    }
+
+    /**
      * Returns the globally-searchable attributes defined on the resource,
      * falling back to ['name'] when none are declared.
      *
@@ -44,6 +75,7 @@ abstract class AbstractResourceTool extends BaseTool
 
     /**
      * Returns column names safe to expose for create / edit operations.
+     * Excludes user_id — it is auto-managed and never exposed to the AI.
      * Uses the model's own connection so foreign-key'd DB files work correctly.
      *
      * @return list<string>
@@ -65,6 +97,7 @@ abstract class AbstractResourceTool extends BaseTool
             'id', 'created_at', 'updated_at', 'deleted_at',
             'password', 'remember_token',
             'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at',
+            'user_id', // auto-managed; ownership must not be set or changed by the AI
         ];
 
         return self::$columnCache[$modelClass] = array_values(array_diff($columns, $excluded));
@@ -90,9 +123,12 @@ abstract class AbstractResourceTool extends BaseTool
     /** @param array<string> $protected */
     protected function stripProtectedFields(array $data, array $protected = []): array
     {
-        $always = ['id', 'created_at', 'updated_at', 'deleted_at',
+        $always = [
+            'id', 'created_at', 'updated_at', 'deleted_at',
             'password', 'remember_token',
-            'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'];
+            'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at',
+            'user_id', // ownership is never settable via the AI
+        ];
 
         return array_diff_key($data, array_flip(array_merge($always, $protected)));
     }

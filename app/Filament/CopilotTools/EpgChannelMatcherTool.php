@@ -69,17 +69,22 @@ class EpgChannelMatcherTool extends BaseTool
         $limit = min(self::MAX_LIMIT, max(1, (int) ($request['limit'] ?? self::DEFAULT_LIMIT)));
         $offset = max(0, (int) ($request['offset'] ?? 0));
 
-        $playlist = Playlist::find($playlistId);
+        $playlist = Playlist::where('id', $playlistId)
+            ->where('user_id', auth()->id())
+            ->first();
         if (! $playlist) {
             return "Playlist #{$playlistId} not found.";
         }
 
-        $epg = Epg::find($epgId);
+        $epg = Epg::where('id', $epgId)
+            ->where('user_id', auth()->id())
+            ->first();
         if (! $epg) {
             return "EPG source #{$epgId} not found.";
         }
 
         $totalUnmapped = Channel::where('playlist_id', $playlistId)
+            ->where('user_id', auth()->id())
             ->where('group', $group)
             ->whereNull('epg_channel_id')
             ->count();
@@ -89,6 +94,7 @@ class EpgChannelMatcherTool extends BaseTool
         }
 
         $channels = Channel::where('playlist_id', $playlistId)
+            ->where('user_id', auth()->id())
             ->where('group', $group)
             ->whereNull('epg_channel_id')
             ->orderBy('name')
