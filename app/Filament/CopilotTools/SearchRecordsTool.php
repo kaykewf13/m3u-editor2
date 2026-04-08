@@ -29,10 +29,9 @@ class SearchRecordsTool extends AbstractResourceTool
         $query = (string) $request['query'];
         $limit = min(50, max(1, (int) ($request['limit'] ?? 10)));
 
-        $model = $this->getModelClass();
         $searchColumns = $this->searchableAttributes();
 
-        $q = $model::query()->where(function ($q) use ($searchColumns, $query) {
+        $q = $this->getBaseQuery()->where(function ($q) use ($searchColumns, $query) {
             foreach ($searchColumns as $col) {
                 $q->orWhere($col, 'LIKE', "%{$query}%");
             }

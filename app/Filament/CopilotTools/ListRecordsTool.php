@@ -29,8 +29,7 @@ class ListRecordsTool extends AbstractResourceTool
         $page = max(1, (int) ($request['page'] ?? 1));
         $perPage = min(50, max(1, (int) ($request['per_page'] ?? 15)));
 
-        $model = $this->getModelClass();
-        $records = $model::query()->paginate($perPage, ['*'], 'page', $page);
+        $records = $this->getBaseQuery()->paginate($perPage, ['*'], 'page', $page);
 
         if ($records->isEmpty()) {
             return 'No '.$this->getPluralLabel().' found.';

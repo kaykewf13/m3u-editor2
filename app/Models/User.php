@@ -270,6 +270,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Check if user can use the AI Copilot.
+     */
+    public function canUseAiCopilot(): bool
+    {
+        return $this->hasPermission('use_ai_copilot');
+    }
+
+    /**
      * Get all available permissions.
      */
     public static function getAvailablePermissions(): array
@@ -281,6 +289,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'use_stream_file_sync' => 'Use Stream File Sync',
             'use_scrubber' => 'Use Scrubber',
             'view_release_logs' => 'View Release Logs',
+            'use_ai_copilot' => 'Use AI Copilot',
         ];
     }
 }

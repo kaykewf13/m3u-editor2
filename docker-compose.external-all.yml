@@ -185,6 +185,9 @@ services:
       - ./data:/var/www/config
       # Share public directory with nginx for static file serving
       - app-public:/var/www/html/public
+      # User-uploaded assets (logos, images, etc.)
+      # Without this, uploaded assets are lost on container recreation
+      - ./storage:/var/www/html/storage/app/public
     restart: unless-stopped
     # Don't expose port externally - only accessible via nginx
     # Expose FPM port 9000 to nginx via internal network only

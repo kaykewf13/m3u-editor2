@@ -75,9 +75,13 @@ services:
     volumes:
       # Persistent configuration data
       - ./data:/var/www/config
-      
+
       # PostgreSQL data persistence
       - pgdata:/var/lib/postgresql/data
+
+      # User-uploaded assets (logos, images, etc.)
+      # Without this, uploaded assets are lost on container recreation
+      - ./storage:/var/www/html/storage/app/public
     restart: unless-stopped
     depends_on:
       gluetun:

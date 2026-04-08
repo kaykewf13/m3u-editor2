@@ -49,6 +49,10 @@ services:
 
       # PostgreSQL data persistence
       - pgdata:/var/lib/postgresql/data
+
+      # User-uploaded assets (logos, images, etc.)
+      # Without this, uploaded assets are lost on container recreation
+      - ./storage:/var/www/html/storage/app/public
     restart: unless-stopped
     ports:
       - "${APP_PORT:-36400}:${APP_PORT:-36400}" # Main application port

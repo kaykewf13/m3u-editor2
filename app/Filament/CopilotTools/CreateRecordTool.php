@@ -40,6 +40,10 @@ class CreateRecordTool extends AbstractResourceTool
         $model = $this->getModelClass();
         $data = $this->stripProtectedFields($raw);
 
+        if ($this->hasUserScope()) {
+            $data['user_id'] = auth()->id();
+        }
+
         $record = $model::create($data);
 
         return 'Created '.$this->getModelLabel().' #'.$record->getKey().' successfully.';

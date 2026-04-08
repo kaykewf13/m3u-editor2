@@ -61,6 +61,7 @@ class EpgMappingStateTool extends BaseTool
         ];
 
         $playlists = Playlist::query()
+            ->where('user_id', auth()->id())
             ->select(['id', 'name'])
             ->where(function ($query) use ($mediaServerTypes): void {
                 $query->whereNull('source_type')
@@ -76,8 +77,11 @@ class EpgMappingStateTool extends BaseTool
         $lines = ['Available playlists (id | name | mapped/total | unmapped):', ''];
 
         foreach ($playlists as $playlist) {
-            $total = Channel::where('playlist_id', $playlist->id)->count();
+            $total = Channel::where('playlist_id', $playlist->id)
+                ->where('user_id', auth()->id())
+                ->count();
             $mapped = Channel::where('playlist_id', $playlist->id)
+                ->where('user_id', auth()->id())
                 ->whereNotNull('epg_channel_id')
                 ->count();
             $unmapped = $total - $mapped;
@@ -93,13 +97,16 @@ class EpgMappingStateTool extends BaseTool
 
     private function showPlaylistState(int $playlistId, ?string $group): string
     {
-        $playlist = Playlist::find($playlistId);
+        $playlist = Playlist::where('id', $playlistId)
+            ->where('user_id', auth()->id())
+            ->first();
 
         if (! $playlist) {
             return "Playlist #{$playlistId} not found.";
         }
 
         $query = Channel::where('playlist_id', $playlistId)
+            ->where('user_id', auth()->id())
             ->select('group')
             ->selectRaw('COUNT(*) as total, COUNT(epg_channel_id) as mapped')
             ->groupBy('group');
@@ -162,6 +169,7 @@ class EpgMappingStateTool extends BaseTool
     private function listEpgSources(): string
     {
         $epgs = Epg::query()
+            ->where('user_id', auth()->id())
             ->select(['id', 'name'])
             ->orderBy('name')
             ->get();

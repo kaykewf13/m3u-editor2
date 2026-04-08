@@ -187,6 +187,9 @@ services:
       # Share public directory with caddy for static file serving
       #- Uncomment the line below if needed
       #- app-public:/var/www/html/public
+      # User-uploaded assets (logos, images, etc.)
+      # Without this, uploaded assets are lost on container recreation
+      - ./storage:/var/www/html/storage/app/public
     restart: unless-stopped
     # Don't expose port externally - only accessible via caddy
     # Expose FPM port 9000 to caddy via internal network only

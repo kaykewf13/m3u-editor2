@@ -25,8 +25,7 @@ class DeleteRecordTool extends AbstractResourceTool
 
     public function handle(Request $request): Stringable|string
     {
-        $model = $this->getModelClass();
-        $record = $model::find($request['id']);
+        $record = $this->getBaseQuery()->find($request['id']);
 
         if (! $record) {
             return $this->getModelLabel().' #'.$request['id'].' not found.';
