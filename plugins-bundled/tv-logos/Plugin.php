@@ -313,26 +313,9 @@ class Plugin implements ChannelProcessorPluginInterface, HookablePluginInterface
             return null;
         }
 
-        $qualityFolders = $this->preferredQualityFolders($channelName);
+        $filenames = $this->buildFilenamesForSlugs($slugs, $countryCode);
 
-        $filenames = [];
-
-        foreach ($slugs as $slug) {
-            $filenames[] = "{$slug}-{$countryCode}.png";
-            $filenames[] = "{$slug}.png";
-
-            $parts = explode('-', $slug);
-            if (count($parts) > 1) {
-                $shortened = implode('-', array_slice($parts, 0, -1));
-                if ($shortened !== '') {
-                    $filenames[] = "{$shortened}-{$countryCode}.png";
-                }
-            }
-        }
-
-        $filenames = array_values(array_unique($filenames));
-
-        foreach ($qualityFolders as $folder) {
+        foreach ($this->preferredQualityFolders($channelName) as $folder) {
             foreach ($filenames as $filename) {
                 $relativePath = $folder === '' ? $filename : "{$folder}/{$filename}";
                 $url = self::CDN_BASE."/{$countryFolder}/{$relativePath}";
@@ -351,6 +334,32 @@ class Plugin implements ChannelProcessorPluginInterface, HookablePluginInterface
     }
 
     /**
+     * Build the ordered list of candidate filenames to probe for the given slugs.
+     *
+     * @param  array<int, string>  $slugs
+     * @return array<int, string>
+     */
+    private function buildFilenamesForSlugs(array $slugs, string $countryCode): array
+    {
+        $filenames = [];
+
+        foreach ($slugs as $slug) {
+            $filenames[] = "{$slug}-{$countryCode}.png";
+            $filenames[] = "{$slug}.png";
+
+            $parts = explode('-', $slug);
+            if (count($parts) > 1) {
+                $shortened = implode('-', array_slice($parts, 0, -1));
+                if ($shortened !== '') {
+                    $filenames[] = "{$shortened}-{$countryCode}.png";
+                }
+            }
+        }
+
+        return array_values(array_unique($filenames));
+    }
+
+    /**
      * @return array<int, string>
      */
     private function preferredQualityFolders(string $channelName): array
@@ -364,7 +373,7 @@ class Plugin implements ChannelProcessorPluginInterface, HookablePluginInterface
      * Fetch the set of known logo filenames for a country folder from the
      * GitHub Contents API and store it in the cache.
      *
-     * Returns a map of lowercase filename → true for O(1) lookups.
+     * Returns a map of lowercase relative path → true for O(1) lookups.
      * Returns an empty array on failure so callers can fall back to HEAD checks.
      *
      * @param  array<string, mixed>  $cache
@@ -378,27 +387,14 @@ class Plugin implements ChannelProcessorPluginInterface, HookablePluginInterface
             return $cache[$cacheKey];
         }
 
-        try {
-            $response = Http::timeout(15)
-                ->withHeaders([
-                    'Accept' => 'application/vnd.github.v3+json',
-                    'User-Agent' => 'tv-logos-plugin/1.0',
-                ])
-                ->get(self::INDEX_API_BASE.'/'.$countryFolder);
+        $index = $this->collectPngIndexEntries($countryFolder);
 
-            if ($response->successful()) {
-                $index = $this->collectPngIndexEntries($countryFolder);
-
-                $cache[$cacheKey] = $index;
-                $cacheChanged = true;
-
-                return $index;
-            }
-        } catch (Throwable) {
-            // Index unavailable — fall back to per-channel HEAD checks.
+        if ($index !== []) {
+            $cache[$cacheKey] = $index;
+            $cacheChanged = true;
         }
 
-        return [];
+        return $index;
     }
 
     /**
