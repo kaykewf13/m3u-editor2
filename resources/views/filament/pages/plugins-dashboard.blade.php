@@ -4,13 +4,14 @@
             @foreach ($summaryCards['top_row'] as $card)
                 <x-filament::card>
                     <div class="flex items-start gap-4">
-                        <div class="rounded-lg p-3
-                                @if ($card['color'] === 'green') bg-green-100 dark:bg-green-900
-                                @elseif ($card['color'] === 'amber') bg-amber-100 dark:bg-amber-900
-                                @elseif ($card['color'] === 'red') bg-red-100 dark:bg-red-900
-                                @else bg-blue-100 dark:bg-blue-900
-                                @endif">
-                            <x-dynamic-component :component="$card['icon']" class="h-6 w-6 text-gray-900 dark:text-white" />
+                        <div @class([
+                            "rounded-lg p-1",
+                            "bg-green-100 dark:bg-green-900" => $card['color'] === 'green',
+                            "bg-amber-100 dark:bg-amber-900" => $card['color'] === 'amber',
+                            "bg-red-100 dark:bg-red-900" => $card['color'] === 'red',
+                            "bg-blue-100 dark:bg-blue-900" => !in_array($card['color'], ['green', 'amber', 'red']),
+                        ])>
+                            <x-dynamic-component :component="$card['icon']" @class(["h-5 w-5", "text-green-900 dark:text-green-100" => $card['color'] === 'green', "text-amber-900 dark:text-amber-100" => $card['color'] === 'amber', "text-red-900 dark:text-red-100" => $card['color'] === 'red', "text-blue-900 dark:text-blue-100" => !in_array($card['color'], ['green', 'amber', 'red'])]) />
                         </div>
                         <div class="min-w-0 flex items-center gap-1">
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mr-1">{{ $card['label'] }}</p>
@@ -25,13 +26,14 @@
             @foreach ($summaryCards['bottom_row'] as $card)
                 <x-filament::card>
                     <div class="flex items-start gap-4">
-                        <div class="rounded-lg p-3
-                                @if ($card['color'] === 'green') bg-green-100 dark:bg-green-900
-                                @elseif ($card['color'] === 'amber') bg-amber-100 dark:bg-amber-900
-                                @elseif ($card['color'] === 'red') bg-red-100 dark:bg-red-900
-                                @else bg-blue-100 dark:bg-blue-900
-                                @endif">
-                            <x-dynamic-component :component="$card['icon']" class="h-6 w-6 text-gray-900 dark:text-white" />
+                        <div @class([
+                            "rounded-lg p-1",
+                            "bg-green-100 dark:bg-green-900" => $card['color'] === 'green',
+                            "bg-amber-100 dark:bg-amber-900" => $card['color'] === 'amber',
+                            "bg-red-100 dark:bg-red-900" => $card['color'] === 'red',
+                            "bg-blue-100 dark:bg-blue-900" => !in_array($card['color'], ['green', 'amber', 'red']),
+                        ])>
+                            <x-dynamic-component :component="$card['icon']" @class(["h-5 w-5", "text-green-900 dark:text-green-100" => $card['color'] === 'green', "text-amber-900 dark:text-amber-100" => $card['color'] === 'amber', "text-red-900 dark:text-red-100" => $card['color'] === 'red', "text-blue-900 dark:text-blue-100" => !in_array($card['color'], ['green', 'amber', 'red'])]) />
                         </div>
                         <div class="min-w-0 flex items-center gap-1">
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mr-1">{{ $card['label'] }}</p>

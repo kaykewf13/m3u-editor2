@@ -203,9 +203,8 @@ class PluginResource extends Resource implements CopilotResource
                 TextColumn::make('version')
                     ->sortable()
                     ->badge()
-                    ->color('gray')
                     ->description(fn (Plugin $record) => $record->hasUpdateAvailable() ? "Update: {$record->latest_version}" : null)
-                    ->color(fn (Plugin $record) => $record->hasUpdateAvailable() ? 'warning' : null)
+                    ->color(fn (Plugin $record) => $record->hasUpdateAvailable() ? 'warning' : 'gray')
                     ->icon(fn (Plugin $record) => $record->hasUpdateAvailable() ? 'heroicon-m-arrow-up-circle' : null),
                 TextColumn::make('validation_status')
                     ->badge()
@@ -477,8 +476,8 @@ class PluginResource extends Resource implements CopilotResource
             return self::infoCard(__('Automation'), __('Defaults and schedules used by the plugin.'), self::mutedMessage(__('No plugin record loaded.')));
         }
 
-        $autoScan = $record?->getSetting('auto_scan_on_epg_ready') ? __('Auto scan on EPG cache: enabled') : __('Auto scan on EPG cache: disabled');
-        $scheduled = $record?->getSetting('schedule_enabled')
+        $autoScan = $record->getSetting('auto_scan_on_epg_ready') ? __('Auto scan on EPG cache: enabled') : __('Auto scan on EPG cache: disabled');
+        $scheduled = $record->getSetting('schedule_enabled')
             ? 'Scheduled scans: '.(string) $record->getSetting('schedule_cron', 'enabled')
             : __('Scheduled scans: disabled');
 
@@ -696,11 +695,7 @@ class PluginResource extends Resource implements CopilotResource
 
     protected static function focusRun(?Plugin $record): ?PluginRun
     {
-        if (! $record) {
-            return null;
-        }
-
-        return $record->runs()
+        return $record?->runs()
             ->orderByRaw("case when status = 'running' then 0 else 1 end")
             ->latest('created_at')
             ->first();
@@ -713,36 +708,32 @@ class PluginResource extends Resource implements CopilotResource
 
     protected static function playlistLabel(mixed $playlistId): string
     {
-        $ids = is_array($playlistId) ? array_filter($playlistId) : ($playlistId ? [$playlistId] : []);
-
-        if ($ids === []) {
-            return 'No playlist default';
-        }
-
-        $names = Playlist::query()
-            ->whereIn('id', $ids)
-            ->orderBy('name')
-            ->pluck('name')
-            ->all();
-
-        return $names !== [] ? implode(', ', $names) : 'No playlist default';
+        return self::resolveLabel($playlistId, Playlist::class, 'No playlist default');
     }
 
     protected static function epgLabel(mixed $epgId): string
     {
-        $ids = is_array($epgId) ? array_filter($epgId) : ($epgId ? [$epgId] : []);
+        return self::resolveLabel($epgId, Epg::class, 'No EPG default');
+    }
+
+    /**
+     * @param  class-string  $modelClass
+     */
+    protected static function resolveLabel(mixed $ids, string $modelClass, string $fallback): string
+    {
+        $ids = is_array($ids) ? array_filter($ids) : ($ids ? [$ids] : []);
 
         if ($ids === []) {
-            return 'No EPG default';
+            return $fallback;
         }
 
-        $names = Epg::query()
+        $names = $modelClass::query()
             ->whereIn('id', $ids)
             ->orderBy('name')
             ->pluck('name')
             ->all();
 
-        return $names !== [] ? implode(', ', $names) : 'No EPG default';
+        return $names !== [] ? implode(', ', $names) : $fallback;
     }
 
     protected static function ownershipSummary(Plugin $record): string
@@ -755,7 +746,8 @@ class PluginResource extends Resource implements CopilotResource
         }
 
         if (($ownership['directories'] ?? []) !== []) {
-            $parts[] = count($ownership['directories']).' director'.(count($ownership['directories']) === 1 ? 'y' : 'ies');
+            $count = count($ownership['directories']);
+            $parts[] = $count.' '.Str::plural('directory', $count);
         }
 
         if (($ownership['files'] ?? []) !== []) {
