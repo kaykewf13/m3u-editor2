@@ -41,7 +41,8 @@
             @mousedown="bringToFront(player.id)">
             <!-- Player Header/Title Bar -->
             <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-move select-none hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                @mousedown="startDrag(player.id, $event)">
+                @mousedown="startDrag(player.id, $event)"
+                @touchstart="startDragTouch(player.id, $event)">
                 <div class="flex items-center space-x-2 flex-1 min-w-0">
                     <img x-show="player.logo" :src="player.logo" :alt="player.title"
                         class="w-5 h-5 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">
@@ -49,7 +50,7 @@
                         x-text="player.display_title || player.title"></span>
                 </div>
 
-                <div class="flex items-center space-x-1 flex-shrink-0">
+                <div class="flex items-center space-x-1 flex-shrink-0" @mousedown.stop @touchstart.stop>
                     <!-- Open in New Tab Button -->
                     <button @click.stop="openInNewTab(player, '{{ route('player.popout') }}')"
                         class="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors focus:outline-none"
@@ -209,7 +210,9 @@
 
                 <!-- Resize Handle -->
                 <div class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-50 hover:opacity-100 transition-opacity group"
-                    @mousedown.stop="startResize(player.id, $event)" title="Resize">
+                    @mousedown.stop="startResize(player.id, $event)"
+                    @touchstart.stop="startResizeTouch(player.id, $event)"
+                    title="Resize">
                     <!-- Visual resize indicator with lines -->
                     <div class="absolute bottom-1 right-1 space-y-0.5">
                         <div class="flex space-x-0.5">
