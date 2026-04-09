@@ -339,7 +339,6 @@ function multiStreamManager() {
             window.open(popoutRoute + '?' + params.toString(), '_blank', 'noopener');
         },
 
-        // Drag functionality
         startDrag(playerId, event) {
             event.preventDefault();
             this.bringToFront(playerId);
@@ -347,17 +346,17 @@ function multiStreamManager() {
             const player = this.players.find(p => p.id === playerId);
             if (!player) return;
 
+            const point = event.touches?.[0] ?? event;
             this.dragState = {
                 isDragging: true,
                 playerId: playerId,
-                startX: event.clientX,
-                startY: event.clientY,
+                startX: point.clientX,
+                startY: point.clientY,
                 startLeft: player.position.x,
                 startTop: player.position.y
             };
         },
 
-        // Resize functionality
         startResize(playerId, event) {
             event.preventDefault();
             event.stopPropagation();
@@ -366,48 +365,12 @@ function multiStreamManager() {
             const player = this.players.find(p => p.id === playerId);
             if (!player) return;
 
+            const point = event.touches?.[0] ?? event;
             this.resizeState = {
                 isResizing: true,
                 playerId: playerId,
-                startX: event.clientX,
-                startY: event.clientY,
-                startWidth: player.size.width,
-                startHeight: player.size.height
-            };
-        },
-
-        startDragTouch(playerId, event) {
-            event.preventDefault();
-            this.bringToFront(playerId);
-
-            const player = this.players.find(p => p.id === playerId);
-            if (!player) return;
-
-            const touch = event.touches[0];
-            this.dragState = {
-                isDragging: true,
-                playerId: playerId,
-                startX: touch.clientX,
-                startY: touch.clientY,
-                startLeft: player.position.x,
-                startTop: player.position.y
-            };
-        },
-
-        startResizeTouch(playerId, event) {
-            event.preventDefault();
-            event.stopPropagation();
-            this.bringToFront(playerId);
-
-            const player = this.players.find(p => p.id === playerId);
-            if (!player) return;
-
-            const touch = event.touches[0];
-            this.resizeState = {
-                isResizing: true,
-                playerId: playerId,
-                startX: touch.clientX,
-                startY: touch.clientY,
+                startX: point.clientX,
+                startY: point.clientY,
                 startWidth: player.size.width,
                 startHeight: player.size.height
             };
@@ -416,8 +379,7 @@ function multiStreamManager() {
         handleTouchMove(event) {
             if (!this.dragState.isDragging && !this.resizeState.isResizing) return;
             event.preventDefault();
-            const touch = event.touches[0];
-            this.handleMouseMove(touch);
+            this.handleMouseMove(event.touches[0]);
         },
 
         constrainAllToViewport() {
