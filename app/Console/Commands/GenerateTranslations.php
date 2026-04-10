@@ -145,7 +145,10 @@ class GenerateTranslations extends Command
         foreach ($toTranslate as $dotKey => $value) {
             $bar->setMessage(Str::limit($dotKey, 40));
 
-            if ($this->shouldSkipTranslation((string) $value)) {
+            if (is_array($value)) {
+                // Empty or non-string leaf (e.g. [] placeholder) — keep as-is
+                $translated[$dotKey] = $value;
+            } elseif ($this->shouldSkipTranslation((string) $value)) {
                 $translated[$dotKey] = $value;
             } else {
                 try {
@@ -221,7 +224,7 @@ class GenerateTranslations extends Command
 
         ksort($translated);
         $path = lang_path("{$locale}.json");
-        file_put_contents($path, json_encode($translated, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n");
+        file_put_contents($path, json_encode($translated, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n");
         $this->line("  <fg=green>Wrote</> lang/{$locale}.json (".count($translated).' keys)');
     }
 
