@@ -74,3 +74,25 @@ body::before {
         background-origin: border-box;
     }
 }
+
+/* ── OverlayScrollbars custom theme ─────────────────────────── */
+.os-theme-app {
+    --os-size: 12px;
+    --os-padding-perpendicular: 2px;
+    --os-padding-axis: 4px;
+    --os-track-bg: transparent;
+    --os-track-bg-hover: transparent;
+    --os-track-bg-active: transparent;
+    --os-track-border-radius: 10px;
+    --os-handle-bg: rgba(0, 0, 0, 0.18);
+    --os-handle-bg-hover: rgba(0, 0, 0, 0.32);
+    --os-handle-bg-active: rgba(0, 0, 0, 0.45);
+    --os-handle-border-radius: 10px;
+    --os-handle-interactive-area-offset: 4px;
+}
+
+.dark .os-theme-app {
+    --os-handle-bg: rgba(255, 255, 255, 0.2);
+    --os-handle-bg-hover: rgba(255, 255, 255, 0.35);
+    --os-handle-bg-active: rgba(255, 255, 255, 0.5);
+}
