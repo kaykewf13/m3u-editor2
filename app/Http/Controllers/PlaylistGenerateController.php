@@ -336,6 +336,16 @@ class PlaylistGenerateController extends Controller
                             if ($episodeTmdbId) {
                                 $extInf .= " tmdb-id=\"{$episodeTmdbId}\"";
                             }
+
+                            // Add season and episode information
+                            $seasonNum = $episode->season;
+                            $episodeNum = $episode->episode_num;
+                            if ($seasonNum !== null) {
+                                $extInf .= " tvg-season=\"{$seasonNum}\"";
+                            }
+                            if ($episodeNum !== null) {
+                                $extInf .= " tvg-episode=\"{$episodeNum}\"";
+                            }
                             $extInf .= " tvg-chno=\"$channelNo\" tvg-id=\"$tvgId\" tvg-name=\"$name\" tvg-logo=\"$icon\" group-title=\"$group\"";
                             echo "$extInf,".$title."\n";
                             echo $url."\n";
