@@ -336,11 +336,8 @@ class PlaylistGenerateController extends Controller
                             }
 
                             $extInf = "#EXTINF:$runtime";
-                            $episodeTmdbId = $episode->tmdb_id ?: ($episode->info['tmdb_id'] ?? null);
-                            if (! $episodeTmdbId) {
-                                // Fallback to series TMDB ID if episode not set
-                                $episodeTmdbId = $seriesTmdbId;
-                            }
+                            // Fallback to series TMDB ID if episode not set
+                            $episodeTmdbId = $episode->tmdb_id ?: ($episode->info['tmdb_id'] ?? null) ?: $seriesTmdbId;
                             if ($episodeTmdbId) {
                                 $extInf .= " tmdb-id=\"{$episodeTmdbId}\"";
                             }

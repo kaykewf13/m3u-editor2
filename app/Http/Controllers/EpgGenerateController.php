@@ -382,8 +382,8 @@ class EpgGenerateController extends Controller
                 // If cache fails, fallback to original XML reading
                 try {
                     $this->processEpgWithXmlReader($epg, $channels, $playlist);
-                } catch (Exception $e) {
-                    Log::warning("EPG fallback XMLReader also failed for EPG {$epg->name}: {$e->getMessage()}");
+                } catch (Exception $fallbackException) {
+                    Log::warning("EPG fallback XMLReader also failed for EPG {$epg->name}: {$fallbackException->getMessage()}");
                 }
             }
         }

@@ -96,3 +96,9 @@ body::before {
     --os-handle-bg-hover: rgba(255, 255, 255, 0.35);
     --os-handle-bg-active: rgba(255, 255, 255, 0.5);
 }
+
+.fi-sidebar-item-grouped-border-part-not-first:where(.dark, .dark *),
+.fi-sidebar-item-grouped-border-part-not-last:where(.dark, .dark *),
+.fi-sidebar-item-grouped-border-part:where(.dark, .dark *) {
+    background-color: var(--gray-900) !important;
+}

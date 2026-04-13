@@ -784,14 +784,12 @@ class MediaServerIntegrationResource extends Resource implements CopilotResource
                                                     $baseUrl = ProxyFacade::getBaseUrl();
                                                     $uuid = $playlist->uuid;
 
-                                                    $playlistAuth = null;
-                                                    if (method_exists($playlist, 'playlistAuths')) {
-                                                        $playlistAuth = $playlist->playlistAuths()->where('enabled', true)->first();
-                                                    }
-                                                    $hdhrAuthPath = '';
-                                                    if ($playlistAuth) {
-                                                        $hdhrAuthPath = '/'.rawurlencode($playlistAuth->username).'/'.rawurlencode($playlistAuth->password);
-                                                    }
+                                                    $playlistAuth = method_exists($playlist, 'playlistAuths')
+                                                        ? $playlist->playlistAuths()->where('enabled', true)->first()
+                                                        : null;
+                                                    $hdhrAuthPath = $playlistAuth
+                                                        ? '/'.rawurlencode($playlistAuth->username).'/'.rawurlencode($playlistAuth->password)
+                                                        : '';
 
                                                     $set('hdhr_base_url', $baseUrl."/{$uuid}/hdhr{$hdhrAuthPath}");
                                                     $set('epg_url', $baseUrl."/epg/{$uuid}");

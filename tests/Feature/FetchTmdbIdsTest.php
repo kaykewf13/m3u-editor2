@@ -21,6 +21,22 @@ use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
+function mockTmdbSettings(bool $autoCreateGroups = false): void
+{
+    test()->mock(GeneralSettings::class, function ($mock) use ($autoCreateGroups) {
+        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
+        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
+        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
+        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
+        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn($autoCreateGroups);
+        $mock->tmdb_api_key = 'fake-api-key';
+        $mock->tmdb_language = 'en-US';
+        $mock->tmdb_rate_limit = 40;
+        $mock->tmdb_confidence_threshold = 80;
+        $mock->tmdb_auto_create_groups = $autoCreateGroups;
+    });
+}
+
 beforeEach(function () {
     Event::fake();
     Cache::swap(new Repository(new ArrayStore));
@@ -29,18 +45,7 @@ beforeEach(function () {
     $this->playlist = Playlist::factory()->create(['user_id' => $this->user->id]);
 
     // Mock TMDB settings without saving to avoid missing properties error
-    $this->mock(GeneralSettings::class, function ($mock) {
-        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
-        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
-        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
-        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
-        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn(false);
-        $mock->tmdb_api_key = 'fake-api-key';
-        $mock->tmdb_language = 'en-US';
-        $mock->tmdb_rate_limit = 40;
-        $mock->tmdb_confidence_threshold = 80;
-        $mock->tmdb_auto_create_groups = false;
-    });
+    mockTmdbSettings();
 });
 
 it('can fetch TMDB ID for a VOD channel', function () {
@@ -682,18 +687,7 @@ it('enriches episodes even when series is skipped due to complete metadata', fun
 
 it('re-enriches series genre when it is a library name placeholder', function () {
     // This test requires auto_create_groups to be enabled
-    $this->mock(GeneralSettings::class, function ($mock) {
-        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
-        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
-        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
-        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
-        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn(true);
-        $mock->tmdb_api_key = 'fake-api-key';
-        $mock->tmdb_language = 'en-US';
-        $mock->tmdb_rate_limit = 40;
-        $mock->tmdb_confidence_threshold = 80;
-        $mock->tmdb_auto_create_groups = true;
-    });
+    mockTmdbSettings(true);
 
     Http::fake([
         'https://api.themoviedb.org/3/tv/1396?*' => Http::response([
@@ -749,18 +743,7 @@ it('re-enriches series genre when it is a library name placeholder', function ()
 
 it('re-enriches VOD genre when it is a library name placeholder', function () {
     // This test requires auto_create_groups to be enabled
-    $this->mock(GeneralSettings::class, function ($mock) {
-        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
-        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
-        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
-        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
-        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn(true);
-        $mock->tmdb_api_key = 'fake-api-key';
-        $mock->tmdb_language = 'en-US';
-        $mock->tmdb_rate_limit = 40;
-        $mock->tmdb_confidence_threshold = 80;
-        $mock->tmdb_auto_create_groups = true;
-    });
+    mockTmdbSettings(true);
 
     Http::fake([
         'https://api.themoviedb.org/3/movie/603*' => Http::response([
@@ -987,18 +970,7 @@ it('does not create groups from TMDB genres when auto_create_groups is disabled'
 
 it('creates groups from TMDB genres when auto_create_groups is enabled', function () {
     // Override the mock to enable auto_create_groups
-    $this->mock(GeneralSettings::class, function ($mock) {
-        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
-        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
-        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
-        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
-        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn(true);
-        $mock->tmdb_api_key = 'fake-api-key';
-        $mock->tmdb_language = 'en-US';
-        $mock->tmdb_rate_limit = 40;
-        $mock->tmdb_confidence_threshold = 80;
-        $mock->tmdb_auto_create_groups = true;
-    });
+    mockTmdbSettings(true);
 
     Http::fake([
         'https://api.themoviedb.org/3/search/movie*' => Http::response([
@@ -1124,18 +1096,7 @@ it('does not create categories for series when auto_create_groups is disabled', 
 });
 
 it('creates categories for series when auto_create_groups is enabled', function () {
-    $this->mock(GeneralSettings::class, function ($mock) {
-        $mock->shouldReceive('getAttribute')->with('tmdb_api_key')->andReturn('fake-api-key');
-        $mock->shouldReceive('getAttribute')->with('tmdb_language')->andReturn('en-US');
-        $mock->shouldReceive('getAttribute')->with('tmdb_rate_limit')->andReturn(40);
-        $mock->shouldReceive('getAttribute')->with('tmdb_confidence_threshold')->andReturn(80);
-        $mock->shouldReceive('getAttribute')->with('tmdb_auto_create_groups')->andReturn(true);
-        $mock->tmdb_api_key = 'fake-api-key';
-        $mock->tmdb_language = 'en-US';
-        $mock->tmdb_rate_limit = 40;
-        $mock->tmdb_confidence_threshold = 80;
-        $mock->tmdb_auto_create_groups = true;
-    });
+    mockTmdbSettings(true);
 
     Http::fake([
         'https://api.themoviedb.org/3/search/tv*' => Http::response([
