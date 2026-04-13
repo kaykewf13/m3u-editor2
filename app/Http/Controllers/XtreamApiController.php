@@ -408,6 +408,16 @@ class XtreamApiController extends Controller
             : ($playlist instanceof PlaylistAlias ? $playlist->playlist : null);
         $disableCatchup = (bool) ($sourcePlaylist->disable_catchup ?? false);
 
+        // Resolve alias group filter — only needed for the categories list endpoints.
+        // Channel/series stream queries are filtered automatically via the PlaylistAlias
+        // channels() / series() relationships, so no per-query wiring is required there.
+        $aliasLiveGroupFilter = ($playlist instanceof PlaylistAlias && $playlist->playlist_id)
+            ? $playlist->getAllowedLiveGroupNames()
+            : [];
+        $aliasVodGroupFilter = ($playlist instanceof PlaylistAlias && $playlist->playlist_id)
+            ? $playlist->getAllowedVodGroupNames()
+            : [];
+
         $baseUrl = ProxyFacade::getBaseUrl();
         $action = $request->input('action', 'panel');
         if (
@@ -1176,10 +1186,14 @@ class XtreamApiController extends Controller
                 // For regular Playlist and MergedPlaylist, use the groups() relationship
                 $groups = $playlist->groups()
                     ->orderBy('sort_order')
-                    ->whereHas('channels', function ($query) {
+                    ->whereHas('channels', function ($query) use ($aliasLiveGroupFilter) {
                         $query->where('enabled', true)
                             ->where('is_vod', false);
-                    })->get();
+                        if (! empty($aliasLiveGroupFilter)) {
+                            $query->whereIn('group_internal', $aliasLiveGroupFilter);
+                        }
+                    })
+                    ->get();
 
                 foreach ($groups as $group) {
                     $liveCategories[] = [
@@ -1282,9 +1296,12 @@ class XtreamApiController extends Controller
                 // For regular Playlist and MergedPlaylist, use the groups() relationship
                 $vodGroups = $playlist->groups()
                     ->orderBy('sort_order')
-                    ->whereHas('channels', function ($query) {
+                    ->whereHas('channels', function ($query) use ($aliasVodGroupFilter) {
                         $query->where('enabled', true)
                             ->where('is_vod', true);
+                        if (! empty($aliasVodGroupFilter)) {
+                            $query->whereIn('group_internal', $aliasVodGroupFilter);
+                        }
                     })
                     ->get();
 
@@ -1385,7 +1402,8 @@ class XtreamApiController extends Controller
                     return $cat;
                 }, $seriesCategories);
             } else {
-                // Get categories from series only
+                // Get categories from series only — the series() relationship on PlaylistAlias
+                // automatically applies any alias category filter, so no extra scoping needed.
                 $categories = $playlist->series()
                     ->where('enabled', true)
                     ->with('category')
