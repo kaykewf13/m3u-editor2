@@ -455,9 +455,10 @@ class M3uProxyService
      * @param  string  $field  Metadata field to filter by (e.g., 'playlist_uuid', 'type')
      * @param  string  $value  Value to match
      * @param  int|null  $excludeChannelId  Optional channel ID to exclude (keep this stream)
+     * @param  bool  $force  When false, streams with active clients are preserved. Defaults to true (existing behaviour).
      * @return array Result with deleted_count and success status
      */
-    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null): array
+    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null, bool $force = true): array
     {
         $service = new self;
 
@@ -474,6 +475,7 @@ class M3uProxyService
             $params = [
                 'field' => $field,
                 'value' => $value,
+                'force' => $force ? 'true' : 'false',
             ];
 
             if ($excludeChannelId !== null) {
