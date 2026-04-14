@@ -123,8 +123,14 @@
             const streamUrl = videoElement.dataset.url ?? '';
             const streamFormat = videoElement.dataset.format ?? 'ts';
 
+            // Generate a unique client_id for this popout window so the proxy
+            // distinguishes it from other tabs / players watching the same stream.
+            const popoutClientId = 'popout-' + Math.random().toString(36).substring(2, 11);
+            const clientIdSep = streamUrl.includes('?') ? '&' : '?';
+            const streamUrlWithClientId = streamUrl + clientIdSep + 'client_id=' + encodeURIComponent(popoutClientId);
+
             const player = window.streamPlayer();
-            player.initPlayer(streamUrl, streamFormat, 'popout-player');
+            player.initPlayer(streamUrlWithClientId, streamFormat, 'popout-player');
 
             // Show PiP button if supported
             if (document.pictureInPictureEnabled) {
@@ -152,7 +158,7 @@
                 const streamId = videoElement.dataset.streamId || '';
                 const type = contentType === 'episode' ? 'episode' : 'channel';
                 if (window.notifyProxyStreamStop) {
-                    window.notifyProxyStreamStop(streamId, type);
+                    window.notifyProxyStreamStop(streamId, type, popoutClientId);
                 }
                 if (typeof player.cleanup === 'function') {
                     player.cleanup();

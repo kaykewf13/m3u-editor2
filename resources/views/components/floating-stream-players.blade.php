@@ -102,12 +102,15 @@
                 <!-- Video Element -->
                 <video :id="player.id + '-video'" class="w-full h-full" controls autoplay preload="metadata"
                     x-data="{ playerInstance: null }" :data-stream-url="player.url" :data-stream-format="player.format"
-                    :data-content-type="player.content_type || ''" :data-stream-id="player.stream_id || ''"
-                    :data-playlist-id="player.playlist_id || ''" :data-series-id="player.series_id || ''"
-                    :data-season-number="player.season_number || ''" x-init="
+                    :data-player-id="player.id" :data-content-type="player.content_type || ''"
+                    :data-stream-id="player.stream_id || ''" :data-playlist-id="player.playlist_id || ''"
+                    :data-series-id="player.series_id || ''" :data-season-number="player.season_number || ''"
+                    x-init="
                         if (window.streamPlayer && $el.dataset.streamUrl && $el.dataset.streamUrl !== '') {
                             playerInstance = window.streamPlayer();
-                            playerInstance.initPlayer($el.dataset.streamUrl, $el.dataset.streamFormat, $el.id);
+                            const sep = $el.dataset.streamUrl.includes('?') ? '&' : '?';
+                            const urlWithClientId = $el.dataset.streamUrl + sep + 'client_id=' + encodeURIComponent($el.dataset.playerId);
+                            playerInstance.initPlayer(urlWithClientId, $el.dataset.streamFormat, $el.id);
                         }
                     ">
                     <p class="text-white p-4">Your browser does not support video playback.</p>
@@ -139,7 +142,9 @@
                             @click="
                                 const videoEl = document.getElementById(player.id + '-video');
                                 if (videoEl && videoEl._streamPlayer) {
-                                    videoEl._streamPlayer.initPlayer(player.url, player.format, player.id + '-video');
+                                    const sep = player.url.includes('?') ? '&' : '?';
+                                    const urlWithClientId = player.url + sep + 'client_id=' + encodeURIComponent(player.id);
+                                    videoEl._streamPlayer.initPlayer(urlWithClientId, player.format, player.id + '-video');
                                 }
                             ">
                             Retry

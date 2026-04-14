@@ -18,12 +18,14 @@
 
 use App\Models\Channel;
 use App\Models\CustomPlaylist;
+use App\Models\Episode;
 use App\Models\Playlist;
 use App\Models\StreamProfile;
 use App\Models\User;
 use App\Services\M3uProxyService;
 use App\Settings\GeneralSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -454,4 +456,111 @@ test('handleVod() redirects directly to stream URL when both channel and playlis
 
     $this->get("/movie/{$this->user->name}/{$this->playlist->uuid}/{$channel->id}.mkv")
         ->assertRedirect('http://provider.test/movie/123.mkv');
+});
+
+// ── client_id forwarding ──────────────────────────────────────────────────────
+
+test('channelPlayer() appends client_id to the redirect URL when provided', function () {
+    $this->playlist->update(['enable_proxy' => true]);
+
+    $channel = Channel::factory()->for($this->user)->for($this->playlist)->create([
+        'stream_profile_id' => null,
+        'url' => 'http://provider.test/stream/live.ts',
+        'is_vod' => false,
+        'enabled' => true,
+    ]);
+
+    $mockSettings = Mockery::mock(GeneralSettings::class);
+    $mockSettings->default_stream_profile_id = null;
+    $mockSettings->default_vod_stream_profile_id = null;
+    app()->instance(GeneralSettings::class, $mockSettings);
+
+    $mock = Mockery::mock(M3uProxyService::class);
+    $mock->shouldReceive('getChannelUrl')
+        ->once()
+        ->andReturn('http://proxy.test/stream/abc123');
+    app()->instance(M3uProxyService::class, $mock);
+
+    $this->get("/live/{$this->user->name}/{$this->playlist->uuid}/{$channel->id}.ts?player=true&client_id=floating-player-test-abc")
+        ->assertRedirect('http://proxy.test/stream/abc123?client_id=floating-player-test-abc');
+});
+
+test('channelPlayer() does not append client_id to the redirect URL when not provided', function () {
+    $this->playlist->update(['enable_proxy' => true]);
+
+    $channel = Channel::factory()->for($this->user)->for($this->playlist)->create([
+        'stream_profile_id' => null,
+        'url' => 'http://provider.test/stream/live.ts',
+        'is_vod' => false,
+        'enabled' => true,
+    ]);
+
+    $mockSettings = Mockery::mock(GeneralSettings::class);
+    $mockSettings->default_stream_profile_id = null;
+    $mockSettings->default_vod_stream_profile_id = null;
+    app()->instance(GeneralSettings::class, $mockSettings);
+
+    $mock = Mockery::mock(M3uProxyService::class);
+    $mock->shouldReceive('getChannelUrl')
+        ->once()
+        ->andReturn('http://proxy.test/stream/abc123');
+    app()->instance(M3uProxyService::class, $mock);
+
+    $response = $this->get("/live/{$this->user->name}/{$this->playlist->uuid}/{$channel->id}.ts?player=true");
+
+    $response->assertRedirect('http://proxy.test/stream/abc123');
+    expect($response->headers->get('Location'))->not->toContain('client_id');
+});
+
+test('episodePlayer() appends client_id to the redirect URL when provided', function () {
+    $episode = Episode::factory()->for($this->user)->for($this->playlist)->create([
+        'container_extension' => 'ts',
+    ]);
+
+    $mockSettings = Mockery::mock(GeneralSettings::class);
+    $mockSettings->default_vod_stream_profile_id = null;
+    app()->instance(GeneralSettings::class, $mockSettings);
+
+    $mock = Mockery::mock(M3uProxyService::class);
+    $mock->shouldReceive('getEpisodeUrl')
+        ->once()
+        ->andReturn('http://proxy.test/vod/ep999');
+    app()->instance(M3uProxyService::class, $mock);
+
+    $request = Request::create('/episodeplayer', 'GET', [
+        'client_id' => 'popout-xyz123',
+    ]);
+
+    $response = app()->call(
+        'App\Http\Controllers\Api\M3uProxyApiController@episodePlayer',
+        ['request' => $request, 'id' => $episode->id]
+    );
+
+    expect($response->getTargetUrl())->toContain('client_id=popout-xyz123');
+});
+
+test('episodePlayer() does not append client_id to the redirect URL when not provided', function () {
+    $episode = Episode::factory()->for($this->user)->for($this->playlist)->create([
+        'container_extension' => 'ts',
+    ]);
+
+    $mockSettings = Mockery::mock(GeneralSettings::class);
+    $mockSettings->default_vod_stream_profile_id = null;
+    app()->instance(GeneralSettings::class, $mockSettings);
+
+    $mock = Mockery::mock(M3uProxyService::class);
+    $mock->shouldReceive('getEpisodeUrl')
+        ->once()
+        ->andReturn('http://proxy.test/vod/ep999');
+    app()->instance(M3uProxyService::class, $mock);
+
+    $request = Request::create('/episodeplayer', 'GET');
+
+    $response = app()->call(
+        'App\Http\Controllers\Api\M3uProxyApiController@episodePlayer',
+        ['request' => $request, 'id' => $episode->id]
+    );
+
+    expect($response->getTargetUrl())->toBe('http://proxy.test/vod/ep999')
+        ->and($response->getTargetUrl())->not->toContain('client_id');
 });

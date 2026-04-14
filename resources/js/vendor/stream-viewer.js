@@ -878,16 +878,21 @@ window.toggleStreamDetails = toggleStreamDetails;
  * Notify the proxy server to stop a player stream (best-effort via sendBeacon).
  * Shared by the floating player manager and the pop-out player.
  *
- * @param {string|number} id   - The stream/channel ID
- * @param {string}        type - 'channel' or 'episode'
+ * @param {string|number} id       - The stream/channel ID
+ * @param {string}        type     - 'channel' or 'episode'
+ * @param {string}        clientId - The unique client ID assigned to this player instance
  */
-function notifyProxyStreamStop(id, type) {
+function notifyProxyStreamStop(id, type, clientId) {
     if (!id || !type) {
         return;
     }
     try {
+        const payload = { id, type };
+        if (clientId) {
+            payload.client_id = clientId;
+        }
         const data = new Blob(
-            [JSON.stringify({ id, type })],
+            [JSON.stringify(payload)],
             { type: 'application/json' }
         );
         navigator.sendBeacon('/api/m3u-proxy/player-stream/stop', data);

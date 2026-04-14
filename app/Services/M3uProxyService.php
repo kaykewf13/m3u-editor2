@@ -456,9 +456,10 @@ class M3uProxyService
      * @param  string  $value  Value to match
      * @param  int|null  $excludeChannelId  Optional channel ID to exclude (keep this stream)
      * @param  bool  $force  When false, streams with active clients are preserved. Defaults to true (existing behaviour).
+     * @param  string|null  $clientId  ID of the disconnecting client. When provided with force=false, the proxy removes this client immediately before evaluating whether other clients remain.
      * @return array Result with deleted_count and success status
      */
-    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null, bool $force = true): array
+    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null, bool $force = true, ?string $clientId = null): array
     {
         $service = new self;
 
@@ -480,6 +481,10 @@ class M3uProxyService
 
             if ($excludeChannelId !== null) {
                 $params['exclude_channel_id'] = (string) $excludeChannelId;
+            }
+
+            if ($clientId !== null) {
+                $params['client_id'] = $clientId;
             }
 
             $response = Http::timeout(5)->acceptJson()

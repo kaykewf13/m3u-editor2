@@ -96,3 +96,41 @@ it('sends force=true by default when stopping streams by metadata directly', fun
             && ($query['force'] ?? null) === 'true';
     });
 });
+
+it('forwards client_id to the proxy when provided in the stop request', function () {
+    Http::fake(['*' => Http::response(['deleted_count' => 1], 200)]);
+
+    config(['proxy.m3u_proxy_host' => 'http://proxy.test']);
+
+    $this->postJson('/api/m3u-proxy/player-stream/stop', [
+        'id' => 42,
+        'type' => 'channel',
+        'client_id' => 'floating-player-test-abc',
+    ])->assertNoContent();
+
+    Http::assertSent(function ($request) {
+        parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+
+        return str_contains($request->url(), '/streams/by-metadata')
+            && ($query['client_id'] ?? null) === 'floating-player-test-abc'
+            && ($query['force'] ?? null) === 'false';
+    });
+});
+
+it('does not include client_id in proxy request when not provided', function () {
+    Http::fake(['*' => Http::response(['deleted_count' => 1], 200)]);
+
+    config(['proxy.m3u_proxy_host' => 'http://proxy.test']);
+
+    $this->postJson('/api/m3u-proxy/player-stream/stop', [
+        'id' => 42,
+        'type' => 'channel',
+    ])->assertNoContent();
+
+    Http::assertSent(function ($request) {
+        parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+
+        return str_contains($request->url(), '/streams/by-metadata')
+            && ! array_key_exists('client_id', $query);
+    });
+});

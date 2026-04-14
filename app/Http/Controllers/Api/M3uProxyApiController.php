@@ -143,6 +143,9 @@ class M3uProxyApiController extends Controller
             $playlist = $channel->getEffectivePlaylist();
         }
 
+        // Get username from request (query parameter or header as fallback)
+        $username = $request->input('username', $request->header('X-Username'));
+
         // Channel-level profile takes priority over the global in-app player default.
         // Playlist-level stream profiles are for external clients only — they should not
         // apply to the in-app floating/popout player. The global defaults (from Preferences >
@@ -159,8 +162,17 @@ class M3uProxyApiController extends Controller
                 $playlist,
                 $channel,
                 $request,
-                $profile
+                $profile,
+                $username
             );
+
+        // Forward the player's unique client_id to the proxy URL so each browser
+        // tab gets its own entry in stream_clients, preventing collision when
+        // multiple tabs on the same machine watch the same stream.
+        if ($clientId = $request->input('client_id')) {
+            $separator = str_contains($url, '?') ? '&' : '?';
+            $url .= $separator.'client_id='.rawurlencode($clientId);
+        }
 
         return redirect($url);
     }
@@ -184,6 +196,9 @@ class M3uProxyApiController extends Controller
             $playlist = $episode->playlist;
         }
 
+        // Get username from request (query parameter or header as fallback)
+        $username = $request->input('username', $request->header('X-Username'));
+
         // Use in-app player VOD transcoding profile (from Preferences > In-App Player Transcoding).
         // Playlist-level stream profiles are for external clients only — they should not
         // apply to the in-app floating/popout player.
@@ -196,9 +211,17 @@ class M3uProxyApiController extends Controller
                 $playlist,
                 $episode,
                 $profile,
-                null,
+                $username,
                 $request
             );
+
+        // Forward the player's unique client_id to the proxy URL so each browser
+        // tab gets its own entry in stream_clients, preventing collision when
+        // multiple tabs on the same machine watch the same stream.
+        if ($clientId = $request->input('client_id')) {
+            $separator = str_contains($url, '?') ? '&' : '?';
+            $url .= $separator.'client_id='.rawurlencode($clientId);
+        }
 
         return redirect($url);
     }
@@ -708,7 +731,7 @@ class M3uProxyApiController extends Controller
         }
 
         try {
-            M3uProxyService::stopStreamsByMetadata($field, (string) $id, force: false);
+            M3uProxyService::stopStreamsByMetadata($field, (string) $id, force: false, clientId: $request->input('client_id'));
         } catch (Exception $e) {
             Log::warning("Failed to stop player stream ({$type}:{$id}): ".$e->getMessage());
         }

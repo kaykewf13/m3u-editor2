@@ -147,7 +147,11 @@ function multiStreamManager() {
             const videoElement = document.getElementById(player.id + '-video');
             if (videoElement && window.streamPlayer) {
                 player.streamPlayer = window.streamPlayer();
-                player.streamPlayer.initPlayer(player.url, player.format, player.id + '-video');
+                // Append a unique client_id so the proxy can distinguish each browser
+                // tab / player instance even when they share the same IP + User-Agent.
+                const sep = player.url.includes('?') ? '&' : '?';
+                const url = player.url + sep + 'client_id=' + encodeURIComponent(player.id);
+                player.streamPlayer.initPlayer(url, player.format, player.id + '-video');
             }
         },
 
@@ -244,7 +248,7 @@ function multiStreamManager() {
          */
         notifyServerStreamStop(player) {
             if (window.notifyProxyStreamStop) {
-                window.notifyProxyStreamStop(player.channelId, player.channelType);
+                window.notifyProxyStreamStop(player.channelId, player.channelType, player.id);
             }
         },
 
