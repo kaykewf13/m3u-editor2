@@ -120,8 +120,7 @@ it('excludes vod groups when playlist does not include vod in m3u', function () 
     $response = $this->getJson("/api/epg/playlist/{$this->playlist->uuid}/groups?vod=1");
 
     $response->assertOk()
-        ->assertJson(['groups' => ['Live Sports']])
-        ->assertJsonMissing(['groups' => ['VOD Movies']]);
+        ->assertJsonPath('groups', ['Live Sports']);
 });
 
 it('includes vod groups when playlist includes vod in m3u', function () {
