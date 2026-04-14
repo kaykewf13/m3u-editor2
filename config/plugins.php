@@ -49,7 +49,7 @@ return [
             'description' => 'Maps Gracenote station IDs from a local Channels DVR install to your playlist channels via the DVR guide stations API.',
         ],
         'youtubearr' => [
-            'repository' => 'm3ue/youtubearr-m3ue',
+            'repository' => 'm3ue/youtubearr-plugin',
             'name' => 'YouTubearr',
             'description' => 'Monitors YouTube channels for active livestreams and automatically creates or removes custom channels. Zero API quota — uses yt-dlp.',
         ],
