@@ -10,13 +10,16 @@
  * - A resolver profile with mp4 format produces a .mp4 proxy URL
  * - A resolver profile with ts format produces a .ts proxy URL
  * - FFmpeg profile format is unchanged by the fix (regression guard)
+ * - M3uProxyService::createTranscodedStream() sends the correct resolver payload
  */
 
 use App\Models\Channel;
 use App\Models\Playlist;
 use App\Models\StreamProfile;
 use App\Models\User;
+use App\Services\M3uProxyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -175,4 +178,150 @@ test('no profile format uses format detected from channel URL', function () {
     $proxyUrl = $channel->getProxyUrl();
 
     expect($proxyUrl)->toContain("/{$channel->id}.ts");
+});
+
+// ── isResolver() unrecognised backend ────────────────────────────────────────
+
+test('isResolver returns false for an unrecognised backend value', function () {
+    $profile = StreamProfile::factory()->for($this->user)->create(['backend' => 'unknown_backend']);
+
+    expect($profile->isResolver())->toBeFalse();
+});
+
+test('isResolver returns false for an empty backend', function () {
+    $profile = StreamProfile::factory()->for($this->user)->create(['backend' => '']);
+
+    expect($profile->isResolver())->toBeFalse();
+});
+
+test('isResolver returns false for a null backend', function () {
+    // backend has a NOT NULL DB constraint, so test via an unsaved instance.
+    $profile = new StreamProfile(['backend' => null]);
+
+    expect($profile->isResolver())->toBeFalse();
+});
+
+// ── M3uProxyService resolver payload ─────────────────────────────────────────
+
+/**
+ * Call the protected createTranscodedStream() method via reflection so we can
+ * assert on the exact HTTP payload it sends without changing its visibility.
+ */
+function callCreateTranscodedStream(M3uProxyService $service, string $url, StreamProfile $profile, array $metadata = []): void
+{
+    $method = new ReflectionMethod($service, 'createTranscodedStream');
+    $method->invoke($service, $url, $profile, false, null, [], $metadata);
+}
+
+describe('M3uProxyService::createTranscodedStream() resolver payload', function () {
+    beforeEach(function () {
+        config(['proxy.m3u_proxy_host' => 'http://127.0.0.1:19999']);
+        // Catch all outbound HTTP so we never hit a real host, then assert on what was sent.
+        Http::fake(['*' => Http::response(['stream_id' => 'abc123'], 200)]);
+    });
+
+    test('streamlink profile sends resolver/resolver_args/cookies — not profile field', function () {
+        $profile = StreamProfile::factory()->for($this->user)->streamlink('best', 'ts')->create([
+            'cookies' => 'sessionid=abc; path=/',
+        ]);
+
+        callCreateTranscodedStream(
+            app(M3uProxyService::class),
+            'http://provider.test/live.ts',
+            $profile,
+            ['channel_id' => '1']
+        );
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), '/transcode')
+                && ($body['resolver'] ?? null) === 'streamlink'
+                && ($body['resolver_args'] ?? null) === 'best'
+                && ($body['cookies'] ?? null) === 'sessionid=abc; path=/'
+                && ! array_key_exists('profile', $body);
+        });
+    });
+
+    test('ytdlp profile sends correct resolver and resolver_args', function () {
+        $profile = StreamProfile::factory()->for($this->user)->ytdlp('bestvideo+bestaudio/best', 'ts')->create();
+
+        callCreateTranscodedStream(
+            app(M3uProxyService::class),
+            'http://provider.test/live.ts',
+            $profile,
+            ['channel_id' => '1']
+        );
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), '/transcode')
+                && ($body['resolver'] ?? null) === 'ytdlp'
+                && ($body['resolver_args'] ?? null) === 'bestvideo+bestaudio/best'
+                && ! array_key_exists('profile', $body);
+        });
+    });
+
+    test('cookies field is null when profile has no cookies', function () {
+        $profile = StreamProfile::factory()->for($this->user)->streamlink()->create(['cookies' => null]);
+
+        callCreateTranscodedStream(
+            app(M3uProxyService::class),
+            'http://provider.test/live.ts',
+            $profile,
+            ['channel_id' => '1']
+        );
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), '/transcode')
+                && array_key_exists('cookies', $body)
+                && $body['cookies'] === null;
+        });
+    });
+
+    test('ffmpeg profile sends profile field — not resolver fields', function () {
+        $profile = StreamProfile::factory()->for($this->user)->create([
+            'backend' => 'ffmpeg',
+            'args' => '-c:v copy -c:a aac',
+        ]);
+
+        callCreateTranscodedStream(
+            app(M3uProxyService::class),
+            'http://provider.test/live.ts',
+            $profile,
+            ['channel_id' => '1']
+        );
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), '/transcode')
+                && array_key_exists('profile', $body)
+                && ! array_key_exists('resolver', $body)
+                && ! array_key_exists('resolver_args', $body)
+                && ! array_key_exists('cookies', $body);
+        });
+    });
+
+    test('metadata is forwarded for both resolver and ffmpeg profiles', function () {
+        $profile = StreamProfile::factory()->for($this->user)->streamlink()->create();
+
+        callCreateTranscodedStream(
+            app(M3uProxyService::class),
+            'http://provider.test/live.ts',
+            $profile,
+            ['channel_id' => '42', 'playlist_uuid' => 'test-uuid']
+        );
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), '/transcode')
+                && ($body['metadata']['channel_id'] ?? null) === '42'
+                && ($body['metadata']['playlist_uuid'] ?? null) === 'test-uuid';
+        });
+    });
 });

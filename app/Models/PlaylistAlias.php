@@ -20,6 +20,9 @@ class PlaylistAlias extends Model
     use HasFactory;
     use ShortUrlTrait;
 
+    /** @var array<int>|null Memoised source_category_id list for the series() filter. */
+    public ?array $resolvedCategoryIds = null;
+
     protected $casts = [
         'xtream_config' => 'array',
         'group_filter' => 'array',
@@ -363,11 +366,11 @@ class PlaylistAlias extends Model
         // the filter survives any user renames of the Category record.
         $allowedCategoryNames = $this->getAllowedCategoryNames();
         if (! empty($allowedCategoryNames)) {
-            $allowedSourceCategoryIds = SourceCategory::where('playlist_id', $this->playlist_id)
+            $this->resolvedCategoryIds ??= SourceCategory::where('playlist_id', $this->playlist_id)
                 ->whereIn('name', $allowedCategoryNames)
                 ->pluck('source_category_id')
                 ->all();
-            $relation->whereIn('series.source_category_id', $allowedSourceCategoryIds);
+            $relation->whereIn('series.source_category_id', $this->resolvedCategoryIds);
         }
 
         return $relation;

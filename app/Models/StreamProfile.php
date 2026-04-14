@@ -47,7 +47,7 @@ class StreamProfile extends Model
      */
     public function isResolver(): bool
     {
-        return ! empty($this->backend) && $this->backend !== 'ffmpeg';
+        return in_array($this->backend, ['streamlink', 'ytdlp'], strict: true);
     }
 
     /**
