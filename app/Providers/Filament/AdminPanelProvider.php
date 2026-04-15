@@ -150,6 +150,10 @@ class AdminPanelProvider extends PanelProvider
             // ->databaseNotificationsPolling('10s')
             ->colors([
                 'primary' => Color::Indigo,
+                'info' => Color::Sky,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
+                'success' => Color::Emerald,
             ])
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
@@ -157,6 +161,9 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 CustomDashboard::class,
             ])
+            // Explicit navigation replaces auto-discovery. When adding a new Resource or Page,
+            // register its getNavigationItems() call in the appropriate group below, or it
+            // will not appear in the sidebar.
             ->navigation(function (NavigationBuilder $builder): NavigationBuilder {
                 return $builder
                     ->items([

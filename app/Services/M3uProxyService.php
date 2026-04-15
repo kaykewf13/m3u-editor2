@@ -455,9 +455,11 @@ class M3uProxyService
      * @param  string  $field  Metadata field to filter by (e.g., 'playlist_uuid', 'type')
      * @param  string  $value  Value to match
      * @param  int|null  $excludeChannelId  Optional channel ID to exclude (keep this stream)
+     * @param  bool  $force  When false, streams with active clients are preserved. Defaults to true (existing behaviour).
+     * @param  string|null  $clientId  ID of the disconnecting client. When provided with force=false, the proxy removes this client immediately before evaluating whether other clients remain.
      * @return array Result with deleted_count and success status
      */
-    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null): array
+    public static function stopStreamsByMetadata(string $field, string $value, ?int $excludeChannelId = null, bool $force = true, ?string $clientId = null): array
     {
         $service = new self;
 
@@ -474,10 +476,15 @@ class M3uProxyService
             $params = [
                 'field' => $field,
                 'value' => $value,
+                'force' => $force ? 'true' : 'false',
             ];
 
             if ($excludeChannelId !== null) {
                 $params['exclude_channel_id'] = (string) $excludeChannelId;
+            }
+
+            if ($clientId !== null) {
+                $params['client_id'] = $clientId;
             }
 
             $response = Http::timeout(5)->acceptJson()
@@ -1848,11 +1855,23 @@ class M3uProxyService
             $endpoint = $this->apiBaseUrl.'/transcode';
 
             // Build the payload for transcoding
-            $payload = [
-                'url' => $url,
-                'profile' => $profile->getProfileIdentifier(),  // Custom args template or predefined profile name
-                'metadata' => $metadata,
-            ];
+            if ($profile->isResolver()) {
+                // Resolver backend (streamlink / yt-dlp) — pass resolver fields, not FFmpeg profile
+                $payload = [
+                    'url' => $url,
+                    'resolver' => $profile->backend,
+                    'resolver_args' => $profile->args ?? '',
+                    'cookies' => $profile->cookies ?: null,
+                    'metadata' => $metadata,
+                ];
+            } else {
+                // FFmpeg backend — pass profile template/name as before
+                $payload = [
+                    'url' => $url,
+                    'profile' => $profile->getProfileIdentifier(),
+                    'metadata' => $metadata,
+                ];
+            }
 
             // Handle strict_live_ts flag if set in metadata
             if ($metadata['strict_live_ts'] ?? false) {
