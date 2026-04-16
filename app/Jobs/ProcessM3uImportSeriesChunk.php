@@ -155,8 +155,6 @@ class ProcessM3uImportSeriesChunk implements ShouldQueue
                 ? Carbon::createFromTimestamp((int) $item->last_modified)->toDateTimeString()
                 : null;
 
-            Log::info('Processing series: '.$itemName.' (Series ID: '.$item->series_id.') in category ID '.$sourceCategoryId.' - Existing series ID: '.($existingSeries->id ?? 'None').' - Last modified: '.($item->last_modified ?? 'N/A'));
-
             if ($existingSeries) {
                 // Update last_modified if the provider has a newer value
                 if ($lastModified) {
