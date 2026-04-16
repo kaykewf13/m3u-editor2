@@ -883,13 +883,27 @@ class Preferences extends SettingsPage
                                 Section::make(__('Provider Request Delay'))
                                     ->description(__('Add a delay between requests to providers to avoid rate limiting.'))
                                     ->columnSpan('full')
-                                    ->columns(3)
+                                    ->columns(4)
                                     ->collapsible(false)
                                     ->schema([
                                         Toggle::make('enable_provider_request_delay')
                                             ->label(__('Enable request delay'))
                                             ->live()
-                                            ->helperText(__('When enabled, a delay will be added between requests to the provider during playlist and EPG syncs.')),
+                                            ->inline(false)
+                                            ->columnSpan(2)
+                                            ->helperText(__('When enabled, a delay will be added between requests to the provider during playlist and EPG syncs and other stream processing tasks.')),
+                                        TextInput::make('provider_max_concurrent_requests')
+                                            ->label(__('Max concurrent requests'))
+                                            ->integer()
+                                            ->columnSpan(2)
+                                            ->required()
+                                            ->hintIcon(
+                                                'heroicon-m-question-mark-circle',
+                                                tooltip: 'Lower values (1-2) are safer but slower. Set to 1 to process requests sequentially.'
+                                            )
+                                            ->minValue(1)
+                                            ->default(2)
+                                            ->helperText(__('Maximum number of simultaneous requests to the provider.')),
                                         TextInput::make('provider_request_delay_ms')
                                             ->label(__('Request delay (milliseconds)'))
                                             ->integer()
@@ -898,26 +912,14 @@ class Preferences extends SettingsPage
                                                 'heroicon-m-question-mark-circle',
                                                 tooltip: 'Recommended: 500-2000ms. Higher values reduce load on provider but increase sync time.'
                                             )
+                                            ->columnSpan(1)
                                             ->minValue(100)
                                             ->maxValue(10000)
                                             ->step(100)
                                             ->default(500)
                                             ->suffix('ms')
                                             ->hidden(fn ($get) => ! $get('enable_provider_request_delay'))
-                                            ->helperText(__('Delay in milliseconds between requests.')),
-                                        TextInput::make('provider_max_concurrent_requests')
-                                            ->label(__('Max concurrent requests'))
-                                            ->integer()
-                                            ->required()
-                                            ->hintIcon(
-                                                'heroicon-m-question-mark-circle',
-                                                tooltip: 'Lower values (1-2) are safer but slower. Set to 1 to process requests sequentially.'
-                                            )
-                                            ->minValue(1)
-                                            ->maxValue(10)
-                                            ->default(2)
-                                            ->hidden(fn ($get) => ! $get('enable_provider_request_delay'))
-                                            ->helperText(__('Maximum number of simultaneous requests to the provider.')),
+                                            ->helperText(__('Delay in milliseconds between requests. 0 for no delay.')),
                                     ]),
                                 Section::make(__('Sync Invalidation'))
                                     ->description(__('Prevent sync from proceeding if conditions are met.'))

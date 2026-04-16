@@ -61,11 +61,16 @@ it('marks a channel dead via ffprobe when ensureStreamStats returns empty', func
     ]);
 });
 
-it('does not mark a channel dead via ffprobe when ensureStreamStats returns stats', function () {
-    // Pre-populated stream_stats → ensureStreamStats() returns them immediately → alive
+it('marks a channel dead via ffprobe even when stream_stats are cached', function () {
+    // Previously, cached stream_stats caused ensureStreamStats() to skip the network check,
+    // producing false negatives for dead streams that had been probed before.
+    // The new lightweight ffprobe probe always makes a fresh network call — cached stats
+    // are irrelevant. A null URL with cached stats is still dead.
     $channel = Channel::factory()->for($this->playlist)->create([
         'user_id' => $this->user->id,
         'enabled' => true,
+        'url' => null,
+        'url_custom' => null,
         'stream_stats' => [
             ['stream' => ['codec_type' => 'video', 'codec_name' => 'h264', 'width' => 1920, 'height' => 1080]],
         ],
@@ -81,9 +86,9 @@ it('does not mark a channel dead via ffprobe when ensureStreamStats returns stat
     ))->handle();
 
     $channel->refresh();
-    expect($channel->enabled)->toBeTrue();
+    expect($channel->enabled)->toBeFalse();
 
-    $this->assertDatabaseMissing('channel_scrubber_log_channels', [
+    $this->assertDatabaseHas('channel_scrubber_log_channels', [
         'channel_scrubber_log_id' => $this->log->id,
         'channel_id' => $channel->id,
     ]);
