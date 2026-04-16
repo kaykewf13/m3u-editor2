@@ -162,10 +162,8 @@ class Series extends Model
     public function fetchMetadata($refresh = false, $sync = true, bool $dispatchTmdb = true)
     {
         // Skip the provider call if data is still fresh (unless a forced refresh is requested).
-        $isFresh = false;
-        if (! $refresh && $this->last_metadata_fetch && $this->last_modified) {
-            $isFresh = $this->last_metadata_fetch >= $this->last_modified;
-        }
+        $isFresh = ! $refresh && $this->last_metadata_fetch && $this->last_modified
+            && $this->last_metadata_fetch >= $this->last_modified;
 
         try {
             if (! $isFresh) {

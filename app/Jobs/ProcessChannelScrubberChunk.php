@@ -32,6 +32,8 @@ class ProcessChannelScrubberChunk implements ShouldQueue
 
     public $timeout = 60 * 60;
 
+    private const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+
     /**
      * Create a new job instance.
      */
@@ -211,10 +213,10 @@ class ProcessChannelScrubberChunk implements ShouldQueue
         $deadIds = [];
 
         foreach ($channels as $channel) {
-            $name = $channel->title ?? $channel->name_custom ?? $channel->name ?? "#{$channel->id}";
-            $url = $channel->url_custom ?? $channel->url;
+            $name = $this->resolveChannelName($channel);
+            $url = $this->resolveChannelUrl($channel);
 
-            if (empty($url)) {
+            if ($url === null) {
                 $this->logResult('OFF', $name);
                 $deadIds[] = $channel->id;
 
@@ -224,7 +226,7 @@ class ProcessChannelScrubberChunk implements ShouldQueue
             $isDead = $this->withProviderThrottling(function () use ($url) {
                 try {
                     $response = Http::timeout($this->probeTimeout)
-                        ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'])
+                        ->withHeaders(['User-Agent' => self::USER_AGENT])
                         ->head($url);
 
                     return $response->failed();
@@ -255,7 +257,7 @@ class ProcessChannelScrubberChunk implements ShouldQueue
 
         foreach ($channels->chunk($concurrency) as $batch) {
             $urlMap = $batch->mapWithKeys(fn (Channel $ch) => [
-                (string) $ch->id => $ch->url_custom ?? $ch->url,
+                (string) $ch->id => $this->resolveChannelUrl($ch),
             ])->filter()->all();
 
             if (empty($urlMap)) {
@@ -269,7 +271,7 @@ class ProcessChannelScrubberChunk implements ShouldQueue
                     return collect($urlMap)->map(
                         fn (string $url, string $id) => $pool->as($id)
                             ->timeout($this->probeTimeout)
-                            ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'])
+                            ->withHeaders(['User-Agent' => self::USER_AGENT])
                             ->head($url)
                     )->all();
                 });
@@ -280,7 +282,7 @@ class ProcessChannelScrubberChunk implements ShouldQueue
             }
 
             foreach ($batch as $channel) {
-                $name = $channel->title ?? $channel->name_custom ?? $channel->name ?? "#{$channel->id}";
+                $name = $this->resolveChannelName($channel);
                 $response = $responses[(string) $channel->id] ?? null;
 
                 if ($response instanceof ConnectionException) {
@@ -308,10 +310,10 @@ class ProcessChannelScrubberChunk implements ShouldQueue
         $deadIds = [];
 
         foreach ($channels as $channel) {
-            $name = $channel->title ?? $channel->name_custom ?? $channel->name ?? "#{$channel->id}";
-            $url = $channel->url_custom ?? $channel->url;
+            $name = $this->resolveChannelName($channel);
+            $url = $this->resolveChannelUrl($channel);
 
-            if (empty($url)) {
+            if ($url === null) {
                 $this->logResult('OFF', $name);
                 $deadIds[] = $channel->id;
 
@@ -356,10 +358,6 @@ class ProcessChannelScrubberChunk implements ShouldQueue
     /** @return array<int> */
     private function probeFfprobeParallel(Collection $channels, int $concurrency): array
     {
-        $nameMap = $channels->pluck('title', 'id')->map(
-            fn (?string $title, int $id) => $title ?? "#{$id}"
-        )->all();
-
         $deadIds = [];
 
         foreach ($channels->chunk($concurrency) as $batch) {
@@ -367,8 +365,8 @@ class ProcessChannelScrubberChunk implements ShouldQueue
             $processes = [];
 
             foreach ($batch as $channel) {
-                $url = $channel->url_custom ?? $channel->url;
-                if (empty($url)) {
+                $url = $this->resolveChannelUrl($channel);
+                if ($url === null) {
                     $processes[$channel->id] = null;
 
                     continue;
@@ -392,7 +390,8 @@ class ProcessChannelScrubberChunk implements ShouldQueue
             }
 
             foreach ($processes as $channelId => $process) {
-                $name = $nameMap[$channelId] ?? "#{$channelId}";
+                $channel = $channels->firstWhere('id', $channelId);
+                $name = $channel ? $this->resolveChannelName($channel) : "#{$channelId}";
 
                 if ($process === null) {
                     $this->logResult('OFF', $name);
@@ -432,6 +431,18 @@ class ProcessChannelScrubberChunk implements ShouldQueue
     {
         $padded = str_pad($status, 15, ' ', STR_PAD_BOTH);
         Log::info("[{$padded}] {$channelName}");
+    }
+
+    private function resolveChannelName(Channel $channel): string
+    {
+        return $channel->title ?? $channel->name_custom ?? $channel->name ?? "#{$channel->id}";
+    }
+
+    private function resolveChannelUrl(Channel $channel): ?string
+    {
+        $url = $channel->url_custom ?? $channel->url;
+
+        return empty($url) ? null : $url;
     }
 
     /**
