@@ -930,7 +930,8 @@ class XtreamApiController extends Controller
                     }
 
                     $tmdb = $seriesItem->metadata['tmdb'] ?? '';
-                    $lastModified = $seriesItem->last_modified?->timestamp ?? $seriesItem->metadata['last_modified'] ?? null;
+                    $lastModified = $seriesItem->last_modified?->timestamp
+                        ?? (isset($seriesItem->metadata['last_modified']) ? (int) $seriesItem->metadata['last_modified'] : null);
 
                     $cover = $seriesItem->cover ? (filter_var($seriesItem->cover, FILTER_VALIDATE_URL) ? $seriesItem->cover : $baseUrl."/$seriesItem->cover") : LogoCacheService::getPlaceholderUrl('poster');
                     $backdropPaths = $seriesItem->backdrop_path ?? [];
