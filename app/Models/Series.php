@@ -98,7 +98,7 @@ class Series extends Model
         $imdbId = $this->imdb_id ?? $this->metadata['imdb_id'] ?? $this->metadata['imdb'] ?? null;
 
         return [
-            'tmdb' => $tmdbId != null ? (int) $tmdbId : null,
+            'tmdb' => $tmdbId !== null ? (int) $tmdbId : null,
             'tvdb' => $tvdbId,
             'imdb' => $imdbId,
         ];
