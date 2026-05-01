@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\Status;
-use App\Events\SyncCompleted;
 use App\Models\Playlist;
 use App\Settings\GeneralSettings;
 use Filament\Notifications\Notification;
@@ -21,13 +20,15 @@ class ProcessVodChannelsComplete implements ShouldQueue
 
     /**
      * Create a new job instance.
+     *
+     * @param  ShouldQueue|null  $completionJob  Job to dispatch at the end of the full VOD
+     *                                           pipeline (after STRM sync). Null for UI-triggered
+     *                                           refreshes that don't need a downstream event.
      */
     public function __construct(
         public Playlist $playlist,
-        public bool $fireSyncCompleted = true,
-    ) {
-        //
-    }
+        public ?ShouldQueue $completionJob = null,
+    ) {}
 
     /**
      * Execute the job.
@@ -83,16 +84,15 @@ class ProcessVodChannelsComplete implements ShouldQueue
             );
         }
 
-        // Fire SyncCompleted at the end of the full VOD pipeline so post-processing
-        // never runs before STRM sync (or any other post-VOD job) finishes.
-        // When series is also running, it owns firing SyncCompleted — so we skip it here.
+        // Append the completion job (FireSyncCompletedEvent or TriggerSeriesImport) as the
+        // very last step so post-processing and series import never start before STRM sync finishes.
         if (! empty($postJobs)) {
-            if ($this->fireSyncCompleted) {
-                $postJobs[] = new FireSyncCompletedEvent($this->playlist);
+            if ($this->completionJob) {
+                $postJobs[] = $this->completionJob;
             }
             Bus::chain($postJobs)->dispatch();
-        } elseif ($this->fireSyncCompleted) {
-            event(new SyncCompleted($this->playlist, 'playlist'));
+        } elseif ($this->completionJob) {
+            dispatch($this->completionJob);
         }
     }
 }

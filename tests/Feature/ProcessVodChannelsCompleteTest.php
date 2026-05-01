@@ -1,24 +1,27 @@
 <?php
 
 /**
- * Tests for ProcessVodChannelsComplete job dispatch ordering.
+ * Tests for the VOD pipeline completion ordering.
  *
- * Verifies that SyncCompleted fires AFTER the full VOD pipeline
- * (including STRM sync) rather than before it starts — fixing the
- * race condition reported in issue #1083.
- *
- * Also verifies that when series import is also running (fireSyncCompleted=false),
- * SyncCompleted is NOT fired by the VOD pipeline to avoid double-firing.
+ * Covers:
+ * - ProcessVodChannelsComplete appending the completionJob to the STRM/TMDB chain
+ * - ProcessVodChannelsComplete dispatching completionJob directly when no post-jobs run
+ * - ProcessVodChannelsComplete with null completionJob (UI-triggered refreshes — no event fired)
+ * - ProcessM3uImportVod STRM-only path appending completionJob to the chain
+ * - TriggerSeriesImport dispatching ProcessM3uImportSeries
+ * - FireSyncCompletedEvent firing SyncCompleted
  */
 
 use App\Enums\Status;
 use App\Events\SyncCompleted;
 use App\Jobs\FetchTmdbIds;
 use App\Jobs\FireSyncCompletedEvent;
+use App\Jobs\ProcessM3uImportSeries;
 use App\Jobs\ProcessM3uImportVod;
 use App\Jobs\ProcessVodChannelsComplete;
 use App\Jobs\RunPlaylistFindReplaceRules;
 use App\Jobs\SyncVodStrmFiles;
+use App\Jobs\TriggerSeriesImport;
 use App\Models\Playlist;
 use App\Models\User;
 use App\Settings\GeneralSettings;
@@ -32,7 +35,6 @@ function mockVodCompleteSettings(bool $tmdbAutoLookup): GeneralSettings
 {
     $mock = Mockery::mock(GeneralSettings::class);
     $mock->tmdb_auto_lookup_on_import = $tmdbAutoLookup;
-
     app()->instance(GeneralSettings::class, $mock);
 
     return $mock;
@@ -51,40 +53,51 @@ beforeEach(function () {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ProcessVodChannelsComplete: SyncCompleted fired directly when no async post-jobs
+// ProcessVodChannelsComplete — null completionJob (UI-triggered refreshes)
 // ──────────────────────────────────────────────────────────────────────────────
 
-it('fires SyncCompleted directly when no TMDB lookup or STRM sync is configured', function () {
+it('fires no completion job when completionJob is null and no post-jobs are needed', function () {
     mockVodCompleteSettings(tmdbAutoLookup: false);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist);
-    $job->handle(app(GeneralSettings::class));
-
-    Event::assertDispatched(SyncCompleted::class, fn (SyncCompleted $e) => $e->model->id === $this->playlist->id);
-    Bus::assertNotDispatched(FireSyncCompletedEvent::class);
-});
-
-it('does not fire SyncCompleted or chain it when fireSyncCompleted is false and no post-jobs', function () {
-    mockVodCompleteSettings(tmdbAutoLookup: false);
-
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist, fireSyncCompleted: false);
-    $job->handle(app(GeneralSettings::class));
+    (new ProcessVodChannelsComplete(playlist: $this->playlist))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
     Bus::assertNotDispatched(FireSyncCompletedEvent::class);
+    Bus::assertNotDispatched(TriggerSeriesImport::class);
+    Bus::assertNotDispatched(SyncVodStrmFiles::class);
+});
+
+it('dispatches only SyncVodStrmFiles (no completion) when completionJob is null', function () {
+    mockVodCompleteSettings(tmdbAutoLookup: false);
+    $this->playlist->update(['auto_sync_vod_stream_files' => true]);
+
+    (new ProcessVodChannelsComplete(playlist: $this->playlist))->handle(app(GeneralSettings::class));
+
+    Event::assertNotDispatched(SyncCompleted::class);
+    Bus::assertChained([SyncVodStrmFiles::class]);
+    Bus::assertNotDispatched(FireSyncCompletedEvent::class);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ProcessVodChannelsComplete: SyncCompleted deferred to end of chain
+// ProcessVodChannelsComplete — FireSyncCompletedEvent as completionJob (VOD-only sync)
 // ──────────────────────────────────────────────────────────────────────────────
 
-it('chains FireSyncCompletedEvent after SyncVodStrmFiles when STRM sync is enabled', function () {
+it('dispatches FireSyncCompletedEvent directly when no post-jobs are needed', function () {
     mockVodCompleteSettings(tmdbAutoLookup: false);
 
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
+
+    Event::assertNotDispatched(SyncCompleted::class);
+    Bus::assertDispatched(FireSyncCompletedEvent::class);
+});
+
+it('chains FireSyncCompletedEvent after SyncVodStrmFiles', function () {
+    mockVodCompleteSettings(tmdbAutoLookup: false);
     $this->playlist->update(['auto_sync_vod_stream_files' => true]);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist);
-    $job->handle(app(GeneralSettings::class));
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
     Bus::assertChained([SyncVodStrmFiles::class, FireSyncCompletedEvent::class]);
@@ -93,121 +106,130 @@ it('chains FireSyncCompletedEvent after SyncVodStrmFiles when STRM sync is enabl
 it('chains FireSyncCompletedEvent after FetchTmdbIds when only TMDB lookup is enabled', function () {
     mockVodCompleteSettings(tmdbAutoLookup: true);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist);
-    $job->handle(app(GeneralSettings::class));
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
     Bus::assertChained([FetchTmdbIds::class, FireSyncCompletedEvent::class]);
 });
 
-it('chains FireSyncCompletedEvent last when both TMDB lookup and STRM sync are enabled', function () {
+it('chains FireSyncCompletedEvent last when both TMDB and STRM sync are enabled', function () {
     mockVodCompleteSettings(tmdbAutoLookup: true);
-
     $this->playlist->update(['auto_sync_vod_stream_files' => true]);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist);
-    $job->handle(app(GeneralSettings::class));
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
     Bus::assertChained([FetchTmdbIds::class, SyncVodStrmFiles::class, FireSyncCompletedEvent::class]);
 });
 
-it('chains FindReplace before SyncVodStrmFiles and FireSyncCompletedEvent last when find-replace rules exist', function () {
+it('chains FindReplace before SyncVodStrmFiles and FireSyncCompletedEvent last', function () {
     mockVodCompleteSettings(tmdbAutoLookup: false);
-
     $this->playlist->update([
         'auto_sync_vod_stream_files' => true,
         'find_replace_rules' => [['enabled' => true, 'find_replace' => '^US- ', 'replace_with' => '']],
     ]);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist);
-    $job->handle(app(GeneralSettings::class));
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
     Bus::assertChained([RunPlaylistFindReplaceRules::class, SyncVodStrmFiles::class, FireSyncCompletedEvent::class]);
 });
 
-it('does not chain FireSyncCompletedEvent when fireSyncCompleted is false, even with STRM sync enabled', function () {
-    mockVodCompleteSettings(tmdbAutoLookup: false);
+// ──────────────────────────────────────────────────────────────────────────────
+// ProcessVodChannelsComplete — TriggerSeriesImport as completionJob (VOD→Series)
+// ──────────────────────────────────────────────────────────────────────────────
 
+it('chains TriggerSeriesImport after SyncVodStrmFiles when series follows VOD', function () {
+    mockVodCompleteSettings(tmdbAutoLookup: false);
     $this->playlist->update(['auto_sync_vod_stream_files' => true]);
 
-    $job = new ProcessVodChannelsComplete(playlist: $this->playlist, fireSyncCompleted: false);
-    $job->handle(app(GeneralSettings::class));
+    $completionJob = new TriggerSeriesImport($this->playlist, false, 'batch-123');
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
 
     Event::assertNotDispatched(SyncCompleted::class);
-    Bus::assertNotDispatched(FireSyncCompletedEvent::class);
-    Bus::assertDispatched(SyncVodStrmFiles::class);
+    Bus::assertChained([SyncVodStrmFiles::class, TriggerSeriesImport::class]);
+});
+
+it('dispatches TriggerSeriesImport directly when no post-jobs are needed', function () {
+    mockVodCompleteSettings(tmdbAutoLookup: false);
+
+    $completionJob = new TriggerSeriesImport($this->playlist, false, 'batch-123');
+    (new ProcessVodChannelsComplete($this->playlist, $completionJob))->handle(app(GeneralSettings::class));
+
+    Event::assertNotDispatched(SyncCompleted::class);
+    Bus::assertDispatched(TriggerSeriesImport::class);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ProcessM3uImportVod: STRM-only path (no metadata fetch)
+// ProcessM3uImportVod — STRM-only path (no metadata fetch)
 // ──────────────────────────────────────────────────────────────────────────────
 
 it('chains FireSyncCompletedEvent after SyncVodStrmFiles in the STRM-only path', function () {
-    $this->playlist->update([
-        'auto_fetch_vod_metadata' => false,
-        'auto_sync_vod_stream_files' => true,
-        'find_replace_rules' => null,
-    ]);
+    $this->playlist->update(['auto_fetch_vod_metadata' => false, 'auto_sync_vod_stream_files' => true]);
 
-    $job = new ProcessM3uImportVod(
-        playlist: $this->playlist,
-        isNew: false,
-        batchNo: 'test-batch',
-        fireSyncCompleted: true,
-    );
-    $job->handle();
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessM3uImportVod($this->playlist, false, 'batch', $completionJob))->handle();
 
     Bus::assertChained([SyncVodStrmFiles::class, FireSyncCompletedEvent::class]);
 });
 
-it('does not chain FireSyncCompletedEvent in the STRM-only path when fireSyncCompleted is false', function () {
-    $this->playlist->update([
-        'auto_fetch_vod_metadata' => false,
-        'auto_sync_vod_stream_files' => true,
-        'find_replace_rules' => null,
-    ]);
+it('chains TriggerSeriesImport after SyncVodStrmFiles in the STRM-only path', function () {
+    $this->playlist->update(['auto_fetch_vod_metadata' => false, 'auto_sync_vod_stream_files' => true]);
 
-    $job = new ProcessM3uImportVod(
-        playlist: $this->playlist,
-        isNew: false,
-        batchNo: 'test-batch',
-        fireSyncCompleted: false,
-    );
-    $job->handle();
+    $completionJob = new TriggerSeriesImport($this->playlist, false, 'batch');
+    (new ProcessM3uImportVod($this->playlist, false, 'batch', $completionJob))->handle();
 
-    Bus::assertNotDispatched(FireSyncCompletedEvent::class);
-    Bus::assertDispatched(SyncVodStrmFiles::class);
+    Bus::assertChained([SyncVodStrmFiles::class, TriggerSeriesImport::class]);
 });
 
-it('chains FindReplace then SyncVodStrmFiles then FireSyncCompletedEvent in STRM-only path with find-replace rules', function () {
+it('dispatches only SyncVodStrmFiles in the STRM-only path when completionJob is null', function () {
+    $this->playlist->update(['auto_fetch_vod_metadata' => false, 'auto_sync_vod_stream_files' => true]);
+
+    (new ProcessM3uImportVod($this->playlist, false, 'batch'))->handle();
+
+    Bus::assertChained([SyncVodStrmFiles::class]);
+    Bus::assertNotDispatched(FireSyncCompletedEvent::class);
+    Bus::assertNotDispatched(TriggerSeriesImport::class);
+});
+
+it('chains FindReplace→SyncVodStrmFiles→completionJob in STRM-only path with find-replace rules', function () {
     $this->playlist->update([
         'auto_fetch_vod_metadata' => false,
         'auto_sync_vod_stream_files' => true,
         'find_replace_rules' => [['enabled' => true, 'find_replace' => '^US- ', 'replace_with' => '']],
     ]);
 
-    $job = new ProcessM3uImportVod(
-        playlist: $this->playlist,
-        isNew: false,
-        batchNo: 'test-batch',
-        fireSyncCompleted: true,
-    );
-    $job->handle();
+    $completionJob = new FireSyncCompletedEvent($this->playlist);
+    (new ProcessM3uImportVod($this->playlist, false, 'batch', $completionJob))->handle();
 
     Bus::assertChained([RunPlaylistFindReplaceRules::class, SyncVodStrmFiles::class, FireSyncCompletedEvent::class]);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// FireSyncCompletedEvent: fires SyncCompleted for the correct playlist
+// TriggerSeriesImport — dispatches ProcessM3uImportSeries
+// ──────────────────────────────────────────────────────────────────────────────
+
+it('TriggerSeriesImport dispatches ProcessM3uImportSeries with force=true', function () {
+    (new TriggerSeriesImport($this->playlist, false, 'batch-abc'))->handle();
+
+    Bus::assertDispatched(ProcessM3uImportSeries::class, function (ProcessM3uImportSeries $job): bool {
+        return $job->playlist->id === $this->playlist->id
+            && $job->force === true
+            && $job->batchNo === 'batch-abc';
+    });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// FireSyncCompletedEvent — fires SyncCompleted
 // ──────────────────────────────────────────────────────────────────────────────
 
 it('FireSyncCompletedEvent fires SyncCompleted for its playlist', function () {
     Event::fake();
 
-    $job = new FireSyncCompletedEvent(playlist: $this->playlist);
-    $job->handle();
+    (new FireSyncCompletedEvent($this->playlist))->handle();
 
     Event::assertDispatched(SyncCompleted::class, fn (SyncCompleted $e) => $e->model->id === $this->playlist->id);
 });

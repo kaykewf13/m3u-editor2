@@ -13,15 +13,17 @@ class ProcessM3uImportVod implements ShouldQueue
 
     /**
      * Create a new job instance.
+     *
+     * @param  ShouldQueue|null  $completionJob  Job dispatched at the very end of the VOD
+     *                                           pipeline. Either FireSyncCompletedEvent (VOD-only)
+     *                                           or TriggerSeriesImport (VOD→Series sequential).
      */
     public function __construct(
         public Playlist $playlist,
         public bool $isNew,
         public string $batchNo,
-        public bool $fireSyncCompleted = true,
-    ) {
-        //
-    }
+        public ?ShouldQueue $completionJob = null,
+    ) {}
 
     /**
      * Execute the job.
@@ -37,7 +39,7 @@ class ProcessM3uImportVod implements ShouldQueue
             dispatch(new ProcessVodChannels(
                 playlist: $playlist,
                 updateProgress: false,
-                fireSyncCompleted: $this->fireSyncCompleted,
+                completionJob: $this->completionJob,
             ));
         } elseif ($playlist->auto_sync_vod_stream_files) {
             // No metadata fetch, but stream file sync was requested. Dispatch directly since
@@ -49,8 +51,8 @@ class ProcessM3uImportVod implements ShouldQueue
                 ? [new RunPlaylistFindReplaceRules($playlist), new SyncVodStrmFiles(playlist: $playlist)]
                 : [new SyncVodStrmFiles(playlist: $playlist)];
 
-            if ($this->fireSyncCompleted) {
-                $strmJobs[] = new FireSyncCompletedEvent($playlist);
+            if ($this->completionJob) {
+                $strmJobs[] = $this->completionJob;
             }
 
             Bus::chain($strmJobs)->dispatch();
