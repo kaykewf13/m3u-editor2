@@ -183,7 +183,13 @@ echo $totalBandwidth > 1000 ? round($totalBandwidth / 1000, 1) . ' Mbps' : $tota
                                                                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                                                                                     Stream {{ substr($stream['stream_id'], -8) }}
                                                                                 </h3>
-                                                                                <p class="text-sm text-gray-500 dark:text-gray-400 font-mono">{{ $stream['model']['title'] ?? 'N/A' }}</p>
+                                                                                <p class="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                                                                                    {{ $stream['model']['title'] ?? 'N/A' }}
+                                                                                    @if(!empty($stream['failover_channel']['title']))
+                                                                                        <span class="text-gray-400 dark:text-gray-500 mx-1">&rarr;</span>
+                                                                                        <span class="text-orange-600 dark:text-orange-400 font-medium">{{ $stream['failover_channel']['title'] }}</span>
+                                                                                    @endif
+                                                                                </p>
                                                                                 <p class="text-sm text-gray-500 dark:text-gray-400 font-mono truncate">{{ $stream['source_url'] }}</p>
                                                                             </div>
                                                                         </div>
@@ -273,6 +279,9 @@ echo $totalBandwidth > 1000 ? round($totalBandwidth / 1000, 1) . ' Mbps' : $tota
                                                                         <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mr-1">
                                                                             <x-heroicon-s-film class="w-3.5 h-3.5" />
                                                                             <span class="font-medium uppercase tracking-wide">Stream Info</span>
+                                                                            @if($mediaInfo['is_live'] ?? false)
+                                                                                <span class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Live data from active ffmpeg"></span>
+                                                                            @endif
                                                                         </div>
                                                                         @if($mediaInfo['resolution'] ?? false)
                                                                             <x-filament::badge color="info" size="sm" icon="heroicon-s-squares-2x2">
