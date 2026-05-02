@@ -159,7 +159,7 @@
             <div class="space-y-4">
                 @foreach ($streams as $stream)
                     <x-filament::card>
-                        <div class="p-6" x-data="{ showClients: false, showDetails: false }">
+                        <div x-data="{ showClients: false, showDetails: false }">
                             <!-- Stream Header -->
                             <div class="md:flex items-center justify-between mb-4">
                                 <div class="md:flex items-center space-x-0 md:space-x-4 space-y-2 md:space-y-0">
@@ -365,12 +365,14 @@
                                         <x-filament::button color="warning" size="sm"
                                             icon="heroicon-o-exclamation-triangle"
                                             wire:click="triggerFailover('{{ $stream['stream_id'] }}')"
+                                            wire:confirm="Are you sure you want to trigger a failover for this stream?"
                                             wire:loading.attr="disabled">
                                             Trigger Failover
                                         </x-filament::button>
                                     @endunless
                                     <x-filament::button color="danger" size="sm" icon="heroicon-o-trash"
                                         wire:click="stopStream('{{ $stream['stream_id'] }}')"
+                                        wire:confirm="Are you sure you want to remove this stream? This will disconnect all active clients."
                                         wire:loading.attr="disabled">
                                         Remove Stream
                                     </x-filament::button>
