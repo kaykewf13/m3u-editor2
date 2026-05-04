@@ -90,16 +90,12 @@ class SyncVodStrmFiles implements ShouldQueue
 
             // Explicit channels mode
             if ($this->channels) {
-                $channels = $this->channels instanceof Collection
-                    ? $this->channels
-                    : collect($this->channels);
-
-                if ($channels->isEmpty()) {
+                if ($this->channels->isEmpty()) {
                     return;
                 }
 
-                $this->syncChannels($channels, $settings, $globalStreamFileSetting, skipCleanup: false);
-                $this->dispatchMediaServerRefresh($globalStreamFileSetting, $channels);
+                $this->syncChannels($this->channels, $settings, $globalStreamFileSetting, skipCleanup: false);
+                $this->dispatchMediaServerRefresh($globalStreamFileSetting, $this->channels);
 
                 return;
             }
@@ -426,7 +422,12 @@ class SyncVodStrmFiles implements ShouldQueue
 
             // Remove consecutive replacement characters if enabled
             if ($removeConsecutiveChars && $replaceChar !== 'remove') {
-                $char = $replaceChar === 'space' ? ' ' : ($replaceChar === 'dash' ? '-' : ($replaceChar === 'underscore' ? '_' : '.'));
+                $char = match ($replaceChar) {
+                    'space' => ' ',
+                    'dash' => '-',
+                    'underscore' => '_',
+                    default => '.',
+                };
                 $fileName = preg_replace('/'.preg_quote($char, '/').'{2,}/', $char, $fileName);
             }
 

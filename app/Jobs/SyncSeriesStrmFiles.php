@@ -690,7 +690,12 @@ class SyncSeriesStrmFiles implements ShouldQueue
 
                 // Remove consecutive replacement characters if enabled
                 if ($removeConsecutiveChars && $replaceChar !== 'remove') {
-                    $char = $replaceChar === 'space' ? ' ' : ($replaceChar === 'dash' ? '-' : ($replaceChar === 'underscore' ? '_' : '.'));
+                    $char = match ($replaceChar) {
+                        'space' => ' ',
+                        'dash' => '-',
+                        'underscore' => '_',
+                        default => '.',
+                    };
                     $fileName = preg_replace('/'.preg_quote($char, '/').'{2,}/', $char, $fileName);
                 }
 
