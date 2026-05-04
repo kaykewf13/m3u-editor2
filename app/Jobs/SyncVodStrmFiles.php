@@ -558,6 +558,15 @@ class SyncVodStrmFiles implements ShouldQueue
                     ->sendToDatabase($user);
             }
         }
+
+        // Fire vod_stream_files_synced post-processes for the specific playlist
+        $playlistId = $this->resolvePlaylistId();
+        if (! $this->all_playlists && $playlistId) {
+            $playlist = $this->playlist ?? Playlist::find($playlistId);
+            if ($playlist) {
+                dispatch(new FireStreamFilesSyncedEvent($playlist, 'vod_stream_files_synced'));
+            }
+        }
     }
 
     /**

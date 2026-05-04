@@ -167,14 +167,17 @@ class PostProcessResource extends Resource implements CopilotResource
                 ->helperText(__('A descriptive name for this post process.')),
             Select::make('event')
                 ->required()
+                ->native(false)
                 ->options([
                     'synced' => 'Synced',
+                    'vod_stream_files_synced' => 'VOD Stream Files Synced',
+                    'series_stream_files_synced' => 'Series Stream Files Synced',
                     'created' => 'Created',
                     // 'updated' => 'Updated', // Can lead to a lot of calls! Updates are called during the sync process.
                     'deleted' => 'Deleted',
                 ])
                 ->default('synced')
-                ->helperText(__('The event that will trigger this post process.')),
+                ->helperText(__('The event that will trigger this post process. "VOD/Series Stream Files Synced" fires after the respective .strm file sync completes (requires .strm sync to be enabled on the playlist).')),
             ToggleButtons::make('metadata.local')
                 ->label(__('Type'))
                 ->grouped()
