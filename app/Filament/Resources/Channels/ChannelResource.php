@@ -10,6 +10,7 @@ use App\Filament\Concerns\HasCopilotSupport;
 use App\Filament\Resources\ChannelResource\Pages;
 use App\Filament\Resources\Channels\Pages\ListChannels;
 use App\Filament\Resources\EpgMaps\EpgMapResource;
+use App\Filament\Tables\ProbeStatusColumn;
 use App\Jobs\ChannelFindAndReplace;
 use App\Jobs\ChannelFindAndReplaceReset;
 use App\Jobs\MapPlaylistChannelsToEpg;
@@ -324,17 +325,7 @@ class ChannelResource extends Resource implements CopilotResource
                 ->toggleable(isToggledHiddenByDefault: false)
                 ->sortable(false)
                 ->hidden(fn () => ! auth()->user()->canUseProxy()),
-            IconColumn::make('stream_stats_probed_at')
-                ->label(__('Probed'))
-                ->getStateUsing(fn ($record): bool => $record->stream_stats_probed_at !== null)
-                ->boolean()
-                ->trueIcon('heroicon-o-check-circle')
-                ->falseIcon('heroicon-o-x-circle')
-                ->trueColor('success')
-                ->falseColor('gray')
-                ->tooltip(fn ($record): ?string => $record->stream_stats_probed_at?->diffForHumans())
-                ->toggleable()
-                ->sortable(),
+            ProbeStatusColumn::make(),
             ToggleColumn::make('epg_map_enabled')
                 ->label(__('Mapping Enabled'))
                 ->sortable(),
@@ -430,13 +421,21 @@ class ChannelResource extends Resource implements CopilotResource
                     return $query->where('epg_channel_id', '=', null);
                 }),
             Filter::make('probed')
-                ->label(__('Stream probed'))
+                ->label(__('Probed'))
                 ->toggle()
                 ->query(function ($query) {
-                    return $query->whereNotNull('stream_stats_probed_at');
+                    return $query->whereNotNull('stream_stats_probed_at')
+                        ->whereNotNull('stream_stats')->whereRaw("CAST(stream_stats AS TEXT) != '[]'");
+                }),
+            Filter::make('probe_failed')
+                ->label(__('Probe failed'))
+                ->toggle()
+                ->query(function ($query) {
+                    return $query->whereNotNull('stream_stats_probed_at')
+                        ->where(fn ($q) => $q->whereNull('stream_stats')->orWhereRaw("CAST(stream_stats AS TEXT) = '[]'"));
                 }),
             Filter::make('not_probed')
-                ->label(__('Stream not probed'))
+                ->label(__('Not probed'))
                 ->toggle()
                 ->query(function ($query) {
                     return $query->whereNull('stream_stats_probed_at');
@@ -978,6 +977,47 @@ class ChannelResource extends Resource implements CopilotResource
 
             // -- Streaming --
             BulkModalActionGroup::section('Streaming', [
+                BulkAction::make('set-stream-profile')
+                    ->label(__('Set Stream Profile'))
+                    ->schema([
+                        Select::make('stream_profile_id')
+                            ->label(__('Stream Profile'))
+                            ->options(fn () => StreamProfile::where('user_id', auth()->id())->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder(__('None (clear profile)'))
+                            ->helperText(__('The stored profile only takes effect when the channel (or its playlist) has proxy enabled.')),
+                        Toggle::make('overwrite_existing')
+                            ->label(__('Overwrite existing assignments'))
+                            ->helperText(__('When off, only channels without a stream profile will be updated. When on, all selected channels will be overwritten (including clearing back to none).'))
+                            ->default(false),
+                    ])
+                    ->action(function (Collection $records, array $data): void {
+                        $profileId = ! empty($data['stream_profile_id']) ? (int) $data['stream_profile_id'] : null;
+                        $overwrite = (bool) ($data['overwrite_existing'] ?? false);
+                        $updated = 0;
+
+                        foreach ($records->chunk(100) as $chunk) {
+                            $query = Channel::whereIn('id', $chunk->pluck('id'));
+                            if (! $overwrite) {
+                                $query->whereNull('stream_profile_id');
+                            }
+                            $updated += $query->update(['stream_profile_id' => $profileId]);
+                        }
+
+                        Notification::make()
+                            ->success()
+                            ->title(__('Stream profile updated'))
+                            ->body(trans_choice(':count channel updated|:count channels updated', $updated, ['count' => $updated]))
+                            ->send();
+                    })
+                    ->deselectRecordsAfterCompletion()
+                    ->requiresConfirmation()
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->modalIcon('heroicon-o-cog-6-tooth')
+                    ->modalDescription(__('Assign (or clear) a stream profile for the selected channels.'))
+                    ->modalSubmitActionLabel(__('Apply')),
                 BulkAction::make('enable-merge')
                     ->label(__('Enable Merge'))
                     ->action(function (Collection $records, array $data): void {
@@ -1273,7 +1313,203 @@ class ChannelResource extends Resource implements CopilotResource
                             ->trueColor('success')
                             ->falseColor('danger'),
                     ]),
+                Section::make(__('Technical Details'))
+                    ->collapsible()
+                    ->visible(fn ($record) => $record && ! $record->is_vod)
+                    ->headerActions([
+                        Action::make('probe')
+                            ->label(fn ($record) => match (self::resolveTechnicalDetailsState($record)) {
+                                'ok' => __('Re-probe'),
+                                'failed' => __('Retry probe'),
+                                default => __('Probe now'),
+                            })
+                            ->icon('heroicon-o-arrow-path')
+                            ->visible(fn ($record) => $record && $record->probe_enabled)
+                            ->action(function ($record) {
+                                dispatch(new ProbeChannelStreams(channelIds: [$record->id]));
+
+                                Notification::make()
+                                    ->success()
+                                    ->title(__('Probing started'))
+                                    ->body(__('You will be notified when complete.'))
+                                    ->send();
+                            }),
+                    ])
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('tech.resolution')
+                            ->label(__('Resolution'))
+                            ->state(fn ($record) => $record?->getStreamStatsForDisplay()['compact']['resolution'] ?? null)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ! empty($record->getStreamStatsForDisplay()['compact']['resolution'])),
+                        TextEntry::make('tech.source_fps')
+                            ->label(__('Frame rate'))
+                            ->state(function ($record) {
+                                $fps = $record?->getStreamStatsForDisplay()['compact']['source_fps'] ?? null;
+
+                                return $fps !== null ? "{$fps} fps" : null;
+                            })
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ($record->getStreamStatsForDisplay()['compact']['source_fps'] ?? null) !== null),
+                        TextEntry::make('tech.video_codec_display')
+                            ->label(__('Video codec'))
+                            ->state(fn ($record) => $record?->getStreamStatsForDisplay()['compact']['video_codec_display'] ?? null)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ! empty($record->getStreamStatsForDisplay()['compact']['video_codec_display'])),
+                        TextEntry::make('tech.ffmpeg_output_bitrate')
+                            ->label(__('Video bitrate'))
+                            ->state(function ($record) {
+                                $v = $record?->getStreamStatsForDisplay()['compact']['ffmpeg_output_bitrate'] ?? null;
+
+                                return $v !== null ? number_format($v, 0).' kbps' : null;
+                            })
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ($record->getStreamStatsForDisplay()['compact']['ffmpeg_output_bitrate'] ?? null) !== null),
+                        TextEntry::make('tech.audio_codec')
+                            ->label(__('Audio codec'))
+                            ->state(fn ($record) => $record?->getStreamStatsForDisplay()['compact']['audio_codec'] ?? null)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ! empty($record->getStreamStatsForDisplay()['compact']['audio_codec'])),
+                        TextEntry::make('tech.audio_channels')
+                            ->label(__('Audio channels'))
+                            ->state(fn ($record) => $record?->getStreamStatsForDisplay()['compact']['audio_channels'] ?? null)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ! empty($record->getStreamStatsForDisplay()['compact']['audio_channels'])),
+                        TextEntry::make('tech.audio_bitrate')
+                            ->label(__('Audio bitrate'))
+                            ->state(function ($record) {
+                                $v = $record?->getStreamStatsForDisplay()['compact']['audio_bitrate'] ?? null;
+
+                                return $v !== null ? number_format($v, 0).' kbps' : null;
+                            })
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ($record->getStreamStatsForDisplay()['compact']['audio_bitrate'] ?? null) !== null),
+                        TextEntry::make('tech.audio_language')
+                            ->label(__('Audio language'))
+                            ->state(fn ($record) => $record?->getStreamStatsForDisplay()['compact']['audio_language'] ?? null)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'
+                                && ! empty($record->getStreamStatsForDisplay()['compact']['audio_language'])),
+                        TextEntry::make('tech.probed_at')
+                            ->label(__('Last probed'))
+                            ->state(fn ($record) => $record?->stream_stats_probed_at?->diffForHumans())
+                            ->tooltip(fn ($record) => $record?->stream_stats_probed_at?->toDayDateTimeString())
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok'),
+                        Section::make(__('Advanced'))
+                            ->collapsible()
+                            ->collapsed()
+                            ->compact()
+                            ->columnSpanFull()
+                            ->columns(2)
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'ok')
+                            ->schema([
+                                TextEntry::make('tech.adv.video_codec_long_name')
+                                    ->label(__('Codec long name'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['video']['codec_long_name'] ?? null)
+                                    ->visible(fn ($record) => ! empty($record?->getStreamStatsForDisplay()['advanced']['video']['codec_long_name'])),
+                                TextEntry::make('tech.adv.video_level')
+                                    ->label(__('Level'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['video']['level'])
+                                    ->visible(fn ($record) => ($record?->getStreamStatsForDisplay()['advanced']['video']['level'] ?? null) !== null),
+                                TextEntry::make('tech.adv.video_bit_depth')
+                                    ->label(__('Bit depth'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['video']['bit_depth'])
+                                    ->visible(fn ($record) => ($record?->getStreamStatsForDisplay()['advanced']['video']['bit_depth'] ?? null) !== null),
+                                TextEntry::make('tech.adv.video_ref_frames')
+                                    ->label(__('Ref frames'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['video']['ref_frames'])
+                                    ->visible(fn ($record) => ($record?->getStreamStatsForDisplay()['advanced']['video']['ref_frames'] ?? null) !== null),
+                                TextEntry::make('tech.adv.video_dar')
+                                    ->label(__('Display aspect ratio'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['video']['display_aspect_ratio'] ?? null)
+                                    ->visible(fn ($record) => ! empty($record?->getStreamStatsForDisplay()['advanced']['video']['display_aspect_ratio'])),
+                                TextEntry::make('tech.adv.audio_sample_rate')
+                                    ->label(__('Sample rate'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['audio']['sample_rate'])
+                                    ->visible(fn ($record) => ($record?->getStreamStatsForDisplay()['advanced']['audio']['sample_rate'] ?? null) !== null),
+                                TextEntry::make('tech.adv.audio_codec_long_name')
+                                    ->label(__('Codec long name'))
+                                    ->state(fn ($record) => $record?->getStreamStatsForDisplay()['advanced']['audio']['codec_long_name'] ?? null)
+                                    ->visible(fn ($record) => ! empty($record?->getStreamStatsForDisplay()['advanced']['audio']['codec_long_name'])),
+                                TextEntry::make('tech.adv.all_streams')
+                                    ->label(__('All streams'))
+                                    ->columnSpanFull()
+                                    ->state(function ($record) {
+                                        $streams = $record?->getStreamStatsForDisplay()['advanced']['all_streams'] ?? null;
+                                        if (! $streams) {
+                                            return null;
+                                        }
+                                        $rows = array_map(function (array $s) {
+                                            $parts = ["#{$s['index']}", $s['type'], $s['codec']];
+                                            if ($s['lang'] !== null && $s['lang'] !== '') {
+                                                $parts[] = $s['lang'];
+                                            }
+
+                                            return implode(' · ', array_filter($parts, fn ($p) => $p !== null && $p !== ''));
+                                        }, $streams);
+
+                                        return implode("\n", $rows);
+                                    })
+                                    ->visible(fn ($record) => ! empty($record?->getStreamStatsForDisplay()['advanced']['all_streams'])),
+                                TextEntry::make('tech.adv.tags')
+                                    ->label(__('Tags'))
+                                    ->columnSpanFull()
+                                    ->state(function ($record) {
+                                        $tags = $record?->getStreamStatsForDisplay()['advanced']['tags'] ?? null;
+                                        if (! $tags) {
+                                            return null;
+                                        }
+                                        $rows = [];
+                                        foreach ($tags as $k => $v) {
+                                            $rows[] = "{$k}: {$v}";
+                                        }
+
+                                        return implode("\n", $rows);
+                                    })
+                                    ->visible(fn ($record) => ! empty($record?->getStreamStatsForDisplay()['advanced']['tags'])),
+                            ]),
+                        TextEntry::make('tech.placeholder_never')
+                            ->hiddenLabel()
+                            ->columnSpanFull()
+                            ->icon('heroicon-o-information-circle')
+                            ->state(fn () => __("This channel hasn't been probed yet. Run a probe to capture stream details."))
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'never'),
+                        TextEntry::make('tech.placeholder_failed')
+                            ->hiddenLabel()
+                            ->columnSpanFull()
+                            ->icon('heroicon-o-exclamation-triangle')
+                            ->state(function ($record) {
+                                $when = $record?->stream_stats_probed_at?->diffForHumans();
+
+                                return __('Last probe returned no data — the stream may have been unreachable.')
+                                    .($when ? " ({$when})" : '');
+                            })
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'failed'),
+                        TextEntry::make('tech.placeholder_disabled')
+                            ->hiddenLabel()
+                            ->columnSpanFull()
+                            ->icon('heroicon-o-no-symbol')
+                            ->state(fn () => __("Probing is disabled for this channel. Enable it in the channel's edit form to allow probe data collection."))
+                            ->visible(fn ($record) => self::resolveTechnicalDetailsState($record) === 'disabled'),
+                    ]),
             ]);
+    }
+
+    private static function resolveTechnicalDetailsState(?Channel $record): string
+    {
+        if (! $record) {
+            return 'disabled';
+        }
+        if (! $record->probe_enabled) {
+            return 'disabled';
+        }
+        if ($record->stream_stats_probed_at === null) {
+            return 'never';
+        }
+        if (empty($record->stream_stats)) {
+            return 'failed';
+        }
+
+        return 'ok';
     }
 
     public static function getForm($customPlaylist = null, $edit = false): array
@@ -1523,8 +1759,8 @@ class ChannelResource extends Resource implements CopilotResource
                         ->hint(fn (Get $get, $record): string => ($get('enable_proxy') || $record?->playlist?->enable_proxy) ? 'Proxied' : 'Not proxied')
                         ->hintIcon(fn (Get $get, $record): string => ($get('enable_proxy') || $record?->playlist?->enable_proxy) ? 'heroicon-m-lock-closed' : 'heroicon-m-lock-open')
                         ->helperText(fn ($record): string => $record?->playlist?->enable_proxy
-                            ? 'Proxy is enabled on the parent playlist. All channels in this playlist are already proxied. You can still select a stream profile override below.'
-                            : 'When enabled, all streams will be proxied through the application. This allows for better compatibility with various clients and enables features such as stream limiting and output format selection.')
+                            ? __('Proxy is enabled on the parent playlist. All channels in this playlist are already proxied. You can still select a stream profile override below.')
+                            : __('When enabled, this stream will be proxied through the application. This allows for better compatibility with various clients and enables features such as output format selection.'))
                         ->disabled(fn ($record): bool => (bool) ($record?->playlist?->enable_proxy ?? false))
                         ->dehydrated()
                         ->inline(false)
@@ -1537,7 +1773,7 @@ class ChannelResource extends Resource implements CopilotResource
                         ->nullable()
                         ->columnSpanFull()
                         ->visible(fn (Get $get, $record): bool => (bool) $get('enable_proxy') || (bool) ($record?->playlist?->enable_proxy ?? false))
-                        ->helperText(__('Transcode this channel using the selected profile. Overrides the playlist-level stream profile for this channel. Leave empty for direct stream proxying.')),
+                        ->helperText(__('Transcode this channel using the selected profile. Takes priority over both the playlist-level stream profile (used by external clients) and the in-app player default (Settings → Proxy → In-App Player Transcoding). Leave empty to fall back to those defaults.')),
                 ]),
             Fieldset::make(__('EPG Settings'))
                 ->schema([

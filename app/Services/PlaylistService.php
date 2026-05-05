@@ -326,6 +326,27 @@ class PlaylistService
         return "{$baseUrl}/series/{$username}/{$password}/{$seriesId}";
     }
 
+    /**
+     * Truncate a filename (without extension) to fit within the filesystem's
+     * 255-byte per-component limit. Uses mb_strcut() so multibyte UTF-8
+     * characters (e.g. accented French letters) are never split mid-sequence.
+     *
+     * @param  string  $name  The filename without extension.
+     * @param  string  $ext  The extension including its leading dot (e.g. '.strm').
+     * @param  int  $maxBytes  Maximum bytes for the full component (default 255).
+     */
+    public static function truncateFilename(string $name, string $ext = '', int $maxBytes = 255): string
+    {
+        $allowedBytes = $maxBytes - strlen($ext);
+
+        if (strlen($name) <= $allowedBytes) {
+            return $name;
+        }
+
+        // mb_strcut trims at a byte boundary that does not split a multibyte char.
+        return rtrim(mb_strcut($name, 0, $allowedBytes, 'UTF-8'));
+    }
+
     public static function makeFilesystemSafe(string $name, $replaceWith = ' '): string
     {
         switch ($replaceWith) {
@@ -371,17 +392,17 @@ class PlaylistService
             'container_extension' => 'mkv',
             'info' => (object) [
                 'season' => 1,
-                'tmdb_id' => '1176693',
+                'tmdb_id' => 1176693,
                 'movie_image' => 'http://m3ueditor.test/logo-proxy/aHR0cDovLzIzLjIyNy4xNDcuMTcyOjgwL2ltYWdlcy9mODQyYjlkYTA5YWFjODFlYWRlYzU0YzY0NWU1ZDE3OS5qcGc=',
             ],
             'category' => 'Anime',
             'series' => (object) [
                 'name' => 'My Hero Academia (2016)',
                 'release_date' => '2016-04-03',
-                'tmdb_id' => '65930',
+                'tmdb_id' => 65930,
                 'metadata' => [
                     'name' => 'My Hero Academia (2016)',
-                    'tmdb_id' => '65930',
+                    'tmdb_id' => 65930,
                 ],
             ],
         ];

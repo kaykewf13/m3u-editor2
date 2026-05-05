@@ -295,21 +295,16 @@ class FetchTmdbIds implements ShouldQueue
         } elseif (! empty($this->vodChannelIds)) {
             // Legacy: direct ID array support
             $query->whereIn('id', $this->vodChannelIds)
-                ->where('user_id', $this->user?->id);
+                ->when($this->user, fn ($q) => $q->where('user_id', $this->user->id));
         } else {
             return null; // No criteria specified
         }
 
-        // When not overwriting, exclude only records that were already attempted
-        // but no ID was found at all. Records with an existing ID are kept since
-        // they may still need metadata population, episode enrichment, or genre
-        // re-enrichment — conditions too complex to detect reliably at DB level.
-        if (! $this->overwriteExisting) {
-            $query->where(function ($q) {
-                $q->whereNull('last_metadata_fetch')
-                    ->orWhere(fn ($inner) => $inner->hasMovieId());
-            });
-        }
+        // Per-record skip logic in processItem() decides what to skip vs retry
+        // (records with IDs + complete metadata are skipped there). The previous
+        // DB filter excluded records with last_metadata_fetch set but no ID,
+        // making them un-retriable without overwrite — which the user expects
+        // to be retryable on subsequent runs.
 
         return $query;
     }
@@ -332,21 +327,16 @@ class FetchTmdbIds implements ShouldQueue
         } elseif (! empty($this->seriesIds)) {
             // Legacy: direct ID array support
             $query->whereIn('id', $this->seriesIds)
-                ->where('user_id', $this->user?->id);
+                ->when($this->user, fn ($q) => $q->where('user_id', $this->user->id));
         } else {
             return null; // No criteria specified
         }
 
-        // When not overwriting, exclude only records that were already attempted
-        // but no ID was found at all. Records with an existing ID are kept since
-        // they may still need metadata population, episode enrichment, or genre
-        // re-enrichment — conditions too complex to detect reliably at DB level.
-        if (! $this->overwriteExisting) {
-            $query->where(function ($q) {
-                $q->whereNull('last_metadata_fetch')
-                    ->orWhere(fn ($inner) => $inner->hasSeriesId());
-            });
-        }
+        // Per-record skip logic in processSeries() decides what to skip vs retry
+        // (series with IDs + metadata are skipped there). The previous DB
+        // filter excluded series with last_metadata_fetch set but no ID,
+        // making them un-retriable without overwrite — which the user expects
+        // to be retryable on subsequent runs.
 
         return $query;
     }
@@ -527,7 +517,7 @@ class FetchTmdbIds implements ShouldQueue
             }
 
             // Fetch full movie details from TMDB to populate metadata
-            $details = $tmdb->getMovieDetails($result['tmdb_id']);
+            $details = $tmdb->getMovieDetails((int) $result['tmdb_id']);
             if ($details) {
                 // Populate IMDB ID if missing
                 if (! empty($details['imdb_id']) && empty($updateData['imdb_id'])) {

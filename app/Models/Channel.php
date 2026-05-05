@@ -7,6 +7,7 @@ use App\Enums\PlaylistSourceType;
 use App\Jobs\FetchTmdbIds;
 use App\Observers\ChannelObserver;
 use App\Services\PlaylistService;
+use App\Services\StreamProfileRuleEvaluator;
 use App\Services\XtreamService;
 use App\Settings\GeneralSettings;
 use Exception;
@@ -64,6 +65,8 @@ class Channel extends Model
         'stream_stats' => 'array',
         'stream_stats_probed_at' => 'datetime',
         'probe_enabled' => 'boolean',
+        'year' => 'integer',
+        'edition' => 'string',
     ];
 
     public function user(): BelongsTo
@@ -74,6 +77,23 @@ class Channel extends Model
     public function streamProfile(): BelongsTo
     {
         return $this->belongsTo(StreamProfile::class);
+    }
+
+    /**
+     * Resolve the channel's stream profile to a concrete transcoding profile,
+     * unwrapping an adaptive profile (backend === 'adaptive') by evaluating
+     * its rules against the channel's cached probe data. Use this anywhere
+     * the profile is consumed for actual streaming; use $channel->streamProfile
+     * when showing the user-assigned value (it may itself be adaptive).
+     */
+    public function getEffectiveStreamProfile(): ?StreamProfile
+    {
+        $profile = $this->relationLoaded('streamProfile')
+            ? $this->streamProfile
+            : $this->streamProfile()->first();
+
+        return app(StreamProfileRuleEvaluator::class)
+            ->unwrap($profile, $this->stream_stats);
     }
 
     /**
@@ -201,6 +221,7 @@ class Channel extends Model
             ? $this->streamProfile
             : $this->streamProfile()->first();
         $profile ??= ($globalProfileId ? StreamProfile::find($globalProfileId) : null);
+        $profile = app(StreamProfileRuleEvaluator::class)->unwrap($profile, $this->stream_stats);
 
         // When no transcoding profile is set, the proxy delivers raw bytes (direct proxy),
         // not an HLS manifest. For VOD channels, use the actual container extension for both
@@ -357,9 +378,17 @@ class Channel extends Model
     /**
      * Run ffprobe against this channel's stream URL and return parsed stats.
      *
-     * @return array{streams: array<int, array{codec_type: string, codec_name: string, codec_long_name: ?string, profile: ?string, width: ?int, height: ?int, bit_rate: ?string, avg_frame_rate: ?string, display_aspect_ratio: ?string, sample_rate: ?string, channels: ?int, channel_layout: ?string, level: ?int, bits_per_raw_sample: ?string}>}
+     * Returns a flat list of entries, each with one of two shapes:
+     *   - Stream entry:  ['stream' => ['codec_type' => string, 'codec_name' => string, ...]]
+     *   - Format entry:  ['format' => ['bit_rate' => string]]  (appended once when available)
+     *
+     * The format entry carries the container-level bit_rate from `-show_format`. It is used
+     * as a fallback video bitrate for live MPEG-TS streams where ffprobe cannot determine
+     * a per-stream bit_rate. See getEmbyStreamStats() for the derivation logic.
+     *
+     * @return list<array{stream: array{codec_type: string, codec_name: string, codec_long_name: ?string, profile: ?string, width: ?int, height: ?int, bit_rate: ?string, avg_frame_rate: ?string, display_aspect_ratio: ?string, sample_rate: ?string, channels: ?int, channel_layout: ?string, level: ?int, bits_per_raw_sample: ?string, refs: ?int, tags: array<string, string>}}|array{format: array{bit_rate: string}}>
      */
-    public function probeStreamStats(): array
+    public function probeStreamStats(int $timeout = 15): array
     {
         try {
             $url = $this->url_custom ?? $this->url;
@@ -367,8 +396,8 @@ class Channel extends Model
                 return [];
             }
 
-            $process = new SymfonyProcess(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', $url]);
-            $process->setTimeout(15);
+            $process = new SymfonyProcess(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', $url]);
+            $process->setTimeout($timeout);
             $process->run();
 
             if ($process->getExitCode() !== 0) {
@@ -404,6 +433,15 @@ class Channel extends Model
                     }
                 }
 
+                // MPEG-TS live streams typically don't expose a per-stream video
+                // bit_rate (no CBR container, unknown duration). Capture the
+                // container-level bit_rate from -show_format so we can derive a
+                // sensible video bitrate fallback in getEmbyStreamStats().
+                $formatBitRate = $json['format']['bit_rate'] ?? null;
+                if ($formatBitRate !== null) {
+                    $streamStats[] = ['format' => ['bit_rate' => $formatBitRate]];
+                }
+
                 return $streamStats;
             }
         } catch (Exception $e) {
@@ -427,7 +465,13 @@ class Channel extends Model
 
         $video = null;
         $audio = null;
+        $formatBitRate = null;
         foreach ($stats as $entry) {
+            if (isset($entry['format']['bit_rate'])) {
+                $formatBitRate = $entry['format']['bit_rate'];
+
+                continue;
+            }
             $stream = $entry['stream'] ?? $entry;
             if (($stream['codec_type'] ?? '') === 'video' && ! $video) {
                 $video = $stream;
@@ -462,8 +506,21 @@ class Channel extends Model
                 $result['source_fps'] = $fps ? (float) $fps : null;
             }
 
-            // Convert bps to kbps
+            // Convert bps to kbps. For MPEG-TS live streams ffprobe usually
+            // reports no per-stream bit_rate on the video elementary stream
+            // (no CBR container, unknown duration). Fall back to
+            // container_bitrate - audio_bitrate, which is a tight upper bound
+            // for the video bitrate on a typical 1 video + 1 audio TS mux.
+            // NOTE: only the first audio track's bitrate is subtracted, so streams
+            // with multiple audio tracks will produce a slightly overstated value.
             $bitRate = $video['bit_rate'] ?? null;
+            if ($bitRate === null && $formatBitRate !== null) {
+                $audioBps = isset($audio['bit_rate']) ? (float) $audio['bit_rate'] : 0.0;
+                $derived = (float) $formatBitRate - $audioBps;
+                if ($derived > 0) {
+                    $bitRate = $derived;
+                }
+            }
             $result['ffmpeg_output_bitrate'] = $bitRate ? round((float) $bitRate / 1000, 1) : null;
         }
 
@@ -497,6 +554,96 @@ class Channel extends Model
         return $result;
     }
 
+    /**
+     * Build a display-friendly stream_stats shape for the Technical Details infolist panel.
+     *
+     * @return array{
+     *     compact: array{
+     *         resolution: ?string,
+     *         source_fps: ?float,
+     *         video_codec_display: ?string,
+     *         ffmpeg_output_bitrate: ?float,
+     *         audio_codec: ?string,
+     *         audio_channels: ?string,
+     *         audio_bitrate: ?float,
+     *         audio_language: ?string
+     *     },
+     *     advanced: array{
+     *         video: array{codec_long_name: ?string, level: ?int, bit_depth: ?int, ref_frames: ?int, display_aspect_ratio: ?string},
+     *         audio: array{sample_rate: ?int, codec_long_name: ?string},
+     *         all_streams: ?array<int, array{index: ?int, type: ?string, codec: ?string, lang: ?string}>,
+     *         tags: ?array<string, string>
+     *     }
+     * }
+     */
+    public function getStreamStatsForDisplay(): array
+    {
+        return once(function (): array {
+            $emby = $this->getEmbyStreamStats();
+            $stats = $this->stream_stats ?? [];
+
+            $video = null;
+            $audio = null;
+            $allStreams = [];
+
+            foreach ($stats as $index => $entry) {
+                $stream = $entry['stream'] ?? $entry;
+                $type = $stream['codec_type'] ?? null;
+
+                $allStreams[] = [
+                    'index' => $stream['index'] ?? $index,
+                    'type' => $type,
+                    'codec' => $stream['codec_name'] ?? null,
+                    'lang' => $stream['tags']['language'] ?? null,
+                ];
+
+                if ($type === 'video' && $video === null) {
+                    $video = $stream;
+                } elseif ($type === 'audio' && $audio === null) {
+                    $audio = $stream;
+                }
+            }
+
+            $videoCodecDisplay = null;
+            if (! empty($emby['video_codec'])) {
+                $videoCodecDisplay = $emby['video_codec'];
+                if (! empty($emby['video_profile'])) {
+                    $videoCodecDisplay .= " ({$emby['video_profile']})";
+                }
+            }
+
+            $videoTags = ! empty($video['tags']) ? $video['tags'] : null;
+
+            return [
+                'compact' => [
+                    'resolution' => $emby['resolution'] ?? null,
+                    'source_fps' => $emby['source_fps'] ?? null,
+                    'video_codec_display' => $videoCodecDisplay,
+                    'ffmpeg_output_bitrate' => $emby['ffmpeg_output_bitrate'] ?? null,
+                    'audio_codec' => $emby['audio_codec'] ?? null,
+                    'audio_channels' => $emby['audio_channels'] ?? null,
+                    'audio_bitrate' => $emby['audio_bitrate'] ?? null,
+                    'audio_language' => $emby['audio_language'] ?? null,
+                ],
+                'advanced' => [
+                    'video' => [
+                        'codec_long_name' => $video['codec_long_name'] ?? null,
+                        'level' => isset($video['level']) ? (int) $video['level'] : null,
+                        'bit_depth' => isset($video['bits_per_raw_sample']) ? (int) $video['bits_per_raw_sample'] : null,
+                        'ref_frames' => isset($video['refs']) ? (int) $video['refs'] : null,
+                        'display_aspect_ratio' => $video['display_aspect_ratio'] ?? null,
+                    ],
+                    'audio' => [
+                        'sample_rate' => isset($audio['sample_rate']) ? (int) $audio['sample_rate'] : null,
+                        'codec_long_name' => $audio['codec_long_name'] ?? null,
+                    ],
+                    'all_streams' => count($allStreams) > 2 ? $allStreams : null,
+                    'tags' => $videoTags,
+                ],
+            ];
+        });
+    }
+
     public function fetchMetadata($xtream = null, $refresh = false, bool $skipTmdb = false)
     {
         if (! $this->is_vod) {
@@ -509,66 +656,71 @@ class Channel extends Model
             return true;
         }
 
+        // Skip the provider call if data is still fresh (unless a forced refresh is requested).
+        $isFresh = ! $refresh && $this->last_metadata_fetch;
+
         try {
-            $playlist = $this->playlist;
+            if (! $isFresh) {
+                $playlist = $this->playlist;
 
-            // Get settings instance
-            $settings = app(GeneralSettings::class);
+                // For Xtream playlists, use XtreamService
+                if (! $xtream) {
+                    if (! $playlist->xtream && $playlist->source_type !== PlaylistSourceType::Xtream) {
+                        // Not an Xtream playlist and not Emby, no metadata source available
+                        return false;
+                    }
+                    $xtream = XtreamService::make($playlist);
+                }
 
-            // For Xtream playlists, use XtreamService
-            if (! $xtream) {
-                if (! $playlist->xtream && $playlist->source_type !== PlaylistSourceType::Xtream) {
-                    // Not an Xtream playlist and not Emby, no metadata source available
+                if (! $xtream) {
+                    Notification::make()
+                        ->danger()
+                        ->title('VOD metadata sync failed')
+                        ->body('Unable to connect to Xtream API provider to get VOD info, unable to fetch metadata.')
+                        ->broadcast($playlist->user)
+                        ->sendToDatabase($playlist->user);
+
                     return false;
                 }
-                $xtream = XtreamService::make($playlist);
-            }
 
-            if (! $xtream) {
-                Notification::make()
-                    ->danger()
-                    ->title('VOD metadata sync failed')
-                    ->body('Unable to connect to Xtream API provider to get VOD info, unable to fetch metadata.')
-                    ->broadcast($playlist->user)
-                    ->sendToDatabase($playlist->user);
-
-                return false;
-            }
-
-            $movieData = $xtream->getVodInfo($this->source_id, timeout: 60);
-            $releaseDate = $movieData['info']['release_date'] ?? null;
-            $releaseDateAlt = $movieData['info']['releasedate'] ?? null;
-            $year = $this->year;
-            if (! $releaseDate && $releaseDateAlt) {
-                // Make sure base release_date is always set
-                $movieData['info']['release_date'] = $releaseDateAlt;
-            }
-            if ($releaseDate || $releaseDateAlt) {
-                // If either data is set, and year is not set, update it
-                $dateToParse = $releaseDate ?? $releaseDateAlt;
-                $year = null;
-                try {
-                    $date = new \DateTime($dateToParse);
-                    $year = (int) $date->format('Y');
-                } catch (Exception $e) {
-                    Log::warning("Unable to parse release date \"{$dateToParse}\" for VOD {$this->id}");
+                $movieData = $xtream->getVodInfo($this->source_id, timeout: 60);
+                $releaseDate = $movieData['info']['release_date'] ?? null;
+                $releaseDateAlt = $movieData['info']['releasedate'] ?? null;
+                $year = $this->year;
+                if (! $releaseDate && $releaseDateAlt) {
+                    // Make sure base release_date is always set
+                    $movieData['info']['release_date'] = $releaseDateAlt;
                 }
+                if ($releaseDate || $releaseDateAlt) {
+                    // If either data is set, and year is not set, update it
+                    $dateToParse = $releaseDate ?? $releaseDateAlt;
+                    $year = null;
+                    try {
+                        $date = new \DateTime($dateToParse);
+                        $year = (int) $date->format('Y');
+                    } catch (Exception $e) {
+                        Log::warning("Unable to parse release date \"{$dateToParse}\" for VOD {$this->id}");
+                    }
+                }
+                $update = [
+                    'year' => $year,
+                    'info' => $movieData['info'] ?? null,
+                    'movie_data' => $movieData['movie_data'] ?? null,
+                    'last_metadata_fetch' => now(),
+                ];
+
+                $this->update($update);
             }
-            $update = [
-                'year' => $year,
-                'info' => $movieData['info'] ?? null,
-                'movie_data' => $movieData['movie_data'] ?? null,
-                'last_metadata_fetch' => now(),
-            ];
 
-            $this->update($update);
-
-            if (! $skipTmdb && $settings->tmdb_auto_lookup_on_import && $this->enabled) {
-                dispatch(new FetchTmdbIds(
-                    vodChannelIds: [$this->id],
-                    overwriteExisting: $refresh ?? false,
-                    sendCompletionNotification: false,
-                ))->afterCommit();
+            if (! $skipTmdb && $this->enabled) {
+                $settings = app(GeneralSettings::class);
+                if ($settings->tmdb_auto_lookup_on_import) {
+                    dispatch(new FetchTmdbIds(
+                        vodChannelIds: [$this->id],
+                        overwriteExisting: $refresh,
+                        sendCompletionNotification: false,
+                    ))->afterCommit();
+                }
             }
 
             return true;
@@ -579,14 +731,16 @@ class Channel extends Model
         return false;
     }
 
-    public function getTmdbId(): ?string
+    public function getTmdbId(): ?int
     {
-        return $this->tmdb_id
+        $id = $this->tmdb_id
             ?? $this->info['tmdb_id']
             ?? $this->info['tmdb']
             ?? $this->movie_data['tmdb_id']
             ?? $this->movie_data['tmdb']
             ?? null;
+
+        return $id !== null ? (int) $id : null;
     }
 
     public function getImdbId(): ?string
